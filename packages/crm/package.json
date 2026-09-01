@@ -1,0 +1,12 @@
+{
+  "name": "@motor/crm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Adapter de CRM: uma língua (moverEtapa, agendar, tag...), duas APIs (GHL/Kommo).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@motor/core": "*"
+  }
+}

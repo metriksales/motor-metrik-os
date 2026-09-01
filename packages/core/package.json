@@ -1,0 +1,12 @@
+{
+  "name": "@motor/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tipos e contratos compartilhados (AgentSpec, ChangeSet, taxonomia). A verdade do motor mora aqui + na skill agente-ia-metrik-completo.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

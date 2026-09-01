@@ -1,0 +1,596 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   MOTOR · METRIK OS — design tokens (identidade nova)
+   dark premium · violeta→fúcsia→cyan · glass · aurora
+   ============================================================ */
+:root {
+  --bg: #07070b;
+  --bg-2: #0a0a11;
+  --surface: rgba(255, 255, 255, 0.024);
+  --surface-2: rgba(255, 255, 255, 0.04);
+  --surface-hi: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-hi: rgba(255, 255, 255, 0.14);
+
+  --txt: #f4f4f7;
+  --txt-2: #b7b9c6;
+  --txt-3: #83879a;
+  --txt-4: #5a5e72;
+
+  --violet: #8b7cff;
+  --violet-2: #a78bfa;
+  --indigo: #6366f1;
+  --fuchsia: #d16bff;
+  --cyan: #22d3ee;
+  --emerald: #34d399;
+  --amber: #fbbf24;
+  --rose: #fb7185;
+
+  --grad: linear-gradient(135deg, #8b7cff 0%, #d16bff 48%, #22d3ee 100%);
+  --grad-soft: linear-gradient(135deg, rgba(139, 124, 255, 0.16), rgba(34, 211, 238, 0.12));
+
+  --radius: 18px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  --glow-violet: 0 0 0 1px rgba(139, 124, 255, 0.3), 0 20px 60px -22px rgba(139, 124, 255, 0.5);
+}
+
+html[data-theme="light"] {
+  --bg: #f6f7fb;
+  --bg-2: #eef0f6;
+  --surface: rgba(15, 18, 40, 0.03);
+  --surface-2: rgba(15, 18, 40, 0.05);
+  --surface-hi: rgba(15, 18, 40, 0.07);
+  --line: rgba(15, 18, 40, 0.1);
+  --line-hi: rgba(15, 18, 40, 0.16);
+  --txt: #14152a;
+  --txt-2: #3d4160;
+  --txt-3: #6b7090;
+  --txt-4: #9498b4;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 20px 40px -28px rgba(20, 21, 42, 0.4);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(139, 124, 255, 0.32);
+  color: #fff;
+}
+
+/* scrollbars */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-hi) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-hi);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+  background-clip: content-box;
+}
+
+/* ---------- typography helpers ---------- */
+.font-display {
+  font-family: "Space Grotesk", Inter, sans-serif;
+}
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+.mono-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+}
+.num {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- surfaces ---------- */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+}
+.card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-hover {
+  transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.22s, background 0.22s;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-hi);
+  background: var(--surface-2);
+}
+
+/* gradient border wrapper */
+.grad-border {
+  position: relative;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--bg-2), var(--bg-2)),
+    linear-gradient(135deg, rgba(139, 124, 255, 0.55), rgba(34, 211, 238, 0.4));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* ---------- text gradient ---------- */
+.grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.grad-text-shimmer {
+  background: linear-gradient(100deg, var(--txt) 20%, #fff 40%, var(--violet-2) 55%, var(--txt) 75%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+/* ---------- backgrounds ---------- */
+.grid-bg {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 78%);
+}
+.aurora {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 62vh;
+  pointer-events: none;
+  filter: blur(70px);
+  opacity: 0.55;
+  background: radial-gradient(38% 60% at 22% 20%, rgba(139, 124, 255, 0.5) 0%, transparent 70%),
+    radial-gradient(34% 55% at 70% 8%, rgba(209, 107, 255, 0.32) 0%, transparent 70%),
+    radial-gradient(40% 60% at 88% 34%, rgba(34, 211, 238, 0.3) 0%, transparent 70%);
+}
+html[data-theme="light"] .aurora {
+  opacity: 0.4;
+}
+
+/* ---------- pills / chips / dots ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--txt-2);
+  white-space: nowrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--txt-2);
+  cursor: pointer;
+  transition: 0.18s;
+}
+.chip:hover {
+  border-color: var(--line-hi);
+  background: var(--surface-2);
+  color: var(--txt);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  flex: none;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--emerald);
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--txt);
+  cursor: pointer;
+  transition: 0.18s;
+  white-space: nowrap;
+}
+.btn:hover {
+  border-color: var(--line-hi);
+  background: var(--surface-hi);
+}
+.btn-primary {
+  border: 1px solid transparent;
+  background: var(--grad);
+  color: #0a0714;
+  font-weight: 600;
+  box-shadow: 0 10px 30px -12px rgba(139, 124, 255, 0.7);
+}
+.btn-primary:hover {
+  filter: brightness(1.07);
+  box-shadow: 0 12px 34px -10px rgba(139, 124, 255, 0.85);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--txt-2);
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--txt);
+}
+.btn-sm {
+  padding: 6px 11px;
+  font-size: 12.5px;
+  border-radius: 10px;
+}
+
+/* nav item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  color: var(--txt-3);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.16s;
+  position: relative;
+}
+.nav-item:hover {
+  background: var(--surface-2);
+  color: var(--txt);
+}
+.nav-item.active {
+  background: var(--surface-hi);
+  color: var(--txt);
+}
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--grad);
+}
+
+/* misc */
+.divider {
+  height: 1px;
+  background: var(--line);
+}
+.hairline-x {
+  background: linear-gradient(90deg, transparent, var(--line-hi), transparent);
+  height: 1px;
+}
+.tick {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--txt-4);
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   ROBÔS — avatares de agente com estado (SVG animado)
+   ativo = olha/mexe · idle = cinza parado · pausado = dormindo
+   ============================================================ */
+.robot {
+  overflow: visible;
+  display: block;
+}
+.robot .shell {
+  fill: var(--rc);
+  fill-opacity: 0.13;
+  stroke: var(--rc);
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+}
+.robot .screen {
+  fill: #06060c;
+  stroke: var(--rc);
+  stroke-opacity: 0.25;
+  stroke-width: 1;
+}
+.robot .ear,
+.robot .body {
+  fill: var(--rc);
+  fill-opacity: 0.18;
+}
+.robot .antenna {
+  stroke: var(--rc);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.robot .antenna-dot {
+  fill: var(--rc);
+}
+.robot .pupil {
+  fill: var(--rc);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.robot .mouth {
+  fill: var(--rc);
+  fill-opacity: 0.5;
+}
+
+/* ATIVO */
+.robot--ativo {
+  animation: robot-bob 3.6s ease-in-out infinite;
+}
+.robot--ativo .pupil {
+  filter: drop-shadow(0 0 3px var(--rc));
+  animation: robot-blink 4.4s infinite;
+}
+.robot--ativo .eyes {
+  animation: robot-scan 5.2s ease-in-out infinite;
+}
+.robot--ativo.tracking .eyes {
+  animation: none;
+  transition: transform 0.12s ease-out;
+}
+.robot--ativo .antenna-dot {
+  animation: robot-antenna 1.9s ease-in-out infinite;
+}
+
+/* IDLE — cinza, parado */
+.robot--idle {
+  filter: grayscale(1) brightness(0.72);
+}
+.robot--idle .shell {
+  fill: var(--txt-4);
+  fill-opacity: 0.08;
+  stroke: var(--line-hi);
+}
+.robot--idle .ear,
+.robot--idle .body {
+  fill: var(--txt-4);
+  fill-opacity: 0.12;
+}
+.robot--idle .antenna {
+  stroke: var(--txt-4);
+}
+.robot--idle .antenna-dot {
+  fill: var(--txt-4);
+}
+.robot--idle .pupil {
+  fill: var(--txt-3);
+  transform: scaleY(0.16);
+}
+.robot--idle .mouth {
+  fill: var(--txt-4);
+}
+
+/* PAUSADO — dormindo */
+.robot--pausado .pupil {
+  transform: scaleY(0.16) translateY(-1px);
+}
+.robot--pausado .antenna-dot {
+  opacity: 0.5;
+}
+
+@keyframes robot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+@keyframes robot-scan {
+  0%, 16% { transform: translateX(0); }
+  30%, 44% { transform: translateX(3px); }
+  58%, 72% { transform: translateX(-3px); }
+  86%, 100% { transform: translateX(0); }
+}
+@keyframes robot-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%, 97% { transform: scaleY(0.12); }
+}
+@keyframes robot-antenna {
+  0%, 100% { opacity: 0.45; filter: none; }
+  50% { opacity: 1; filter: drop-shadow(0 0 3px var(--rc)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robot--ativo,
+  .robot--ativo .pupil,
+  .robot--ativo .eyes,
+  .robot--ativo .antenna-dot {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   ANDROIDE — avatar realista com estado (SVG + glitch RGB)
+   ativo = respira/olha/glitch · idle = cinza · pausado = dorme
+   ============================================================ */
+.andr {
+  overflow: visible;
+  display: block;
+}
+.andr .halo {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.andr .eye-core {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.andr .scanline {
+  opacity: 0;
+}
+
+/* ATIVO */
+.andr--ativo {
+  animation: andr-breathe 4.6s ease-in-out infinite;
+}
+.andr--ativo .halo {
+  opacity: 0.5;
+  animation: andr-halo 4.6s ease-in-out infinite;
+}
+.andr--ativo .eye-core {
+  filter: drop-shadow(0 0 3px var(--arc));
+  animation: andr-eye 4.4s ease-in-out infinite;
+}
+.andr--ativo .eyes {
+  animation: andr-look 6s ease-in-out infinite;
+}
+.andr--ativo.track .eyes {
+  animation: none;
+  transition: transform 0.12s ease-out;
+}
+.andr--ativo .face {
+  animation: andr-glitch 3.6s infinite;
+}
+.andr--ativo .scanline {
+  animation: andr-scan 3.8s linear infinite;
+}
+
+/* IDLE */
+.andr--idle {
+  filter: grayscale(1) brightness(0.62);
+}
+.andr--idle .eye-core {
+  fill-opacity: 0.3;
+}
+.andr--idle .eye-cl {
+  opacity: 0;
+}
+
+/* PAUSADO */
+.andr--pausado {
+  filter: saturate(0.72) brightness(0.82);
+}
+.andr--pausado .eye-core {
+  transform: scaleY(0.1);
+}
+.andr--pausado .eye-cl {
+  opacity: 0;
+}
+.andr--pausado .halo {
+  opacity: 0.16;
+}
+
+@keyframes andr-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-1.2px) scale(1.012); }
+}
+@keyframes andr-halo {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.62; }
+}
+@keyframes andr-eye {
+  0%, 88%, 100% { transform: scaleY(1); }
+  92%, 95% { transform: scaleY(0.1); }
+}
+@keyframes andr-look {
+  0%, 20% { transform: translateX(0); }
+  33%, 45% { transform: translateX(2.4px); }
+  60%, 72% { transform: translateX(-2.4px); }
+  88%, 100% { transform: translateX(0); }
+}
+@keyframes andr-scan {
+  0% { transform: translateY(0); opacity: 0; }
+  8% { opacity: 0.5; }
+  88% { opacity: 0.5; }
+  100% { transform: translateY(78px); opacity: 0; }
+}
+@keyframes andr-glitch {
+  0%, 90%, 100% { filter: none; transform: translateX(0); }
+  91% { filter: drop-shadow(-2px 0 0 rgba(255, 42, 92, 0.6)) drop-shadow(2px 0 0 rgba(40, 224, 255, 0.6)); transform: translateX(-1px); }
+  93% { filter: drop-shadow(2px 0 0 rgba(255, 42, 92, 0.55)) drop-shadow(-2px 0 0 rgba(40, 224, 255, 0.55)); transform: translateX(1.4px); }
+  95% { filter: none; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .andr--ativo,
+  .andr--ativo .halo,
+  .andr--ativo .eye-core,
+  .andr--ativo .eyes,
+  .andr--ativo .face,
+  .andr--ativo .scanline {
+    animation: none !important;
+  }
+  .andr--ativo .face {
+    filter: none !important;
+  }
+}
+
+/* falando — a boca do androide mexe */
+.andr.speaking .mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: andr-talk 0.42s ease-in-out infinite;
+}
+@keyframes andr-talk {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(2.2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .andr.speaking .mouth { animation: none !important; }
+}

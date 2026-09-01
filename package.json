@@ -1,0 +1,17 @@
+{
+  "name": "motor-metrik-os",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Motor Metrik OS — SaaS invertido multi-tenant. Monorepo: apps/web (front) + apps/runtime (motor) + packages (core/db/crm).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @motor/web",
+    "build:web": "npm run build --workspace @motor/web"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0"
+  }
+}

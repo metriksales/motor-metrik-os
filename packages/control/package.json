@@ -1,0 +1,20 @@
+{
+  "name": "@motor/control",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Control API (camada de serviço): inspecionar/propor(ChangeSet)/aprovar/publicar/reverter. org_id sempre do servidor.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@motor/core": "*",
+    "@motor/db": "*",
+    "drizzle-orm": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@motor/runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Data Plane — o motor que roda 24/7, fora do CRM. Liga na skill agente-ia-metrik-completo.",
+  "dependencies": {
+    "@motor/core": "*",
+    "@motor/crm": "*",
+    "@motor/db": "*"
+  }
+}
