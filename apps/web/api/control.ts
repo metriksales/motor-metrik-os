@@ -1,19 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as control from "@motor/control";
-import type { Ctx } from "@motor/control";
+import { resolveCtx } from "./_auth";
 
-// AUTH TEMPORÁRIA: service token + org no header. Clerk substitui (org_id da SESSÃO, nunca do cliente).
-function ctxFrom(req: VercelRequest): Ctx | null {
-  if (req.headers["x-motor-token"] !== process.env.CONTROL_PLANE_SECRET) return null;
-  const orgId = String(req.headers["x-org-id"] ?? "");
-  if (!orgId) return null;
-  return { orgId, actor: String(req.headers["x-actor"] ?? "api"), role: "admin" };
-}
-
-// Porta única: front, Claude Code, Codex e API batem AQUI.
+// Porta ÚNICA de mudança: front, Claude Code, Codex e API batem AQUI.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const ctx = ctxFrom(req);
+  const ctx = await resolveCtx(req);
   if (!ctx) return res.status(401).json({ error: "não autorizado" });
+  if (!process.env.DATABASE_URL) {
+    return res.status(503).json({ error: "banco não configurado — falta DATABASE_URL (Neon)" });
+  }
+
   const action = String(req.query.action ?? "");
   const body = (req.body ?? {}) as any;
   try {
