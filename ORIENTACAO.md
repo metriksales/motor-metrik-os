@@ -60,13 +60,14 @@ Exemplo — o **mesmo** motor de follow-up, dois clientes:
 
 ⛔ **NUNCA um motor por cliente** — isso é o inferno do n8n-por-cliente (bug = consertar em 40 lugares). Motor único = **conserta 1×, todos recebem**. Escape raríssimo (lógica 100% exclusiva): `custom/` do cliente, em **sandbox + trava de eval**, nunca um fork do motor.
 
-## Modo de operação — o SaaS invertido (QUEM faz o quê)
-**Compor NUNCA é do cliente.** A superfície de montagem é o **cockpit da Metrik**, não a tela do cliente.
+## Modo de operação — o SaaS invertido (ONDE se trabalha)
+**Você NÃO monta dentro do OS. Você monta AQUI (Claude Code); o OS é o destino.**
 
-- **🛠️ Modo Metrik (você + Claude, ao vivo na call):** você **fala** (não clica botão a botão) → o **Claude pluga via MCP (a tomada)** → o OS **desenha ao vivo**. O cliente vê o agente dele **nascer** na call. Minutos.
-- **👤 Modo Cliente (depois, sozinho):** recebe a solução **pronta e funcionando**. Não constrói. Só **ajusta o seguro** (texto, horário, liga/desliga do que já foi entregue, ver ao vivo). Zonas: 🟢 na hora · 🟡 simula→testa→aprova · 🔴 nem aparece (só mecânico).
-- **Não engessado:** por baixo é contrato+peças plugáveis → cliente pede algo novo, você pluga a peça **em minutos, ao vivo**, sem reescrever nem forkar.
-- **Visual:** cada peça **se declara (manifesto)** e o OS **desenha sozinho** → ligar uma peça = ela **aparece como feature funcionando**. É como você e o cliente enxergam na call.
+- **🛠️ Bancada = Claude Code (aqui):** você fala, o Claude escreve/pluga/testa as peças (na skill/no código). É onde a coisa **nasce e muda** — o normal do dia a dia.
+- **📺 OS = vitrine/entrega (lá):** não é ferramenta de montagem; é **onde o pronto mora e o cliente usa**. Cada skill/ideia feita aqui **vira uma feature/aba lá** (o cliente nem sabe que é skill) — é o "levar as skills e ideias pra lá".
+- **Subir = PUBLICAR:** terminou aqui → **publica** (Control API `publicar`) → aparece lá funcionando. Quer mudar → muda aqui → **republica**. (Você *pode* pedir uma mudança lá/pelo Claude na call também — mas o normal é aqui.)
+- **👤 Cliente (lá):** recebe **pronto**; só **ajusta o seguro** (texto/horário/liga-desliga do entregue; zonas 🟢 na hora · 🟡 simula→testa→aprova · 🔴 nem aparece).
+- **Não engessado:** contrato + peças plugáveis → peça nova em minutos, sem forkar. **Visual:** manifesto → o OS **desenha sozinho**.
 
 ---
-**Frase de parede:** *A Metrik + Claude configuram ao vivo (cockpit, voz/texto, MCP na tomada). O cliente recebe pronto e só ajusta o verde. Os motores já funcionam. Ninguém constrói apertando botão — você fala, a tela desenha.*
+**Frase de parede:** *A bancada é o Claude Code (aqui). O OS é a vitrine (lá). Você monta aqui e PUBLICA; a skill vira feature lá; o cliente recebe pronto e só ajusta o verde.*
