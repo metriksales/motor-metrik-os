@@ -60,5 +60,13 @@ Exemplo — o **mesmo** motor de follow-up, dois clientes:
 
 ⛔ **NUNCA um motor por cliente** — isso é o inferno do n8n-por-cliente (bug = consertar em 40 lugares). Motor único = **conserta 1×, todos recebem**. Escape raríssimo (lógica 100% exclusiva): `custom/` do cliente, em **sandbox + trava de eval**, nunca um fork do motor.
 
+## Modo de operação — o SaaS invertido (QUEM faz o quê)
+**Compor NUNCA é do cliente.** A superfície de montagem é o **cockpit da Metrik**, não a tela do cliente.
+
+- **🛠️ Modo Metrik (você + Claude, ao vivo na call):** você **fala** (não clica botão a botão) → o **Claude pluga via MCP (a tomada)** → o OS **desenha ao vivo**. O cliente vê o agente dele **nascer** na call. Minutos.
+- **👤 Modo Cliente (depois, sozinho):** recebe a solução **pronta e funcionando**. Não constrói. Só **ajusta o seguro** (texto, horário, liga/desliga do que já foi entregue, ver ao vivo). Zonas: 🟢 na hora · 🟡 simula→testa→aprova · 🔴 nem aparece (só mecânico).
+- **Não engessado:** por baixo é contrato+peças plugáveis → cliente pede algo novo, você pluga a peça **em minutos, ao vivo**, sem reescrever nem forkar.
+- **Visual:** cada peça **se declara (manifesto)** e o OS **desenha sozinho** → ligar uma peça = ela **aparece como feature funcionando**. É como você e o cliente enxergam na call.
+
 ---
-**Frase de parede:** *Uma skill (a fábrica). Você adiciona MOTORES. Agente é combinação de motores pra um público. Motor é o mesmo pra todos — o que muda por cliente é a CONFIG (os botões). Só produto adjacente vira skill nova.*
+**Frase de parede:** *A Metrik + Claude configuram ao vivo (cockpit, voz/texto, MCP na tomada). O cliente recebe pronto e só ajusta o verde. Os motores já funcionam. Ninguém constrói apertando botão — você fala, a tela desenha.*
