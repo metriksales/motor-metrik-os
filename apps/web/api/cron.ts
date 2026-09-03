@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getDatabaseUrl } from "@motor/db";
 
 // Cron de FOLLOW-UP: varre os leads em cadência com toque vencido e dispara
 // schedule events (o motor followup decide se é a hora / dentro da janela).
@@ -8,7 +9,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // quem está em follow (tabela/índice por org). Enquanto não existe, responde 501
 // honesto em vez de fingir que rodou.
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
-  if (!process.env.DATABASE_URL) {
+  if (!getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado — falta DATABASE_URL (Neon)" });
   }
   return res.status(501).json({

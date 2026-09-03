@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createProductionDeps, handleInbound } from "@motor/runtime";
+import { getDatabaseUrl } from "@motor/db";
 
 // Porta de ENTRADA de mensagem (webhook do canal: uazapi/GHL/IG).
 // Autentica pelo SEGREDO do canal (x-webhook-secret), não por sessão de usuário.
@@ -7,7 +8,7 @@ import { createProductionDeps, handleInbound } from "@motor/runtime";
 // off (fail-open honesto) — é o que falta pra ir 100% ao vivo.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
-  if (!process.env.DATABASE_URL) {
+  if (!getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado — falta DATABASE_URL (Neon)" });
   }
 

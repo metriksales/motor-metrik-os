@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as control from "@motor/control";
+import { getDatabaseUrl } from "@motor/db";
 import { resolveCtx } from "./_auth";
 
 // Porta ÚNICA de mudança: front, Claude Code, Codex e API batem AQUI.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ctx = await resolveCtx(req);
   if (!ctx) return res.status(401).json({ error: "não autorizado" });
-  if (!process.env.DATABASE_URL) {
+  if (!getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado — falta DATABASE_URL (Neon)" });
   }
 
