@@ -16,6 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       case "agents":
         return res.json(await control.listAgents(ctx));
+      case "getAgent":
+        return res.json(await control.getAgent(ctx, String(req.query.agentId ?? "")));
       case "createAgent":
         return res.json(await control.createAgent(ctx, body));
       case "propor":
@@ -26,6 +28,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.aprovarMudanca(ctx, body.changeSetId));
       case "publicar":
         return res.json(await control.publicar(ctx, body));
+      case "releases":
+        return res.json(await control.listReleases(ctx, String(req.query.agentId ?? "")));
+      case "reverter":
+        return res.json(await control.reverter(ctx, body));
+      case "connections":
+        return res.json(await control.listConnections(ctx));
+      case "upsertConnection":
+        return res.json(await control.upsertConnection(ctx, body));
       default:
         return res.status(400).json({ error: "ação desconhecida" });
     }

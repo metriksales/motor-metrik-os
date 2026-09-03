@@ -4,9 +4,20 @@
   "private": true,
   "type": "module",
   "description": "Data Plane — o motor que roda 24/7, fora do CRM. Liga na skill agente-ia-metrik-completo.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "tsx src/smoke.ts"
+  },
   "dependencies": {
     "@motor/core": "*",
     "@motor/crm": "*",
-    "@motor/db": "*"
+    "@motor/db": "*",
+    "@motor/messaging": "*",
+    "@motor/motors": "*",
+    "@motor/samples": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
   }
 }

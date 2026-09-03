@@ -1,0 +1,18 @@
+{
+  "name": "@motor/messaging",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "Peças plugáveis de mensagem: Senders (MONTAM) + Transports (ENTREGAM). Prova de que o motor não é engessado.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@motor/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

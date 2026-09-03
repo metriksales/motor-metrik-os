@@ -1,0 +1,21 @@
+{
+  "name": "@motor/samples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "Exemplos REAIS que provam a doutrina: mesmo motor, configs diferentes (AgentSpec + EvalCase tipados por @motor/core).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@motor/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

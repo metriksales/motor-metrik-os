@@ -1,0 +1,12 @@
+{
+  "name": "@motor/motors",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "Biblioteca de motores reutilizáveis (follow-up, agenda, atendimento) + registro. Só depende de @motor/core; infra entra por ports.",
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@motor/core": "*" },
+  "devDependencies": { "typescript": "^5.5.4" }
+}

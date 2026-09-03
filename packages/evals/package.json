@@ -1,0 +1,18 @@
+{
+  "name": "@motor/evals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "Evals — o PORTEIRO: custom só sai do sandbox se a taxa ≥ limiar. Asserções puras + runner + gate.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@motor/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
