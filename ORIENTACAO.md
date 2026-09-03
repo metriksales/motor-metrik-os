@@ -65,9 +65,9 @@ Exemplo — o **mesmo** motor de follow-up, dois clientes:
 
 - **🛠️ Bancada = Claude Code (aqui):** você fala, o Claude escreve/pluga/testa as peças (na skill/no código). É onde a coisa **nasce e muda** — o normal do dia a dia.
 - **📺 OS = vitrine/entrega (lá):** não é ferramenta de montagem; é **onde o pronto mora e o cliente usa**. Cada skill/ideia feita aqui **vira uma feature/aba lá** (o cliente nem sabe que é skill) — é o "levar as skills e ideias pra lá".
-- **Subir = PUBLICAR:** terminou aqui → **publica** (Control API `publicar`) → aparece lá funcionando. Quer mudar → muda aqui → **republica**. (Você *pode* pedir uma mudança lá/pelo Claude na call também — mas o normal é aqui.)
+- **Subir = você pede, o Claude coloca lá.** Terminou/quer mudar → você pede aqui → o **Claude edita o OS e dá deploy** → aparece lá funcionando. **Não precisa de API pra isso: o Claude É a ponte.** (Publish automático/Control API é opcional, um dia — não pro seu fluxo.)
 - **👤 Cliente (lá):** recebe **pronto**; só **ajusta o seguro** (texto/horário/liga-desliga do entregue; zonas 🟢 na hora · 🟡 simula→testa→aprova · 🔴 nem aparece).
 - **Não engessado:** contrato + peças plugáveis → peça nova em minutos, sem forkar. **Visual:** manifesto → o OS **desenha sozinho**.
 
 ---
-**Frase de parede:** *A bancada é o Claude Code (aqui). O OS é a vitrine (lá). Você monta aqui e PUBLICA; a skill vira feature lá; o cliente recebe pronto e só ajusta o verde.*
+**Frase de parede:** *A bancada é o Claude Code (aqui). O OS é a vitrine (lá). Você pede, o Claude coloca lá (edita + deploy) — sem API. A skill vira feature; o cliente recebe pronto e só ajusta o verde.*
