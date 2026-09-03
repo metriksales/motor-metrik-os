@@ -42,5 +42,23 @@ Você **não sobe no OS separado**. Escreve na skill com um **manifesto** (o que
 ## Pros alunos (aulas)
 Ensina os **MOTORES + o porquê** (o método), não o dump da skill. Uma aula = **um motor/conceito reusável** na linguagem do aluno. As derivadas (curso/webinar) são **recortes** da mesma fábrica.
 
+## E se um cliente precisar do motor DIFERENTE do outro?
+**O motor é o MESMO. O que muda é a CONFIG.** Motor não é bloco rígido — é motor com **botões** (parâmetros). Cada cliente é uma **combinação de botões**, não um motor próprio.
+
+Exemplo — o **mesmo** motor de follow-up, dois clientes:
+| Botão | Cliente A | Cliente B |
+|---|---|---|
+| Público | vendedores (humanos) | leads |
+| Fonte da conversa | conversa dos vendedores | conversa da IA |
+| Janela | seg–sex, horário comercial | 24h |
+| Canal | interno | WhatsApp do lead |
+| Cadência / texto | do A | do B |
+
+**1 motor (código compartilhado) + N configs (uma por cliente).** Zero código novo. É o que a skill diz: *só 3 coisas mudam por cliente — prompt, IDs, env*; o resto é botão. No nosso código = 1 motor em `packages/` + 1 **AgentSpec** por org (a config), isolado por `org_id`.
+
+**Quando toca no código?** SÓ quando aparece um **botão que não existe ainda** (ex: "cobrar por LIGAÇÃO de voz" e o motor só manda texto). Aí **adiciona o botão AO motor único** (1×) → fica disponível **pra todos** como mais uma opção.
+
+⛔ **NUNCA um motor por cliente** — isso é o inferno do n8n-por-cliente (bug = consertar em 40 lugares). Motor único = **conserta 1×, todos recebem**. Escape raríssimo (lógica 100% exclusiva): `custom/` do cliente, em **sandbox + trava de eval**, nunca um fork do motor.
+
 ---
-**Frase de parede:** *Uma skill (a fábrica). Você adiciona MOTORES. Agente é combinação de motores pra um público. Só produto adjacente vira skill nova.*
+**Frase de parede:** *Uma skill (a fábrica). Você adiciona MOTORES. Agente é combinação de motores pra um público. Motor é o mesmo pra todos — o que muda por cliente é a CONFIG (os botões). Só produto adjacente vira skill nova.*
