@@ -18,6 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.listAgents(ctx));
       case "getAgent":
         return res.json(await control.getAgent(ctx, String(req.query.agentId ?? "")));
+      case "spec":
+        return res.json(await control.loadPublishedSpec(ctx, String(req.query.agentId ?? "")));
       case "createAgent":
         return res.json(await control.createAgent(ctx, body));
       case "propor":

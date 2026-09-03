@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "description": "Data Plane — o motor que roda 24/7, fora do CRM. Liga na skill agente-ia-metrik-completo.",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

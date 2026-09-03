@@ -256,6 +256,27 @@ export async function upsertConnection(
   return row;
 }
 
+/**
+ * loadPublishedSpec — a config VIVA do agente (a versão publicada atual).
+ * É o que o runtime lê pra rodar; o front pode ler pra mostrar o estado real.
+ * null = sem versão publicada ainda.
+ */
+export async function loadPublishedSpec(ctx: Ctx, agentId: string): Promise<AgentSpec | null> {
+  const [agent] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
+  const ver = agent?.currentSpecVersion ?? null;
+  if (ver == null) return null;
+  const [row] = await db
+    .select()
+    .from(agentSpecs)
+    .where(
+      and(eq(agentSpecs.orgId, ctx.orgId), eq(agentSpecs.agentId, agentId), eq(agentSpecs.version, ver))
+    );
+  return (row?.spec as AgentSpec | undefined) ?? null;
+}
+
 async function audit(ctx: Ctx, action: string, target?: string, data?: unknown) {
   await db.insert(auditLog).values({ orgId: ctx.orgId, actor: ctx.actor, action, target, data });
 }
