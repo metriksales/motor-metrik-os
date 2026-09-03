@@ -11,6 +11,8 @@ import AoVivo from "./views/AoVivo";
 import AgentDetail from "./views/AgentDetail";
 import Modulos from "./views/Modulos";
 import Conexoes from "./views/Conexoes";
+import { OrganizationSwitcher, UserButton } from "@clerk/clerk-react";
+import { useMotorAuth } from "./lib/auth";
 
 export default function App() {
   const [view, setView] = useState<ViewId>("inicio");
@@ -20,6 +22,7 @@ export default function App() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [wa, setWa] = useState(true);
   const [agentSub, setAgentSub] = useState<SubId | undefined>(undefined);
+  const auth = useMotorAuth();
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -66,14 +69,28 @@ export default function App() {
           </div>
         </div>
 
-        <button className="w-full flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors p-2.5 mb-4">
-          <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "rgba(139,124,255,.2)", color: "#a78bfa", border: "1px solid rgba(139,124,255,.4)" }}>V</span>
-          <div className="text-left min-w-0 flex-1">
-            <div className="text-[13px] font-medium truncate">Vega Consultoria</div>
-            <div className="text-[10.5px] text-[var(--txt-3)] truncate">operação comercial</div>
+        {auth.demo ? (
+          <button className="w-full flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors p-2.5 mb-4">
+            <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "rgba(139,124,255,.2)", color: "#a78bfa", border: "1px solid rgba(139,124,255,.4)" }}>{auth.orgInitial}</span>
+            <div className="text-left min-w-0 flex-1">
+              <div className="text-[13px] font-medium truncate">{auth.orgName}</div>
+              <div className="text-[10.5px] text-[var(--txt-3)] truncate">{auth.orgDesc}</div>
+            </div>
+            <ChevronsUpDown size={14} className="text-[var(--txt-4)] flex-none" />
+          </button>
+        ) : (
+          <div className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1.5">
+            <OrganizationSwitcher
+              hidePersonal
+              afterCreateOrganizationUrl="/"
+              afterSelectOrganizationUrl="/"
+              appearance={{
+                variables: { colorPrimary: "#8b7cff", colorText: "#f4f4f7", colorBackground: "transparent", borderRadius: "12px" },
+                elements: { rootBox: { width: "100%" }, organizationSwitcherTrigger: { width: "100%", justifyContent: "flex-start" } },
+              }}
+            />
           </div>
-          <ChevronsUpDown size={14} className="text-[var(--txt-4)] flex-none" />
-        </button>
+        )}
 
         <nav className="space-y-0.5 flex-1">
           {NAV.map((n) => (
@@ -161,6 +178,11 @@ export default function App() {
             <button className="btn btn-primary btn-sm" onClick={() => go("agentes")}>
               <Wand2 size={14} /> Pedir melhoria
             </button>
+            {auth.demo ? (
+              <span className="pill hidden sm:inline-flex" title="Modo demo — sem login (adicione as chaves do Clerk pra ativar contas)">Demo</span>
+            ) : (
+              <UserButton afterSignOutUrl="/" appearance={{ variables: { colorPrimary: "#8b7cff" }, elements: { avatarBox: { width: 30, height: 30 } } }} />
+            )}
           </div>
         </header>
 
