@@ -118,6 +118,10 @@ export type Agent = {
   expectativa?: string;
   integracoes?: string[];
   fluxo?: Passo[];
+  /** true quando o agente veio do banco (Neon), não do mock de demonstração. */
+  real?: boolean;
+  /** versão do spec publicado (0 = sem publicação ainda). */
+  version?: number;
 };
 
 export const AGENTS: Agent[] = [

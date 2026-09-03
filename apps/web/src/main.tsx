@@ -11,6 +11,7 @@ import {
 } from "@clerk/clerk-react";
 import App from "./App";
 import { MotorAuthProvider, type MotorAuth } from "./lib/auth";
+import { AgentsProvider } from "./lib/agents";
 import "./index.css";
 
 // Clerk é OPCIONAL: sem a chave, o app abre em modo demo (1 org fake).
@@ -67,7 +68,9 @@ function ClerkedApp() {
   };
   return (
     <MotorAuthProvider value={value}>
-      <App />
+      <AgentsProvider>
+        <App />
+      </AgentsProvider>
     </MotorAuthProvider>
   );
 }
@@ -94,7 +97,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       </ClerkProvider>
     ) : (
       <MotorAuthProvider value={demoValue}>
-        <App />
+        <AgentsProvider>
+          <App />
+        </AgentsProvider>
       </MotorAuthProvider>
     )}
   </React.StrictMode>

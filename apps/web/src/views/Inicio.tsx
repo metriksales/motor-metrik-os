@@ -1,11 +1,13 @@
 import { CheckCircle2, AlertCircle, Wallet, ArrowRight, Sparkles, Radio } from "lucide-react";
-import { AGENTS, STATS, type ViewId } from "../data";
+import { STATS, type ViewId } from "../data";
+import { useAgents } from "../lib/agents";
 import { Reveal, Delta, cx } from "../ui";
 import { Robot } from "../Robot";
 
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
-  const ativos = AGENTS.filter((a) => a.state === "ativo").length;
-  const feed = AGENTS.filter((a) => a.state === "ativo").slice(0, 4);
+  const { agents } = useAgents();
+  const ativos = agents.filter((a) => a.state === "ativo").length;
+  const feed = agents.filter((a) => a.state === "ativo").slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -18,7 +20,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               <div className="max-w-xl">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="live-dot" />
-                  <span className="mono-label !text-[var(--emerald)]">{ativos} de {AGENTS.length} agentes trabalhando</span>
+                  <span className="mono-label !text-[var(--emerald)]">{ativos} de {agents.length} agentes trabalhando</span>
                 </div>
                 <h1 className="font-display text-[29px] md:text-[37px] font-semibold tracking-tight leading-[1.08]">
                   Sua operação está <span className="grad-text">trabalhando sozinha</span>.
@@ -37,7 +39,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               <div className="flex-none">
                 <div className="mono-label mb-2.5">A frota</div>
                 <div className="flex gap-2">
-                  {AGENTS.map((a) => (
+                  {agents.map((a) => (
                     <button key={a.id} onClick={() => onOpen(a.id)} title={a.name} className="rounded-xl p-1.5 border card-hover" style={{ borderColor: a.state === "ativo" ? `${a.color}30` : "var(--line)", background: a.state === "ativo" ? `${a.color}0d` : "var(--surface)" }}>
                       <Robot state={a.state} color={a.color} size={38} />
                     </button>

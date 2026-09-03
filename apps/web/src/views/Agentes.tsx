@@ -1,5 +1,6 @@
-import { Plus, ArrowRight, Radio, Plug } from "lucide-react";
-import { AGENTS, STATE_META, type Agent, type ViewId } from "../data";
+import { Plus, ArrowRight, Radio, Plug, Database } from "lucide-react";
+import { STATE_META, type Agent, type ViewId } from "../data";
+import { useAgents } from "../lib/agents";
 import { Reveal, Pill, SectionHeader } from "../ui";
 import { Robot } from "../Robot";
 
@@ -10,7 +11,8 @@ export default function Agentes({
   onOpen: (id: string) => void;
   go: (v: ViewId) => void;
 }) {
-  const ativos = AGENTS.filter((a) => a.state === "ativo").length;
+  const { agents, source } = useAgents();
+  const ativos = agents.filter((a) => a.state === "ativo").length;
 
   return (
     <div className="space-y-6">
@@ -28,21 +30,26 @@ export default function Agentes({
                 O que roda por dentro é com a Metrik.
               </p>
             </div>
-            <Pill color="#34d399"><span className="live-dot" style={{ width: 7, height: 7 }} /> {ativos} trabalhando agora</Pill>
+            <div className="relative flex flex-col items-start md:items-end gap-2">
+              <Pill color={source === "neon" ? "#8b7cff" : "#83879a"}>
+                <Database size={12} /> {source === "neon" ? "Neon · dados reais" : "Demo"}
+              </Pill>
+              <Pill color="#34d399"><span className="live-dot" style={{ width: 7, height: 7 }} /> {ativos} trabalhando agora</Pill>
+            </div>
           </div>
         </div>
       </Reveal>
 
       <div>
-        <SectionHeader label="Sua frota" title={<>Agentes <span className="text-[var(--txt-3)] font-normal">· {AGENTS.length}</span></>} />
+        <SectionHeader label="Sua frota" title={<>Agentes <span className="text-[var(--txt-3)] font-normal">· {agents.length}</span></>} />
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {AGENTS.map((a, i) => (
+          {agents.map((a, i) => (
             <Reveal key={a.id} delay={0.04 * i}>
               <AgentCard a={a} onOpen={() => onOpen(a.id)} />
             </Reveal>
           ))}
 
-          <Reveal delay={0.04 * AGENTS.length}>
+          <Reveal delay={0.04 * agents.length}>
             <button
               onClick={() => go("conexoes")}
               className="w-full h-full min-h-[210px] text-left rounded-[18px] p-5 flex flex-col justify-center items-start gap-3"

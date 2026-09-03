@@ -1,5 +1,6 @@
 import { Radio, Check, X, Loader2, ArrowRight } from "lucide-react";
 import { AGENTS, STATS, type LiveRow } from "../data";
+import { useAgents } from "../lib/agents";
 import { Reveal, cx } from "../ui";
 import { Robot } from "../Robot";
 
@@ -16,7 +17,8 @@ const statusMeta = {
 } as const;
 
 export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
-  const ativos = AGENTS.filter((a) => a.state === "ativo");
+  const { agents } = useAgents();
+  const ativos = agents.filter((a) => a.state === "ativo");
 
   return (
     <div className="space-y-6">

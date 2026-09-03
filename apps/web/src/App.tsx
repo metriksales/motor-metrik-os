@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowRight, Bell, MessageCircle } from "lucide-react";
 
 type SubId = "trabalho" | "aovivo" | "estrutura" | "melhorar";
-import { NAV, AGENTS, AGENT_BY_ID, type ViewId } from "./data";
+import { NAV, type ViewId } from "./data";
+import { useAgents } from "./lib/agents";
 import { cx, Toggle } from "./ui";
 import Inicio from "./views/Inicio";
 import Agentes from "./views/Agentes";
@@ -23,6 +24,7 @@ export default function App() {
   const [wa, setWa] = useState(true);
   const [agentSub, setAgentSub] = useState<SubId | undefined>(undefined);
   const auth = useMotorAuth();
+  const { agents, byId } = useAgents();
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -44,9 +46,9 @@ export default function App() {
   const openAgent = (id: string, sub?: SubId) => { setAgentId(id); setAgentSub(sub); setView("agentes"); setPalette(false); setNotifOpen(false); };
 
   const nav = NAV.find((n) => n.id === view)!;
-  const agent = agentId ? AGENT_BY_ID(agentId) : null;
-  const ativos = AGENTS.filter((a) => a.state === "ativo").length;
-  const notifs = AGENTS.flatMap((a) =>
+  const agent = agentId ? byId(agentId) : null;
+  const ativos = agents.filter((a) => a.state === "ativo").length;
+  const notifs = agents.flatMap((a) =>
     (a.insights ?? []).filter((i) => i.tipo === "critico").map((i) => ({ agentId: a.id, agentName: a.name, color: a.color, titulo: i.titulo, texto: i.texto }))
   );
 
@@ -98,7 +100,7 @@ export default function App() {
               <n.icon size={17} strokeWidth={1.9} className="flex-none" />
               <span className="flex-1 text-left">{n.label}</span>
               {n.id === "agentes" && (
-                <span className="grid place-items-center text-[10px] font-mono rounded-full text-[var(--txt-3)]" style={{ minWidth: 17, height: 17, background: "var(--surface-hi)", border: "1px solid var(--line)" }}>{AGENTS.length}</span>
+                <span className="grid place-items-center text-[10px] font-mono rounded-full text-[var(--txt-3)]" style={{ minWidth: 17, height: 17, background: "var(--surface-hi)", border: "1px solid var(--line)" }}>{agents.length}</span>
               )}
               {n.id === "aovivo" && <span className="live-dot" style={{ width: 7, height: 7 }} />}
             </button>
@@ -233,7 +235,7 @@ export default function App() {
                   </button>
                 ))}
                 <div className="hairline-x my-2" />
-                {AGENTS.map((a) => (
+                {agents.map((a) => (
                   <button key={a.id} onClick={() => openAgent(a.id)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--surface-2)] transition-colors">
                     <span className="dot" style={{ background: a.color }} />
                     <span className="text-[13px] flex-1 text-left">{a.name}</span>
