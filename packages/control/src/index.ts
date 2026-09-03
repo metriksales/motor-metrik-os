@@ -2,13 +2,48 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog } from "@motor/db";
+import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships } from "@motor/db";
 import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
 
 export interface Ctx {
   orgId: string;
   actor: string;
   role: "owner" | "admin" | "operator" | "viewer";
+}
+
+/**
+ * ensureOrgForClerk — a PONTE Clerk↔tenant. Dado o org da sessão Clerk, acha o
+ * nosso tenant (por clerk_org_id) ou PROVISIONA um na hora (org + membership do
+ * usuário como owner). Idempotente. Retorna o org_id INTERNO (uuid) — é ele que
+ * escopa tudo no banco. Chamado pelo resolveCtx quando o Clerk está ligado.
+ */
+export async function ensureOrgForClerk(input: {
+  clerkOrgId: string;
+  clerkUserId: string;
+  name?: string;
+  role?: Ctx["role"];
+}): Promise<{ orgId: string; role: Ctx["role"] }> {
+  const role = input.role ?? "owner";
+  const [existing] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.clerkOrgId, input.clerkOrgId));
+
+  if (existing) {
+    await db
+      .insert(memberships)
+      .values({ orgId: existing.id, userId: input.clerkUserId, role })
+      .onConflictDoNothing({ target: [memberships.orgId, memberships.userId] });
+    return { orgId: existing.id, role };
+  }
+
+  const [org] = await db
+    .insert(organizations)
+    .values({ clerkOrgId: input.clerkOrgId, name: input.name?.trim() || "Minha operação" })
+    .returning();
+  await db.insert(memberships).values({ orgId: org.id, userId: input.clerkUserId, role });
+  await db.insert(auditLog).values({ orgId: org.id, actor: input.clerkUserId, action: "org.provision", target: input.clerkOrgId });
+  return { orgId: org.id, role };
 }
 
 /** carteira de agentes do tenant */

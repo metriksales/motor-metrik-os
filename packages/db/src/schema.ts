@@ -13,6 +13,8 @@ export const connKindEnum = pgEnum("conn_kind", ["ghl", "kommo", "whatsapp", "ad
 /** tenant */
 export const organizations = pgTable("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
+  // mapeia a Organization do Clerk → nosso tenant (provisionado no 1º login).
+  clerkOrgId: text("clerk_org_id").unique(),
   name: text("name").notNull(),
   plan: text("plan").notNull().default("autonomo"),
   status: text("status").notNull().default("active"),
