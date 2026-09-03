@@ -69,5 +69,17 @@ Exemplo — o **mesmo** motor de follow-up, dois clientes:
 - **👤 Cliente (lá):** recebe **pronto**; só **ajusta o seguro** (texto/horário/liga-desliga do entregue; zonas 🟢 na hora · 🟡 simula→testa→aprova · 🔴 nem aparece).
 - **Não engessado:** contrato + peças plugáveis → peça nova em minutos, sem forkar. **Visual:** manifesto → o OS **desenha sozinho**.
 
+## O cliente melhora sozinho SEM quebrar (o fim do gargalo)
+**A dor:** hoje cada ajuste de cliente = um chamado pra Metrik. **A cura:** ele ajusta **sozinho, só o seguro**, num envelope onde não consegue estragar. Dois tipos de mudança:
+- **Miolo / capacidade nova** (transporte, peça, lógica) → **você + Claude**, raro. Cliente nem vê (🔴 blindado).
+- **Dia a dia / "melhorar"** (texto, horário, cadência, tom, liga/desliga, corrigir resposta errada) → **o cliente, sozinho** (🟢🟡).
+
+**3 jeitos do cliente mexer sem quebrar:**
+1. **🟢 Na hora:** campos validados (liga/desliga, horário, template, cadência) — aplica na hora, reversível.
+2. **🎓 Ensinar por correção (a Escola):** aponta *"era assim"* → vira exemplo/regra, **sem tocar no prompt blindado**. Núcleo intacto.
+3. **🟡 Mudança real:** pede → **simula → testa (evals) → antes/depois → aprova → publica**. Nada entra sem passar.
+
+**Por que o gargalo morre:** 90% do que pingam é 🟢🟡 → self-service seguro. Só 🔴 (raro) vem pra você; pedido 🔴 que se repete → você faz **botão verde 1×** → nunca mais pingam. **Autorar = você (raro). Operar/afinar = cliente (sempre, no seguro).** O *"não quebra"* (núcleo blindado + zonas + simular-antes-de-aplicar) é o que dá **liberdade sem risco**.
+
 ---
-**Frase de parede:** *A bancada é o Claude Code (aqui). O OS é a vitrine (lá). Você pede, o Claude coloca lá (edita + deploy) — sem API. A skill vira feature; o cliente recebe pronto e só ajusta o verde.*
+**Frase de parede:** *A bancada é o Claude Code (aqui). O OS é a vitrine (lá). Você pede, o Claude coloca lá (edita + deploy) — sem API. A skill vira feature; o cliente afina o verde sozinho e não consegue quebrar. Autorar é seu; operar é dele.*
