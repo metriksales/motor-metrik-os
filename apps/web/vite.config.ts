@@ -39,6 +39,19 @@ function localControlApi(): PluginOption {
               return send(200, await control.loadPublishedSpec(ctx, url.searchParams.get("agentId") ?? ""));
             case "createAgent":
               return send(200, await control.createAgent(ctx, body));
+            case "logs":
+              return send(
+                200,
+                await control.listLogs(
+                  ctx,
+                  url.searchParams.get("agentId") ?? undefined,
+                  url.searchParams.get("limit") ? Number(url.searchParams.get("limit")) : undefined
+                )
+              );
+            case "stats":
+              return send(200, await control.statsHoje(ctx));
+            case "log":
+              return send(200, await control.registrarLog(ctx, body));
             default:
               return send(400, { error: `ação '${action}' não suportada no dev middleware` });
           }

@@ -5,6 +5,16 @@ import type { Ctx } from "@motor/control";
 // - Se CLERK_SECRET_KEY existe → valida a sessão do Clerk (org da sessão).
 // - Senão → auth temporária por service token (só pra testar antes do Clerk).
 export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
+  // Auth de MÁQUINA (permanente, convive com o Clerk): agentes reais ingerindo
+  // execuções (Flight Recorder), Claude Code/Codex e automações server↔server.
+  // Exige o segredo EXATO; nunca vai pro browser.
+  const secret = process.env.CONTROL_PLANE_SECRET;
+  if (secret && req.headers["x-motor-token"] === secret) {
+    const orgId = String(req.headers["x-org-id"] ?? "");
+    if (!orgId) return null;
+    return { orgId, actor: String(req.headers["x-actor"] ?? "maquina"), role: "admin" };
+  }
+
   const clerkKey = process.env.CLERK_SECRET_KEY;
 
   if (clerkKey) {
@@ -31,14 +41,6 @@ export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
     } catch {
       return null;
     }
-  }
-
-  // Fallback TEMPORÁRIO (pré-Clerk): service token + org no header.
-  const secret = process.env.CONTROL_PLANE_SECRET;
-  if (secret && req.headers["x-motor-token"] === secret) {
-    const orgId = String(req.headers["x-org-id"] ?? "");
-    if (!orgId) return null;
-    return { orgId, actor: String(req.headers["x-actor"] ?? "api"), role: "admin" };
   }
 
   return null;

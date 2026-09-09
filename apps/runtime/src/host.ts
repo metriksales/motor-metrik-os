@@ -4,7 +4,7 @@
 // depende de infra externa (token por org = vault; estado = Redis) entra por PORT
 // injetado — sem fingir que existe. Sem vault → o CRM fica off (fail-open honesto).
 import { and, eq } from "drizzle-orm";
-import { db, agents, agentSpecs } from "@motor/db";
+import { db, agents, agentSpecs, runtimeLogs } from "@motor/db";
 import { makeBrain } from "@motor/llm";
 import {
   makeSender,
@@ -65,7 +65,24 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
   const llm: LlmPort = makeBrain({ apiKey: env.openaiApiKey, model: env.model });
   const estado = new Map<string, unknown>(); // TODO: Upstash Redis (TTL por org).
   const now = env.now ?? (() => new Date());
-  const log = env.onLog ?? (() => {});
+  // Flight Recorder: toda execução vira linha em runtime_logs (fire-and-forget —
+  // gravar log NUNCA derruba o motor). env.onLog continua recebendo em paralelo.
+  const log = (l: RuntimeLog) => {
+    env.onLog?.(l);
+    void db
+      .insert(runtimeLogs)
+      .values({
+        orgId: l.orgId,
+        agentId: l.agentId,
+        motor: l.motor,
+        ok: l.ok,
+        resumo: l.resumo,
+        did: l.did,
+        erro: l.erro,
+        meta: l.meta,
+      })
+      .catch(() => {});
+  };
 
   async function loadSpec(orgId: string, agentId: string): Promise<AgentSpec | null> {
     const [agent] = await db

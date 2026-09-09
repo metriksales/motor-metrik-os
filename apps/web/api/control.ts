@@ -35,6 +35,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.listReleases(ctx, String(req.query.agentId ?? "")));
       case "reverter":
         return res.json(await control.reverter(ctx, body));
+      case "log":
+        return res.json(await control.registrarLog(ctx, body));
+      case "logs":
+        return res.json(
+          await control.listLogs(
+            ctx,
+            req.query.agentId ? String(req.query.agentId) : undefined,
+            req.query.limit ? Number(req.query.limit) : undefined
+          )
+        );
+      case "stats":
+        return res.json(await control.statsHoje(ctx));
       case "connections":
         return res.json(await control.listConnections(ctx));
       case "upsertConnection":

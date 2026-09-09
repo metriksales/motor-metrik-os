@@ -1,13 +1,25 @@
-import { CheckCircle2, AlertCircle, Wallet, ArrowRight, Sparkles, Radio } from "lucide-react";
+import { CheckCircle2, AlertCircle, Wallet, ArrowRight, Sparkles, Radio, ShieldCheck, GraduationCap, BadgeCheck } from "lucide-react";
 import { STATS, type ViewId } from "../data";
 import { useAgents } from "../lib/agents";
+import { useLive, reais } from "../lib/live";
 import { Reveal, Delta, cx } from "../ui";
 import { Robot } from "../Robot";
 
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
   const { agents } = useAgents();
+  const { stats } = useLive();
   const ativos = agents.filter((a) => a.state === "ativo").length;
   const feed = agents.filter((a) => a.state === "ativo").slice(0, 4);
+
+  // Números REAIS do Flight Recorder quando existem; senão o demo (STATS mock).
+  const kpis = stats
+    ? [
+        { label: "Agentes no ar", value: String(ativos), delta: `de ${agents.length}`, up: true },
+        { label: "Execuções hoje", value: String(stats.execucoes), delta: "real · Neon", up: true },
+        { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : "—", delta: `${stats.erros} erros`, up: stats.erros === 0 },
+        { label: "Gerado hoje", value: reais(stats.valorCentavos), delta: "Radar de Dinheiro", up: true },
+      ]
+    : STATS;
 
   return (
     <div className="space-y-6">
@@ -53,7 +65,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {STATS.map((s, i) => (
+        {kpis.map((s, i) => (
           <Reveal key={s.label} delay={0.04 * i}>
             <div className="card card-hover p-4">
               <div className="text-[12.5px] text-[var(--txt-3)] mb-2">{s.label}</div>
@@ -65,6 +77,37 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           </Reveal>
         ))}
       </div>
+
+      {/* POR QUE ISSO NÃO É UM CHATBOT — a resposta ao "robô de US$97" escrita no produto */}
+      <Reveal delay={0.05}>
+        <div className="card p-5 md:p-6">
+          <div className="mono-label mb-1.5">Por que isso não é (mais um) robozinho</div>
+          <h2 className="font-display text-[17px] md:text-[19px] font-semibold tracking-tight mb-4 max-w-2xl leading-snug">
+            Ferramenta de US$97 você configura e torce.{" "}
+            <span className="grad-text">Aqui, uma operação inteira trabalha — e te mostra a prova.</span>
+          </h2>
+          <div className="grid md:grid-cols-3 gap-3">
+            <Pilar
+              icon={ShieldCheck}
+              color="#34d399"
+              titulo="Operado com prova"
+              texto="A Metrik constrói e opera. Cada execução vira uma linha na sua caixa-preta — o que fez, por quê, e quanto rendeu."
+            />
+            <Pilar
+              icon={GraduationCap}
+              color="#8b7cff"
+              titulo="Escola"
+              texto="A IA errou? Você corrige apontando, como faria com uma pessoa. O motor aprende sem você tocar em nada por dentro."
+            />
+            <Pilar
+              icon={BadgeCheck}
+              color="#22d3ee"
+              titulo="Porteiro"
+              texto="Nenhuma mudança vai pro ar sem passar no teste. Você vê a nota e a prova antes de aprovar."
+            />
+          </div>
+        </div>
+      </Reveal>
 
       {/* decisões */}
       <div className="grid md:grid-cols-3 gap-4">
@@ -131,6 +174,18 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           </div>
         </Reveal>
       </div>
+    </div>
+  );
+}
+
+function Pilar({ icon: Icon, color, titulo, texto }: { icon: any; color: string; titulo: string; texto: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon size={16} style={{ color }} />
+        <span className="font-display font-semibold text-[13.5px]">{titulo}</span>
+      </div>
+      <p className="text-[12.5px] text-[var(--txt-3)] leading-relaxed">{texto}</p>
     </div>
   );
 }

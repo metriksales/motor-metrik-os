@@ -1,8 +1,8 @@
 // @motor/control — Control API (camada de serviço, sem framework).
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
-import { and, desc, eq, isNull } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships } from "@motor/db";
+import { and, desc, eq, gte, isNull } from "drizzle-orm";
+import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs } from "@motor/db";
 import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
 
 export interface Ctx {
@@ -310,6 +310,83 @@ export async function loadPublishedSpec(ctx: Ctx, agentId: string): Promise<Agen
       and(eq(agentSpecs.orgId, ctx.orgId), eq(agentSpecs.agentId, agentId), eq(agentSpecs.version, ver))
     );
   return (row?.spec as AgentSpec | undefined) ?? null;
+}
+
+// ═══ FLIGHT RECORDER — a caixa-preta REAL (o que separa produto de demo) ═══
+
+/** grava UMA execução de agente. Ingerido pelos agentes reais via action=log. */
+export async function registrarLog(
+  ctx: Ctx,
+  input: {
+    agentId?: string;
+    motor?: string;
+    ok: boolean;
+    resumo: string;
+    did?: unknown;
+    erro?: string;
+    /** R$ ligado à execução em centavos (reunião marcada, lead recuperado) — Radar de Dinheiro */
+    valorCentavos?: number;
+    meta?: unknown;
+  }
+) {
+  const [row] = await db
+    .insert(runtimeLogs)
+    .values({
+      orgId: ctx.orgId,
+      agentId: input.agentId,
+      motor: input.motor,
+      ok: input.ok,
+      resumo: input.resumo,
+      did: input.did,
+      erro: input.erro,
+      valorCentavos: input.valorCentavos,
+      meta: input.meta,
+    })
+    .returning();
+  return row;
+}
+
+/** a caixa-preta, mais novo primeiro (opcionalmente por agente). */
+export function listLogs(ctx: Ctx, agentId?: string, limit = 50) {
+  const cond = agentId
+    ? and(eq(runtimeLogs.orgId, ctx.orgId), eq(runtimeLogs.agentId, agentId))
+    : eq(runtimeLogs.orgId, ctx.orgId);
+  return db
+    .select()
+    .from(runtimeLogs)
+    .where(cond)
+    .orderBy(desc(runtimeLogs.at))
+    .limit(Math.min(Math.max(1, limit), 200));
+}
+
+/** os números REAIS do dia (Home/Ao vivo): execuções, acertos e o R$ do Radar. */
+export async function statsHoje(ctx: Ctx) {
+  const inicio = new Date();
+  inicio.setHours(0, 0, 0, 0);
+  const rows = await db
+    .select()
+    .from(runtimeLogs)
+    .where(and(eq(runtimeLogs.orgId, ctx.orgId), gte(runtimeLogs.at, inicio)))
+    .limit(2000);
+
+  const execucoes = rows.length;
+  const acertos = rows.filter((r) => r.ok).length;
+  const valorCentavos = rows.reduce((s, r) => s + (r.valorCentavos ?? 0), 0);
+  const porAgente: Record<string, { execucoes: number; acertos: number }> = {};
+  for (const r of rows) {
+    const k = r.agentId ?? "geral";
+    porAgente[k] = porAgente[k] ?? { execucoes: 0, acertos: 0 };
+    porAgente[k].execucoes++;
+    if (r.ok) porAgente[k].acertos++;
+  }
+  return {
+    execucoes,
+    acertos,
+    erros: execucoes - acertos,
+    taxa: execucoes ? acertos / execucoes : null,
+    valorCentavos,
+    porAgente,
+  };
 }
 
 async function audit(ctx: Ctx, action: string, target?: string, data?: unknown) {

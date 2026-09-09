@@ -1,6 +1,6 @@
 // @motor/db — schema multi-tenant. TUDO por org_id (+ RLS na migração).
 // Reflete BACKEND.md. Fonte de verdade durável; Redis é só hot path.
-import { pgTable, uuid, text, timestamp, jsonb, integer, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, integer, boolean, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["owner", "admin", "operator", "viewer"]);
 export const agentTipoEnum = pgEnum("agent_tipo", ["resposta", "acao"]);
@@ -112,6 +112,32 @@ export const releases = pgTable("releases", {
   promotedBy: text("promoted_by"),
   promotedAt: timestamp("promoted_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * A CAIXA-PRETA REAL (Flight Recorder): cada execução de agente vira uma linha.
+ * É daqui que nascem "Ao vivo", os contadores da Home e o Radar de Dinheiro —
+ * a diferença entre demo bonita e produto. Ingestão: agentes reais fazem POST
+ * em /api/control?action=log (token de máquina). Sem FK em agent_id de propósito:
+ * o log sobrevive a qualquer reorganização da frota.
+ */
+export const runtimeLogs = pgTable(
+  "runtime_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id").notNull(),
+    agentId: uuid("agent_id"),
+    motor: text("motor"),
+    ok: boolean("ok").notNull(),
+    resumo: text("resumo").notNull(),
+    did: jsonb("did"),
+    erro: text("erro"),
+    /** valor em R$ ligado à execução (reunião marcada, lead recuperado) — o Radar de Dinheiro */
+    valorCentavos: integer("valor_centavos"),
+    at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+    meta: jsonb("meta"),
+  },
+  (t) => [index("runtime_logs_org_at").on(t.orgId, t.at)]
+);
 
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").defaultRandom().primaryKey(),

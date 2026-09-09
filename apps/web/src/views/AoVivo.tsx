@@ -1,6 +1,7 @@
-import { Radio, Check, X, Loader2, ArrowRight } from "lucide-react";
+import { Radio, Check, X, Loader2, ArrowRight, Database } from "lucide-react";
 import { AGENTS, STATS, type LiveRow } from "../data";
 import { useAgents } from "../lib/agents";
+import { useLive, tempoRelativo, reais } from "../lib/live";
 import { Reveal, cx } from "../ui";
 import { Robot } from "../Robot";
 
@@ -18,13 +19,40 @@ const statusMeta = {
 
 export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
   const { agents } = useAgents();
+  const { logs, stats } = useLive();
   const ativos = agents.filter((a) => a.state === "ativo");
+  const real = logs !== null;
+
+  // Feed REAL (Flight Recorder no Neon) quando existe; senão o demo — com selo.
+  const feed: FeedRow[] = logs
+    ? logs.slice(0, 14).map((l) => {
+        const a = agents.find((x) => x.id === l.agentId);
+        return {
+          t: tempoRelativo(l.at),
+          acao: l.resumo,
+          status: l.ok ? ("ok" as const) : ("erro" as const),
+          detalhe: l.erro ?? (l.valorCentavos ? `+${reais(l.valorCentavos)}` : undefined),
+          agente: a?.name ?? l.motor ?? "motor",
+          color: a?.color ?? "#8b7cff",
+          id: l.id,
+        };
+      })
+    : FEED;
+
+  const tiles: { label: string; value: string }[] = stats
+    ? [
+        { label: "Agentes no ar", value: String(ativos.length) },
+        { label: "Execuções hoje", value: String(stats.execucoes) },
+        { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : "—" },
+        { label: "Gerado hoje", value: reais(stats.valorCentavos) },
+      ]
+    : STATS;
 
   return (
     <div className="space-y-6">
       {/* counters */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {STATS.map((s, i) => (
+        {tiles.map((s, i) => (
           <Reveal key={s.label} delay={0.04 * i}>
             <div className="card p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -46,13 +74,16 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                 <div className="mono-label mb-1">Fluxo ao vivo</div>
                 <div className="font-display font-semibold text-[15px]">O que a frota fez agora</div>
               </div>
-              <span className="pill"><span className="live-dot" style={{ width: 6, height: 6 }} /> tempo real</span>
+              <span className="pill" style={real ? { color: "#8b7cff" } : undefined}>
+                {real ? <Database size={11} /> : <span className="live-dot" style={{ width: 6, height: 6 }} />}
+                {real ? "real · Neon" : "demo"}
+              </span>
             </div>
             <ul className="space-y-1">
-              {FEED.map((r, i) => {
+              {feed.map((r, i) => {
                 const st = statusMeta[r.status];
                 return (
-                  <li key={r.id} className={cx("flex items-center gap-3 py-2.5", i !== FEED.length - 1 && "border-b border-[var(--line)]")}>
+                  <li key={r.id} className={cx("flex items-center gap-3 py-2.5", i !== feed.length - 1 && "border-b border-[var(--line)]")}>
                     <span className="grid place-items-center rounded-lg flex-none" style={{ width: 28, height: 28, background: `${st.color}16`, border: `1px solid ${st.color}30` }}>
                       <st.icon size={14} style={{ color: st.color }} className={r.status === "run" ? "animate-spin" : ""} />
                     </span>
