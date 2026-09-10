@@ -133,11 +133,33 @@ export type Ramo = {
   ultima?: string;
 };
 
+/**
+ * Uma MUDANÇA que entrou no agente — o que o cliente adora observar.
+ * Conta a história completa: o pedido (na fala dele) → antes/agora → ONDE
+ * encaixou no processo → a prova do porteiro (evals) → status.
+ */
+export type Mudanca = {
+  quando: string;
+  origem: "voce" | "metrik" | "escola";
+  /** o pedido, na fala do cliente */
+  pedido: string;
+  antes: string;
+  agora: string;
+  /** onde encaixou: o caminho e a situação exata (casa com Regra.se) */
+  ramoId?: string;
+  situacao?: string;
+  /** a prova do porteiro: casos que passaram + nota */
+  porteiro?: { nota: string; casos: string };
+  status: "no ar" | "em teste" | "aguardando aprovação";
+};
+
 export type Mapa = {
   entrada: string;
   triagem: { faz: string; coleta?: string[] };
   ramos: Ramo[];
   aposRamos?: string;
+  /** mudanças recentes — aparecem marcadas no processo E contadas em detalhe */
+  mudancas?: Mudanca[];
 };
 
 export type Agent = {
@@ -222,6 +244,19 @@ export const AGENTS: Agent[] = [
         },
       ],
       aposRamos: "Todo caminho termina em: reunião marcada, dúvida resolvida ou humano avisado — sempre na etapa certa do funil.",
+      mudancas: [
+        {
+          quando: "há 2 dias",
+          origem: "voce",
+          pedido: "Não solta a tabela de preço de cara — qualifica primeiro.",
+          antes: "Mandava a tabela inteira assim que pediam preço.",
+          agora: "Segura o preço, faz 1 pergunta de qualificação e só então apresenta o plano certo.",
+          ramoId: "comprar",
+          situacao: "pede preço antes de qualificar",
+          porteiro: { nota: "9,4", casos: "10/10 casos passaram" },
+          status: "no ar",
+        },
+      ],
     },
     agora: "respondendo a Marina — ofereceu quinta 14h",
     fluxo: [
@@ -761,6 +796,30 @@ export const AGENTS: Agent[] = [
         },
       ],
       aposRamos: "Todo caminho termina em: agendado com o advogado, sem direito (com o porquê no card) ou humano chamado — nunca no vácuo.",
+      mudancas: [
+        {
+          quando: "há 3 dias",
+          origem: "voce",
+          pedido: "Quando negar o BPC, não deixa a pessoa no vácuo — oferece outro caminho antes de encerrar.",
+          antes: "Negava pela renda e encerrava a conversa ali.",
+          agora: "Nega com carinho, explica o porquê e oferece verificar outro benefício antes de encerrar.",
+          ramoId: "bpc",
+          situacao: "a renda da casa passa do limite (ex.: família que ganha R$ 5.000)",
+          porteiro: { nota: "9,6", casos: "12/12 casos passaram" },
+          status: "no ar",
+        },
+        {
+          quando: "há 1 semana",
+          origem: "metrik",
+          pedido: "Ser mais acolhedora com gestantes no ramo da maternidade.",
+          antes: "Tom neutro, igual nos três caminhos.",
+          agora: "Na maternidade, fala mais próxima (“ótima notícia”, “a doutora”) e confirma o prazo antes de tudo.",
+          ramoId: "maternidade",
+          situacao: "contribuiu (ou é segurada especial) e está no prazo",
+          porteiro: { nota: "9,2", casos: "8/8 casos passaram" },
+          status: "no ar",
+        },
+      ],
     },
   },
 ];
