@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Gavel,
   SquarePen,
+  Scale,
 } from "lucide-react";
 
 export type ViewId = "inicio" | "agentes" | "aovivo" | "modulos" | "conexoes";
@@ -97,6 +98,48 @@ export type Passo = {
   sugestao?: string;
 };
 
+/**
+ * O MAPA do agente — a leitura clara de "o que essa IA faz, ramo por ramo".
+ * NÃO é desenhado à mão: é COMPILADO do cérebro (prompt) pela fábrica; a tela
+ * se desenha sozinha a partir daqui. Cliente diferente = mapa diferente, tela igual.
+ */
+export type Regra = {
+  /** a condição, em português de gente: "renda da casa acima de R$ 1.518" */
+  se: string;
+  /** o que a IA faz quando a condição bate */
+  entao: string;
+  /** a fala LITERAL que a IA usa (mata a dúvida "o que ela diz?") */
+  diz?: string;
+  /** pra onde move no funil / o que dispara */
+  move?: string;
+  /** chama humano / avisa o grupo */
+  aviso?: boolean;
+  /** marca de mudança da Escola ("ajustada há 2 dias — antes fazia X") */
+  mudou?: string;
+};
+
+export type Ramo = {
+  id: string;
+  nome: string;
+  cor: string;
+  /** gatilho: quando a conversa entra neste ramo */
+  quando: string;
+  /** o que a IA pergunta/coleta neste ramo */
+  coleta?: string[];
+  regras: Regra[];
+  on: boolean;
+  /** vem do Flight Recorder (meta.ramo) quando real; demo enquanto não */
+  execucoesHoje?: number;
+  ultima?: string;
+};
+
+export type Mapa = {
+  entrada: string;
+  triagem: { faz: string; coleta?: string[] };
+  ramos: Ramo[];
+  aposRamos?: string;
+};
+
 export type Agent = {
   id: string;
   name: string;
@@ -122,6 +165,8 @@ export type Agent = {
   real?: boolean;
   /** versão do spec publicado (0 = sem publicação ainda). */
   version?: number;
+  /** o mapa de decisão (compilado do cérebro) — quando existe, vira a 1ª aba */
+  mapa?: Mapa;
 };
 
 export const AGENTS: Agent[] = [
@@ -144,6 +189,40 @@ export const AGENTS: Agent[] = [
     },
     state: "ativo",
     color: "#22d3ee",
+    mapa: {
+      entrada: "Lead chama no WhatsApp",
+      triagem: { faz: "Entende em 1–2 perguntas o que a pessoa quer", coleta: ["o que procura", "urgência", "já é cliente?"] },
+      ramos: [
+        {
+          id: "comprar", nome: "Quer contratar", cor: "#34d399",
+          quando: "pergunta de plano, preço ou como funciona",
+          coleta: ["tamanho da operação", "prazo pra começar"],
+          on: true, execucoesHoje: 9, ultima: "há 4 min — Marina A.",
+          regras: [
+            { se: "demonstra interesse e responde a qualificação", entao: "apresenta o plano certo e oferece reunião", diz: "Pelo que você me contou, o Pro resolve seu caso. Quer que eu já marque 20 min com o especialista?", move: "→ etapa “Qualificada”" },
+            { se: "pede preço antes de qualificar", entao: "segura o preço e faz 1 pergunta primeiro", diz: "Te passo certinho! Só me conta rapidinho: quantas pessoas atendem hoje?", mudou: "ajustada há 2 dias pela Escola — antes soltava a tabela inteira" },
+          ],
+        },
+        {
+          id: "cliente", nome: "Já é cliente", cor: "#22d3ee",
+          quando: "menciona problema, acesso ou suporte",
+          on: true, execucoesHoje: 3, ultima: "há 1 h — Studio Lumen",
+          regras: [
+            { se: "é dúvida simples que está na base", entao: "responde na hora com a base de conhecimento" },
+            { se: "é problema técnico de verdade", entao: "abre o chamado e avisa o time no grupo", move: "→ funil “Suporte”", aviso: true },
+          ],
+        },
+        {
+          id: "fora", nome: "Fora do horário", cor: "#fbbf24",
+          quando: "mensagem chega fora do horário comercial",
+          on: true, execucoesHoje: 2,
+          regras: [
+            { se: "chega mensagem às 22h", entao: "avisa o horário e agenda o retorno pra manhã", diz: "A gente responde a partir das 9h — posso te chamar logo cedo?", move: "→ tarefa de retorno 9h" },
+          ],
+        },
+      ],
+      aposRamos: "Todo caminho termina em: reunião marcada, dúvida resolvida ou humano avisado — sempre na etapa certa do funil.",
+    },
     agora: "respondendo a Marina — ofereceu quinta 14h",
     fluxo: [
       { label: "Recebe a mensagem", deveria: "todo lead que chama no WhatsApp", status: "ok" },
@@ -571,6 +650,118 @@ export const AGENTS: Agent[] = [
       { label: "Não protocola duplicado", ok: true },
       { label: "Anexa a peça no card certo", ok: true },
     ],
+  },
+  {
+    id: "triagem-juridica",
+    name: "Triagem Jurídica",
+    glyph: Scale,
+    papel: "Faz a triagem previdenciária e diz quem tem direito a quê",
+    tipo: "resposta",
+    state: "ativo",
+    color: "#38bdf8",
+    agora: "triando um caso de auxílio maternidade",
+    expectativa: "Todo lead que chega é triado, cai no ramo certo (BPC, aposentadoria ou maternidade) e sai com resposta clara: agenda, sem direito ou humano.",
+    metrics: { execucoes: 64, acertos: 62, erros: 0, custo: "R$ 1,74" },
+    shield: "As REGRAS de direito (renda, carência, prazo) são blindadas — vêm da banca. Você ajusta o tom e as falas, nunca a lei.",
+    features: [
+      { name: "Ouve áudio e lê documento", icon: Volume2, fonte: "metrik", on: true },
+      { name: "Move o funil sozinho", icon: Columns3, fonte: "metrik", on: true },
+    ],
+    live: [
+      { t: "agora", acao: "Explicando prazo do auxílio maternidade", status: "run" },
+      { t: "9 min", acao: "BPC negado por renda — encerrou com porta aberta", status: "ok" },
+    ],
+    insights: [
+      { tipo: "elogio", titulo: "Triagem redonda", texto: "62 de 64 casos caíram no ramo certo de primeira.", prova: "2 na dúvida foram pro humano — nenhum chute." },
+    ],
+    fluxo: [
+      { label: "Recebe o caso", deveria: "todo lead que chama no WhatsApp", status: "ok" },
+      { label: "Tria em 2–3 perguntas", deveria: "descobre o benefício certo sem interrogatório", status: "ok" },
+      { label: "Aplica a regra do ramo", deveria: "responde com base na regra da banca, nunca inventa", status: "ok" },
+      { label: "Move e registra", deveria: "etapa certa no funil + motivo escrito no card", status: "ok" },
+    ],
+    simCenario: "Lead com renda alta pergunta se tem direito ao BPC",
+    sim: [
+      { label: "Não promete direito que não existe", ok: true },
+      { label: "Explica o porquê com carinho", ok: true },
+      { label: "Oferece alternativa antes de encerrar", ok: true },
+    ],
+    mapa: {
+      entrada: "Lead chama no WhatsApp do escritório",
+      triagem: {
+        faz: "Descobre em 2–3 perguntas qual é o caso da pessoa — sem parecer interrogatório",
+        coleta: ["qual benefício busca", "situação (trabalha? contribuiu? gravidez?)", "renda da casa"],
+      },
+      ramos: [
+        {
+          id: "bpc", nome: "BPC / LOAS", cor: "#34d399",
+          quando: "idoso 65+ ou pessoa com deficiência sem condição de se manter",
+          coleta: ["idade", "renda da casa por pessoa", "CadÚnico em dia?"],
+          on: true, execucoesHoje: 12, ultima: "há 9 min — Dona Cléia",
+          regras: [
+            {
+              se: "a renda da casa passa do limite (ex.: família que ganha R$ 5.000)",
+              entao: "explica com carinho que o BPC não se encaixa — e NÃO deixa a pessoa no vácuo",
+              diz: "Pela renda da sua casa, o BPC infelizmente não se encaixa no seu caso. Mas posso verificar se você tem direito a outro benefício, tudo bem?",
+              move: "→ etapa “Sem direito” (com o motivo escrito no card)",
+              mudou: "ajustada há 3 dias pela Escola — antes encerrava seco, sem oferecer alternativa",
+            },
+            {
+              se: "renda dentro do limite e CadÚnico em dia",
+              entao: "lista os documentos e já oferece horário com o advogado",
+              diz: "Seu caso tem tudo pra seguir! Vou te falar os documentos e já deixo um horário reservado com a doutora.",
+              move: "→ etapa “Agendado”",
+            },
+            {
+              se: "a pessoa não sabe a renda ou o caso ficou na dúvida",
+              entao: "NÃO arrisca: chama um humano na hora",
+              move: "→ “Atendimento humano”",
+              aviso: true,
+            },
+          ],
+        },
+        {
+          id: "previdenciario", nome: "Aposentadoria", cor: "#8b7cff",
+          quando: "menciona INSS, tempo de contribuição ou “me aposentar”",
+          coleta: ["anos de contribuição", "idade", "quando contribuiu por último"],
+          on: true, execucoesHoje: 7, ultima: "há 25 min — Sr. Almir",
+          regras: [
+            {
+              se: "tem tempo de contribuição aparente",
+              entao: "pede o extrato do CNIS e agenda a análise",
+              diz: "Pra te dar certeza, preciso do seu extrato do INSS (CNIS). Te ensino a puxar em 2 minutos — e já agendo a análise.",
+              move: "→ etapa “Análise de CNIS”",
+            },
+            {
+              se: "nunca contribuiu",
+              entao: "explica que a aposentadoria por contribuição não cabe e verifica o BPC",
+              move: "→ ramo BPC / LOAS",
+            },
+          ],
+        },
+        {
+          id: "maternidade", nome: "Auxílio Maternidade", cor: "#d16bff",
+          quando: "menciona gravidez, parto recente ou adoção",
+          coleta: ["data do parto ou adoção", "trabalhou/contribuiu nos últimos meses?", "trabalhadora rural?"],
+          on: true, execucoesHoje: 5, ultima: "há 2 min — Ana Paula",
+          regras: [
+            {
+              se: "contribuiu (ou é segurada especial) e está no prazo",
+              entao: "confirma o direito, lista documentos e agenda",
+              diz: "Ótima notícia: pelo que você me contou, seu caso tem direito sim! Me manda a certidão do bebê que eu já agendo com a doutora.",
+              move: "→ etapa “Agendado”",
+            },
+            {
+              se: "não contribuiu e não se encaixa nas regras",
+              entao: "explica o porquê de não ter direito e registra o motivo",
+              diz: "Pelo que você me contou, o auxílio não se aplica no seu caso — te explico o porquê direitinho, tá bom?",
+              move: "→ etapa “Sem direito”",
+            },
+          ],
+        },
+      ],
+      aposRamos: "Todo caminho termina em: agendado com o advogado, sem direito (com o porquê no card) ou humano chamado — nunca no vácuo.",
+    },
   },
 ];
 

@@ -3,15 +3,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Radio, Zap, Wand2, Check, X, Loader2, ShieldCheck, Lock, Plus,
   ArrowUp, Play, FlaskConical, Rocket, Lightbulb, ThumbsUp, AlertTriangle,
-  Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, AudioLines,
+  Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, AudioLines, GitBranch,
 } from "lucide-react";
 import { type Agent, type AgentState, type Insight, type Upgrade, STATE_META, CHAT_EXEMPLOS } from "../data";
 import { Reveal, Pill, Toggle, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
+import MapaTab from "./MapaTab";
 import VoiceMode from "./VoiceMode";
 
-type Sub = "trabalho" | "aovivo" | "logs" | "estrutura" | "melhorar";
+type Sub = "mapa" | "trabalho" | "aovivo" | "logs" | "estrutura" | "melhorar";
 const SUBS: { id: Sub; label: string; icon: any }[] = [
   { id: "aovivo", label: "O que faz", icon: Radio },
   { id: "logs", label: "Logs", icon: ScrollText },
@@ -20,15 +21,17 @@ const SUBS: { id: Sub; label: string; icon: any }[] = [
 ];
 
 export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: Sub }) {
-  const [sub, setSub] = useState<Sub>(initialSub ?? "aovivo");
+  const [sub, setSub] = useState<Sub>(initialSub ?? (agent.mapa ? "mapa" : "aovivo"));
   const [state, setState] = useState<AgentState>(agent.state);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const sm = STATE_META[state];
   const alerta = (agent.fluxo ?? []).some((p) => p.status === "falha") || (agent.insights ?? []).some((i) => i.tipo === "critico");
   const workIconMap: Record<string, any> = { agenda: CalendarClock, followups: Repeat, contratos: FileSignature, conhecimento: BookOpen, acoes: Zap, lista: ListChecks };
-  const subs = agent.work
-    ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }, ...SUBS]
-    : SUBS;
+  const subs = [
+    ...(agent.mapa ? [{ id: "mapa" as Sub, label: "Mapa", icon: GitBranch }] : []),
+    ...(agent.work ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }] : []),
+    ...SUBS,
+  ];
 
   return (
     <div className="space-y-5">
@@ -87,6 +90,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       </div>
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+        {sub === "mapa" && agent.mapa && <MapaTab agent={agent} />}
         {sub === "trabalho" && agent.work && <WorkTab agent={agent} />}
         {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => setSub("melhorar")} />}
         {sub === "logs" && <LogsTab agent={agent} />}
