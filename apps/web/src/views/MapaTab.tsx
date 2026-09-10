@@ -1,12 +1,12 @@
 // O PROCESSO do agente — uma LEITURA, não um painel. ZERO botões: o cliente lê
-// de cima a baixo e entende (1) como o produto dele funciona hoje, (2) o que
-// mudou por último e ONDE encaixou — com a prova do porteiro, (3) o que está
-// ligado. Ação mora no Turbinar e no Melhorar — aqui é só clareza.
+// de cima a baixo e entende como o produto dele funciona HOJE. Só isso — cada
+// coisa no seu lugar: mudanças moram na aba Mudanças; features no Turbinar;
+// ação no Melhorar. As situações alteradas ficam marcadas com ✨ aqui.
 // O conteúdo é lido do cérebro do agente — mudou o cérebro, muda aqui sozinho.
 import { type ReactNode } from "react";
-import { Check, Sparkles, UserRound, ShieldCheck } from "lucide-react";
+import { Sparkles, UserRound } from "lucide-react";
 import { type Agent, type Mudanca, type Ramo, type Regra } from "../data";
-import { Reveal, cx } from "../ui";
+import { Reveal } from "../ui";
 
 function listar(itens: string[]): string {
   if (itens.length === 1) return itens[0];
@@ -18,24 +18,9 @@ function frase(s: string): string {
   return /[.?!…]$/.test(s.trim()) ? s : s + ".";
 }
 
-const ORIGEM_LABEL: Record<Mudanca["origem"], string> = {
-  voce: "você pediu",
-  metrik: "a Metrik ajustou",
-  escola: "você corrigiu (Escola)",
-};
-
-const STATUS_COR: Record<Mudanca["status"], string> = {
-  "no ar": "#34d399",
-  "em teste": "#fbbf24",
-  "aguardando aprovação": "#8b7cff",
-};
-
 export default function MapaTab({ agent }: { agent: Agent }) {
   const mapa = agent.mapa!;
   const mudancas = mapa.mudancas ?? [];
-  const ligadas = agent.features.filter((f) => f.on);
-  const desligadas = agent.features.filter((f) => !f.on);
-  const ramoById = (id?: string) => mapa.ramos.find((r) => r.id === id);
 
   return (
     <div className="space-y-4">
@@ -49,7 +34,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
           {mudancas.length > 0 && (
             <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#8b7cff" }}>
               <Sparkles size={13} />
-              {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ no processo abaixo
+              {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ abaixo · detalhes na aba Mudanças
             </div>
           )}
           {agent.expectativa && (
@@ -87,45 +72,6 @@ export default function MapaTab({ agent }: { agent: Agent }) {
         </div>
       </Reveal>
 
-      {/* ── Mudanças recentes — o que você pediu e onde encaixou ── */}
-      {mudancas.length > 0 && (
-        <Reveal delay={0.05}>
-          <div>
-            <div className="mono-label flex items-center gap-1.5 mb-3">
-              <Sparkles size={12} style={{ color: "#8b7cff" }} /> Mudanças recentes — o que foi pedido e onde encaixou
-            </div>
-            <div className="space-y-3">
-              {mudancas.map((m, i) => (
-                <MudancaCard key={i} m={m} ramo={ramoById(m.ramoId)} />
-              ))}
-            </div>
-          </div>
-        </Reveal>
-      )}
-
-      {/* ── O que está ligado — só leitura; a ação mora no Turbinar ── */}
-      {agent.features.length > 0 && (
-        <Reveal delay={0.08}>
-          <div className="card p-5">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="mono-label">O que está ligado nele</div>
-              <span className="text-[11px] text-[var(--txt-4)] flex-none">ligar e desligar é na aba Turbinar</span>
-            </div>
-            <ul className="space-y-2">
-              {ligadas.map((f) => (
-                <li key={f.name} className="flex items-center gap-2 text-[13.5px] text-[var(--txt-2)]">
-                  <Check size={14} style={{ color: "#34d399" }} className="flex-none" /> {f.name}
-                </li>
-              ))}
-              {desligadas.map((f) => (
-                <li key={f.name} className="flex items-center gap-2 text-[13.5px] text-[var(--txt-4)]">
-                  <span className="dot flex-none" style={{ background: "var(--txt-4)", width: 6, height: 6 }} /> {f.name} — desligado
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Reveal>
-      )}
     </div>
   );
 }
@@ -211,48 +157,3 @@ function Situacao({ regra, cor, mudanca }: { regra: Regra; cor: string; mudanca?
   );
 }
 
-/* a história de UMA mudança: pedido → antes/agora → onde encaixou → prova → status */
-function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
-  const stCor = STATUS_COR[m.status];
-  return (
-    <div className="card p-5" style={{ borderColor: "#8b7cff2e" }}>
-      <div className="flex items-center justify-between gap-3 mb-2.5">
-        <span className="text-[12px] text-[var(--txt-3)]">
-          {m.quando} · <b className="text-[var(--txt-2)]">{ORIGEM_LABEL[m.origem]}</b>
-        </span>
-        <span className="pill flex-none" style={{ color: stCor, borderColor: `${stCor}40`, background: `${stCor}12` }}>
-          {m.status === "no ar" && <span className="live-dot" style={{ width: 6, height: 6, background: stCor }} />}
-          {m.status}
-        </span>
-      </div>
-
-      <p className="text-[15px] text-[var(--txt)] leading-relaxed mb-3.5">“{m.pedido}”</p>
-
-      <div className="grid md:grid-cols-2 gap-2.5 mb-3">
-        <div className="rounded-lg px-3.5 py-2.5 bg-[var(--surface-2)] border border-[var(--line)]">
-          <div className="mono-label !text-[9px] mb-1 !text-[var(--txt-4)]">antes</div>
-          <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{m.antes}</p>
-        </div>
-        <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#34d3990d", border: "1px solid #34d39928" }}>
-          <div className="mono-label !text-[9px] mb-1" style={{ color: "#34d399" }}>agora</div>
-          <p className="text-[13px] text-[var(--txt)] leading-relaxed">{m.agora}</p>
-        </div>
-      </div>
-
-      <div className={cx("flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]")}>
-        {ramo && (
-          <span className="inline-flex items-center gap-1.5 text-[var(--txt-2)]">
-            <span className="dot" style={{ background: ramo.cor, width: 8, height: 8 }} />
-            encaixou no caminho <b>{ramo.nome}</b>
-            {m.situacao && <span className="text-[var(--txt-4)]">· situação “{m.situacao}”</span>}
-          </span>
-        )}
-        {m.porteiro && (
-          <span className="inline-flex items-center gap-1.5" style={{ color: "#34d399" }}>
-            <ShieldCheck size={13} /> porteiro: {m.porteiro.casos} · nota {m.porteiro.nota}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}

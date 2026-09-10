@@ -10,15 +10,10 @@ import { Reveal, Pill, Toggle, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
 import MapaTab from "./MapaTab";
+import MudancasTab from "./MudancasTab";
 import VoiceMode from "./VoiceMode";
 
-type Sub = "trabalho" | "aovivo" | "logs" | "estrutura" | "melhorar";
-const SUBS: { id: Sub; label: string; icon: any }[] = [
-  { id: "aovivo", label: "O que faz", icon: Radio },
-  { id: "logs", label: "Logs", icon: ScrollText },
-  { id: "estrutura", label: "Turbinar", icon: Zap },
-  { id: "melhorar", label: "Melhorar", icon: Wand2 },
-];
+type Sub = "trabalho" | "aovivo" | "mudancas" | "logs" | "estrutura" | "melhorar";
 
 export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: Sub }) {
   const [sub, setSub] = useState<Sub>(initialSub ?? "aovivo");
@@ -27,9 +22,17 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
   const sm = STATE_META[state];
   const alerta = (agent.fluxo ?? []).some((p) => p.status === "falha") || (agent.insights ?? []).some((i) => i.tipo === "critico");
   const workIconMap: Record<string, any> = { agenda: CalendarClock, followups: Repeat, contratos: FileSignature, conhecimento: BookOpen, acoes: Zap, lista: ListChecks };
-  const subs = agent.work
-    ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }, ...SUBS]
-    : SUBS;
+  // Cada aba com UMA finalidade: O que faz (ler o processo) · Mudanças (observar
+  // o que entrou) · Trabalho (a superfície dele) · Logs · Turbinar · Melhorar.
+  const nMud = agent.mapa?.mudancas?.length ?? 0;
+  const subs: { id: Sub; label: string; icon: any; badge?: number }[] = [
+    { id: "aovivo", label: "O que faz", icon: Radio },
+    ...(nMud > 0 ? [{ id: "mudancas" as Sub, label: "Mudanças", icon: Sparkles, badge: nMud }] : []),
+    ...(agent.work ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }] : []),
+    { id: "logs", label: "Logs", icon: ScrollText },
+    { id: "estrutura", label: "Turbinar", icon: Zap },
+    { id: "melhorar", label: "Melhorar", icon: Wand2 },
+  ];
 
   return (
     <div className="space-y-5">
@@ -82,6 +85,9 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
         {subs.map((s) => (
           <button key={s.id} onClick={() => setSub(s.id)} className={cx("chip !py-2", sub === s.id && "!border-[var(--line-hi)] !bg-[var(--surface-hi)] !text-[var(--txt)]")}>
             <s.icon size={14} /> {s.label}
+            {s.badge != null && (
+              <span className="grid place-items-center text-[10px] font-mono rounded-full" style={{ minWidth: 16, height: 16, background: "#8b7cff22", border: "1px solid #8b7cff45", color: "#a78bfa" }}>{s.badge}</span>
+            )}
             {s.id === "aovivo" && alerta && <span className="dot" style={{ background: "#fb7185" }} />}
           </button>
         ))}
@@ -90,6 +96,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
         {sub === "trabalho" && agent.work && <WorkTab agent={agent} />}
         {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => setSub("melhorar")} />}
+        {sub === "mudancas" && agent.mapa && <MudancasTab agent={agent} />}
         {sub === "logs" && <LogsTab agent={agent} />}
         {sub === "estrutura" && <Turbinar agent={agent} />}
         {sub === "melhorar" && <MelhorarTab agent={agent} />}
