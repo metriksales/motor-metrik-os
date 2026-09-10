@@ -19,7 +19,24 @@ import { tempoRelativo } from "../lib/live";
 type Sub = "trabalho" | "aovivo" | "mudancas" | "logs" | "estrutura" | "melhorar";
 
 export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: Sub }) {
+  const auth = useMotorAuth();
   const [sub, setSub] = useState<Sub>(initialSub ?? "aovivo");
+
+  // Badge de Mudanças conta o LEDGER real (ChangeSets) quando o agente é real.
+  const [nReal, setNReal] = useState(0);
+  useEffect(() => {
+    if (!agent.real) return;
+    let vivo = true;
+    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
+      .then((rows) => {
+        if (vivo && Array.isArray(rows)) setNReal(rows.length);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id, sub]);
   const [state, setState] = useState<AgentState>(agent.state);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const sm = STATE_META[state];
@@ -27,7 +44,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
   const workIconMap: Record<string, any> = { agenda: CalendarClock, followups: Repeat, contratos: FileSignature, conhecimento: BookOpen, acoes: Zap, lista: ListChecks };
   // Cada aba com UMA finalidade: O que faz (ler o processo) · Mudanças (observar
   // o que entrou) · Trabalho (a superfície dele) · Logs · Turbinar · Melhorar.
-  const nMud = agent.mapa?.mudancas?.length ?? 0;
+  const nMud = nReal > 0 ? nReal : (agent.mapa?.mudancas?.length ?? 0);
   const subs: { id: Sub; label: string; icon: any; badge?: number }[] = [
     { id: "aovivo", label: "O que faz", icon: Radio },
     ...(nMud > 0 ? [{ id: "mudancas" as Sub, label: "Mudanças", icon: Sparkles, badge: nMud }] : []),
