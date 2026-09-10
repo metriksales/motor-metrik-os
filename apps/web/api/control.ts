@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // bundle pré-compilado (scripts/bundle-api.mjs) — em runtime o Node não carrega
 // os workspaces .ts; o esbuild inlina tudo neste .mjs no build.
 import * as control from "./_bundled/control.mjs";
-import { resolveCtx } from "./_auth";
+import { resolveCtx } from "./_auth.js";
 
 // Porta ÚNICA de mudança: front, Claude Code, Codex e API batem AQUI.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
