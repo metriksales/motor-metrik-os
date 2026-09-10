@@ -6,11 +6,22 @@ import { resolveCtx } from "./_auth.js";
 
 // Porta ÚNICA de mudança: front, Claude Code, Codex e API batem AQUI.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const ctx = await resolveCtx(req);
-  if (!ctx) return res.status(401).json({ error: "não autorizado" });
+  // guard do banco ANTES da auth: sem Neon, o fluxo Clerk (que provisiona org
+  // no banco) responderia 401/500 confuso em vez deste 503 claro.
   if (!control.getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado — falta DATABASE_URL (Neon)" });
   }
+  let ctx;
+  try {
+    ctx = await resolveCtx(req);
+  } catch (e) {
+    // erro da PONTE org↔banco (não é token inválido): 500 com a causa nos logs.
+    console.error("[auth] ponte Clerk↔org falhou:", e);
+    return res.status(500).json({
+      error: "ponte de organização falhou: " + (e instanceof Error ? e.message : "erro"),
+    });
+  }
+  if (!ctx) return res.status(401).json({ error: "não autorizado" });
 
   const action = String(req.query.action ?? "");
   const body = (req.body ?? {}) as any;

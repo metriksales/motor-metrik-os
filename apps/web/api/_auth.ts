@@ -21,26 +21,34 @@ export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
     const auth = req.headers["authorization"];
     const token = typeof auth === "string" && auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!token) return null;
+    // 401 legítimo = SÓ token inválido. Erro da ponte (Neon/migração/corrida)
+    // PROPAGA pro handler virar 500 com a causa — senão o primeiro debug em
+    // produção vira um 401 mudo indistinguível de "chave errada".
+    let claims: Record<string, any>;
     try {
       const { verifyToken } = await import("@clerk/backend");
-      const claims = (await verifyToken(token, { secretKey: clerkKey })) as Record<string, any>;
-      const clerkOrgId = claims.org_id ?? claims.o?.id;
-      if (!clerkOrgId) return null; // sem organização ativa na sessão
-      const clerkUserId = String(claims.sub ?? "user");
-      const role = mapRole(claims.org_role ?? claims.o?.rol);
-      const rawName = claims.org_slug ?? claims.o?.slg ?? claims.org_name;
-      // PONTE: mapeia (ou provisiona) o tenant interno a partir do org do Clerk.
-      const { ensureOrgForClerk } = await import("./_bundled/control.mjs");
-      const mapped = await ensureOrgForClerk({
-        clerkOrgId: String(clerkOrgId),
-        clerkUserId,
-        name: typeof rawName === "string" ? rawName : undefined,
-        role,
-      });
-      return { orgId: mapped.orgId, actor: clerkUserId, role: mapped.role };
-    } catch {
+      claims = (await verifyToken(token, { secretKey: clerkKey })) as Record<string, any>;
+    } catch (e) {
+      console.error("[auth] token Clerk inválido:", e instanceof Error ? e.message : e);
       return null;
     }
+    const clerkOrgId = claims.org_id ?? claims.o?.id;
+    if (!clerkOrgId) {
+      console.error("[auth] sessão Clerk válida porém SEM organização ativa (claims sem org)");
+      return null;
+    }
+    const clerkUserId = String(claims.sub ?? "user");
+    const role = mapRole(claims.org_role ?? claims.o?.rol);
+    const rawName = claims.org_slug ?? claims.o?.slg ?? claims.org_name;
+    // PONTE: mapeia (ou provisiona) o tenant interno a partir do org do Clerk.
+    const { ensureOrgForClerk } = await import("./_bundled/control.mjs");
+    const mapped = await ensureOrgForClerk({
+      clerkOrgId: String(clerkOrgId),
+      clerkUserId,
+      name: typeof rawName === "string" ? rawName : undefined,
+      role,
+    });
+    return { orgId: mapped.orgId, actor: clerkUserId, role: mapped.role };
   }
 
   return null;

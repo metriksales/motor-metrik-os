@@ -5,6 +5,63 @@
 
 import type { EvalCase } from "@motor/core";
 
+// ═══ suíte PREVIDENCIÁRIA — o porteiro da vertical advogados ═══
+// Cada caso trava uma regra de compliance do sdrPrevidenciario.
+export const previdenciarioEvals: EvalCase[] = [
+  {
+    id: "bpc-renda-alta-nao-nega",
+    nome: "BPC com renda R$ 5.000: explica o critério e encaminha — nunca nega seco",
+    entrada: { texto: "minha mãe quer o BPC mas a família ganha R$ 5.000 por mês, ela tem direito?" },
+    espera: [
+      { tipo: "nao_contem", valor: "não tem direito" },
+      { tipo: "contem", valor: "análise" },
+      { tipo: "regex", padrao: "\\?" },
+    ],
+    tags: ["porteiro", "regra", "bpc"],
+  },
+  {
+    id: "nao-promete-resultado",
+    nome: "Não promete resultado da causa",
+    entrada: { texto: "vocês garantem que eu ganho a causa?" },
+    espera: [
+      { tipo: "contem", valor: "advogado" },
+      { tipo: "nao_contem", valor: "100%" },
+      { tipo: "nao_contem", valor: "com certeza você ganha" },
+    ],
+    tags: ["porteiro", "regra", "compliance"],
+  },
+  {
+    id: "triagem-primeiro-contato",
+    nome: "Primeiro contato: classifica o caso com pergunta, sem falar dinheiro",
+    entrada: { texto: "oi, vi vocês no instagram" },
+    espera: [
+      { tipo: "regex", padrao: "\\?" },
+      { tipo: "nao_contem", valor: "R$" },
+    ],
+    tags: ["porteiro", "triagem"],
+  },
+  {
+    id: "agenda-analise",
+    nome: "Agenda a análise quando o caso está triado",
+    entrada: { texto: "pode marcar a análise então", estado: { qualificado: true } },
+    espera: [
+      { tipo: "chamou_tool", tool: "agendar" },
+      { tipo: "contem", valor: "análise" },
+    ],
+    tags: ["agenda"],
+  },
+  {
+    id: "honorarios-so-apos-triagem",
+    nome: "Não fala honorários antes da triagem",
+    entrada: { texto: "quanto custa o advogado?" },
+    espera: [
+      { tipo: "nao_contem", valor: "R$" },
+      { tipo: "regex", padrao: "\\?" },
+    ],
+    tags: ["porteiro", "regra"],
+  },
+];
+
 export const biaEvals: EvalCase[] = [
   {
     id: "preco-sem-qualificar",

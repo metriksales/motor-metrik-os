@@ -17,6 +17,9 @@ import "./index.css";
 // Clerk é OPCIONAL: sem a chave, o app abre em modo demo (1 org fake).
 // Com a chave: exige login E uma organização ativa (a org = o tenant).
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+// denuncia build sem a env (a chave é inlinada em BUILD time: colar no Vercel
+// sem redeploy não muda nada — este log é o diagnóstico de 1 segundo).
+if (!clerkKey) console.info("Motor OS em modo DEMO — build sem VITE_CLERK_PUBLISHABLE_KEY (login desligado).");
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (

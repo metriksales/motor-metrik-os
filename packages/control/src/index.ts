@@ -5,7 +5,7 @@ import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs } from "@motor/db";
 import { FakeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
-import { biaEvals, biaSDR } from "@motor/samples";
+import { kitParaAgente } from "@motor/samples";
 import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
 
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
@@ -333,18 +333,24 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
   if (!cs) throw new Error("mudança não encontrada neste tenant");
 
+  // suíte por VERTICAL: o kit certo vem do nome do agente (jurídico testa
+  // regra de jurídico; sem match cai no comercial/Bia).
+  const [ag] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, cs.agentId), eq(agents.orgId, ctx.orgId)));
+  const kit = kitParaAgente(ag?.name ?? "");
   const brain = new FakeBrain({
-    regras: [
-      { quando: /pre[çc]o|valor|quanto custa/i, responder: () => ({ texto: "Claro! Pra te passar certinho, me conta: qual o tamanho da sua operação hoje?" }) },
-      { quando: /marcar|reuni|hor[áa]rio|agenda/i, responder: () => ({ texto: "Perfeito, vou marcar nossa reunião!", toolCalls: [{ tool: "agendar", args: { quando: "2026-09-12T14:00:00Z" } }] }) },
-      { quando: /rob[ôo]|\bia\b|intelig[êe]ncia/i, responder: () => ({ texto: "Sou a Bia, da Vega 😊 tô aqui pra te ajudar. Como posso ajudar hoje?" }) },
-    ],
-    textoPadrao: "Que bom que você chegou! O que te chamou atenção pra falar com a gente?",
+    regras: kit.roteiro.map((r) => ({
+      quando: new RegExp(r.quando, "i"),
+      responder: () => ({ texto: r.texto, toolCalls: r.tool ? [r.tool] : undefined }),
+    })),
+    textoPadrao: kit.textoPadrao,
   });
-  const c = biaSDR.cerebro;
+  const c = kit.spec.cerebro;
   const system = [c.identidade, c.oferta ?? "", ...c.regras.map((r) => `- ${r}`)].filter(Boolean).join("\n");
   const evals = await runEvals(
-    biaEvals,
+    kit.evals,
     async (entrada) => {
       const turn = await brain.responder({ system, historico: [{ role: "user", content: entrada.texto ?? "" }] });
       const moved = turn.toolCalls?.find((t) => t.tool === "moverEtapa");
@@ -355,10 +361,10 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
 
   const [updated] = await db
     .update(changeSets)
-    .set({ status: "evaluated", impact: { evals } })
+    .set({ status: "evaluated", impact: { evals, suite: kit.id } })
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)))
     .returning();
-  await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado });
+  await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado, suite: kit.id });
   return { changeSet: updated, evals };
 }
 

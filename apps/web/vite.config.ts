@@ -1,10 +1,13 @@
-import { defineConfig, type PluginOption } from "vite";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Dev-only: serve /api/control local chamando @motor/control direto (stack
 // completo no `npm run dev`, sem precisar de `vercel dev`). NÃO afeta o build de
-// produção (apply:"serve" → só roda no dev server). Autentica por x-org-id (dev).
-function localControlApi(): PluginOption {
+// produção (apply:"serve" → só roda no dev server).
+// Auth em dev: com Authorization Bearer + CLERK_SECRET_KEY no .env.local, roda o
+// MESMO caminho de produção (verifyToken → ensureOrgForClerk) — o primeiro login
+// vira testável ANTES do Vercel. Sem Bearer, atalho x-org-id como sempre.
+function localControlApi(clerkSecretKey: string | undefined): PluginOption {
   return {
     name: "local-control-api",
     apply: "serve",
@@ -19,9 +22,28 @@ function localControlApi(): PluginOption {
           const control = (await server.ssrLoadModule("@motor/control")) as Record<string, any>;
           const url = new URL(req.url ?? "", "http://localhost");
           const action = url.searchParams.get("action") ?? "";
-          const orgId = String(req.headers["x-org-id"] ?? "");
-          if (!orgId) return send(401, { error: "sem x-org-id (dev)" });
-          const ctx = { orgId, actor: "dev", role: "admin" as const };
+
+          let ctx: { orgId: string; actor: string; role: "admin" };
+          const authHeader = String(req.headers["authorization"] ?? "");
+          if (authHeader.startsWith("Bearer ") && clerkSecretKey) {
+            // caminho REAL do primeiro login (idêntico ao api/_auth.ts de prod)
+            const { verifyToken } = await import("@clerk/backend");
+            const claims = (await verifyToken(authHeader.slice(7), { secretKey: clerkSecretKey })) as Record<string, any>;
+            const clerkOrgId = claims.org_id ?? claims.o?.id;
+            if (!clerkOrgId) return send(401, { error: "sessão Clerk sem organização ativa (dev)" });
+            const rawName = claims.org_slug ?? claims.o?.slg ?? claims.org_name;
+            const mapped = await control.ensureOrgForClerk({
+              clerkOrgId: String(clerkOrgId),
+              clerkUserId: String(claims.sub ?? "user"),
+              name: typeof rawName === "string" ? rawName : undefined,
+              role: "owner",
+            });
+            ctx = { orgId: mapped.orgId, actor: String(claims.sub ?? "user"), role: "admin" };
+          } else {
+            const orgId = String(req.headers["x-org-id"] ?? "");
+            if (!orgId) return send(401, { error: "sem x-org-id (dev)" });
+            ctx = { orgId, actor: "dev", role: "admin" };
+          }
 
           let body: any = {};
           if (req.method === "POST") {
@@ -73,7 +95,15 @@ function localControlApi(): PluginOption {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), localControlApi()],
-  server: { port: 5175, host: true },
+export default defineConfig(({ mode }) => {
+  // .env/.env.local inteiros (sem filtro VITE_) — o middleware dev precisa de
+  // CLERK_SECRET_KEY e DATABASE_URL, que nunca vão pro bundle do browser.
+  const env = loadEnv(mode, process.cwd(), "");
+  for (const k of ["CLERK_SECRET_KEY", "DATABASE_URL"]) {
+    if (env[k] && !process.env[k]) process.env[k] = env[k];
+  }
+  return {
+    plugins: [react(), localControlApi(env.CLERK_SECRET_KEY)],
+    server: { port: 5175, host: true },
+  };
 });

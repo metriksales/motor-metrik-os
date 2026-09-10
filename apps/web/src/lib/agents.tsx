@@ -12,6 +12,8 @@ interface AgentsData {
   byId: (id: string) => Agent | undefined;
   source: Source;
   loading: boolean;
+  /** modo logado: falha REAL da API (nunca mascarada com o demo) */
+  erro?: string;
 }
 
 const PALETTE = ["#22d3ee", "#8b7cff", "#6366f1", "#34d399", "#fbbf24", "#d16bff", "#fb7185", "#a78bfa"];
@@ -68,6 +70,7 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
   const [agents, setAgents] = useState<Agent[]>(AGENTS);
   const [source, setSource] = useState<Source>("demo");
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
@@ -75,18 +78,30 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
       try {
         const rows = (await api.listAgents(auth.getToken)) as DbAgent[];
         if (!alive) return;
+        setErro(undefined);
         if (Array.isArray(rows) && rows.length > 0) {
           setAgents(rows.map(mapReal));
           setSource("neon");
+        } else if (auth.demo) {
+          // sem banco/sem auth no modo demo → mantém a maquete bonita
+          setAgents(AGENTS);
+          setSource("demo");
         } else {
-          // banco vazio ou sem auth → mantém o demo bonito
-          setAgents(AGENTS);
-          setSource("demo");
+          // LOGADO com org vazia: estado honesto — nada de mock fingindo ser real
+          setAgents([]);
+          setSource("neon");
         }
-      } catch {
-        if (alive) {
+      } catch (e) {
+        if (!alive) return;
+        if (auth.demo) {
           setAgents(AGENTS);
           setSource("demo");
+        } else {
+          // LOGADO com falha real: mostra o erro, não a maquete
+          console.error("[agents] control API falhou:", e);
+          setAgents([]);
+          setSource("neon");
+          setErro(e instanceof Error ? e.message : "falha ao falar com a API");
         }
       } finally {
         if (alive) setLoading(false);
@@ -95,10 +110,10 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [auth.getToken]);
+  }, [auth.getToken, auth.demo]);
 
   const byId = (id: string) => agents.find((a) => a.id === id);
-  return <Ctx.Provider value={{ agents, byId, source, loading }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ agents, byId, source, loading, erro }}>{children}</Ctx.Provider>;
 }
 
 export const useAgents = () => useContext(Ctx);

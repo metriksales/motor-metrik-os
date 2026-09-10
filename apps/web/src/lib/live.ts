@@ -43,8 +43,10 @@ export function useLive(): { logs: LogReal[] | null; stats: StatsReais | null; c
         if (!vivo) return;
         if (Array.isArray(l) && l.length > 0) setLogs(l);
         if (s && typeof s.execucoes === "number" && s.execucoes > 0) setStats(s);
-      } catch {
-        // sem auth / sem API → segue no demo (com selo de demo)
+      } catch (e) {
+        // demo: segue na maquete (com selo). Logado: deixa rastro pro diagnóstico
+        // (o banner de erro global vem do AgentsProvider).
+        if (!auth.demo) console.error("[live] control API falhou:", e);
       } finally {
         if (vivo) setCarregando(false);
       }

@@ -25,7 +25,7 @@ export default function App() {
   const [wa, setWa] = useState(true);
   const [agentSub, setAgentSub] = useState<SubId | undefined>(undefined);
   const auth = useMotorAuth();
-  const { agents, byId } = useAgents();
+  const { agents, byId, erro, loading: agentsLoading } = useAgents();
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -190,6 +190,12 @@ export default function App() {
         </header>
 
         <div className="flex-1 min-h-0 overflow-y-auto scroll-thin px-5 md:px-7 py-6">
+          {/* modo LOGADO: falha real da API nunca vira maquete — vira aviso claro */}
+          {!auth.demo && erro && (
+            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]" style={{ borderColor: "rgba(251,113,133,.4)", background: "rgba(251,113,133,.08)", color: "#fb7185" }}>
+              Não consegui falar com o motor agora: <span className="font-mono">{erro}</span>. A Metrik já enxerga isso do outro lado — se persistir, chama a gente.
+            </div>
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={routeKey}
@@ -199,7 +205,15 @@ export default function App() {
               transition={{ duration: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
               className="max-w-[1180px] mx-auto"
             >
-              {agent ? (
+              {!auth.demo && !erro && !agentsLoading && agents.length === 0 ? (
+                <div className="card !rounded-2xl px-6 py-10 text-center">
+                  <div className="font-display font-semibold text-[17px] mb-2">Sua organização está pronta — os agentes chegam por aqui</div>
+                  <p className="text-[13px] text-[var(--txt-3)] max-w-[520px] mx-auto">
+                    Ainda não há nenhum agente instalado nesta organização. A Metrik monta e liga o primeiro pra você;
+                    assim que ele estiver no ar, esta tela vira o seu painel de acompanhamento ao vivo.
+                  </p>
+                </div>
+              ) : agent ? (
                 <AgentDetail key={agent.id} agent={agent} onBack={() => go("agentes")} initialSub={agentSub} />
               ) : (
                 <>
