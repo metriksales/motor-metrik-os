@@ -30,7 +30,7 @@ export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
       const role = mapRole(claims.org_role ?? claims.o?.rol);
       const rawName = claims.org_slug ?? claims.o?.slg ?? claims.org_name;
       // PONTE: mapeia (ou provisiona) o tenant interno a partir do org do Clerk.
-      const { ensureOrgForClerk } = await import("@motor/control");
+      const { ensureOrgForClerk } = await import("./_bundled/control.mjs");
       const mapped = await ensureOrgForClerk({
         clerkOrgId: String(clerkOrgId),
         clerkUserId,

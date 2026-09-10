@@ -17,7 +17,9 @@ export function getDatabaseUrl(): string {
 }
 
 // Neon serverless driver = pooler HTTP → não estoura conexão em serverless.
-const url = getDatabaseUrl();
+// Placeholder quando não há env: o MÓDULO nunca crasha no import (neon("") lança);
+// os guards (getDatabaseUrl()) impedem qualquer query sem banco configurado.
+const url = getDatabaseUrl() || "postgresql://placeholder:placeholder@placeholder.invalid/placeholder";
 export const sql = neon(url);
 export const db = drizzle(sql, { schema });
 export type Db = typeof db;

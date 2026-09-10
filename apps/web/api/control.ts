@@ -1,13 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import * as control from "@motor/control";
-import { getDatabaseUrl } from "@motor/db";
+// bundle pré-compilado (scripts/bundle-api.mjs) — em runtime o Node não carrega
+// os workspaces .ts; o esbuild inlina tudo neste .mjs no build.
+import * as control from "./_bundled/control.mjs";
 import { resolveCtx } from "./_auth";
 
 // Porta ÚNICA de mudança: front, Claude Code, Codex e API batem AQUI.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ctx = await resolveCtx(req);
   if (!ctx) return res.status(401).json({ error: "não autorizado" });
-  if (!getDatabaseUrl()) {
+  if (!control.getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado — falta DATABASE_URL (Neon)" });
   }
 

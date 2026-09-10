@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getDatabaseUrl } from "@motor/db";
+import { getDatabaseUrl } from "./_bundled/control.mjs";
 
 // Cron de FOLLOW-UP: varre os leads em cadência com toque vencido e dispara
 // schedule events (o motor followup decide se é a hora / dentro da janela).

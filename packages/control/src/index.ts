@@ -3,7 +3,13 @@
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs } from "@motor/db";
+import { FakeBrain } from "@motor/llm";
+import { runEvals } from "@motor/evals";
+import { biaEvals, biaSDR } from "@motor/samples";
 import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
+
+// re-export pros hosts (guards das functions usam sem importar @motor/db direto)
+export { getDatabaseUrl } from "@motor/db";
 
 export interface Ctx {
   orgId: string;
@@ -326,10 +332,6 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
     .from(changeSets)
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
   if (!cs) throw new Error("mudança não encontrada neste tenant");
-
-  const { FakeBrain } = await import("@motor/llm");
-  const { runEvals } = await import("@motor/evals");
-  const { biaEvals, biaSDR } = await import("@motor/samples");
 
   const brain = new FakeBrain({
     regras: [

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createProductionDeps, handleInbound } from "@motor/runtime";
-import { getDatabaseUrl } from "@motor/db";
+import { createProductionDeps, handleInbound } from "./_bundled/runtime.mjs";
+import { getDatabaseUrl } from "./_bundled/control.mjs";
 
 // Porta de ENTRADA de mensagem (webhook do canal: uazapi/GHL/IG).
 // Autentica pelo SEGREDO do canal (x-webhook-secret), não por sessão de usuário.
