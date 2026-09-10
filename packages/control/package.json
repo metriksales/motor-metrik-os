@@ -12,6 +12,9 @@
   "dependencies": {
     "@motor/core": "*",
     "@motor/db": "*",
+    "@motor/evals": "*",
+    "@motor/llm": "*",
+    "@motor/samples": "*",
     "drizzle-orm": "*"
   },
   "devDependencies": {

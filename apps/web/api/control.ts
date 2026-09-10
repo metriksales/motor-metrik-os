@@ -29,6 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.listChangeSets(ctx, String(req.query.agentId ?? "")));
       case "aprovar":
         return res.json(await control.aprovarMudanca(ctx, body.changeSetId));
+      case "avaliar":
+        return res.json(await control.avaliarMudanca(ctx, body.changeSetId));
+      case "members":
+        return res.json(await control.listMembers(ctx));
       case "publicar":
         return res.json(await control.publicar(ctx, body));
       case "releases":

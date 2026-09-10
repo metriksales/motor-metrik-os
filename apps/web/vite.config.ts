@@ -52,6 +52,16 @@ function localControlApi(): PluginOption {
               return send(200, await control.statsHoje(ctx));
             case "log":
               return send(200, await control.registrarLog(ctx, body));
+            case "propor":
+              return send(200, await control.proporMudanca(ctx, body));
+            case "changesets":
+              return send(200, await control.listChangeSets(ctx, url.searchParams.get("agentId") ?? ""));
+            case "aprovar":
+              return send(200, await control.aprovarMudanca(ctx, body.changeSetId));
+            case "avaliar":
+              return send(200, await control.avaliarMudanca(ctx, body.changeSetId));
+            case "members":
+              return send(200, await control.listMembers(ctx));
             default:
               return send(400, { error: `ação '${action}' não suportada no dev middleware` });
           }

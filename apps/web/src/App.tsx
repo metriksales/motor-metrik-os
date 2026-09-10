@@ -12,6 +12,7 @@ import AoVivo from "./views/AoVivo";
 import AgentDetail from "./views/AgentDetail";
 import Modulos from "./views/Modulos";
 import Conexoes from "./views/Conexoes";
+import Admin from "./views/Admin";
 import { OrganizationSwitcher, UserButton } from "@clerk/clerk-react";
 import { useMotorAuth } from "./lib/auth";
 
@@ -207,6 +208,7 @@ export default function App() {
                   {view === "aovivo" && <AoVivo onOpen={openAgent} />}
                   {view === "modulos" && <Modulos go={go} onOpen={openAgent} />}
                   {view === "conexoes" && <Conexoes />}
+                  {view === "admin" && <Admin />}
                 </>
               )}
             </motion.div>

@@ -29,9 +29,10 @@ import {
   Gavel,
   SquarePen,
   Scale,
+  UsersRound,
 } from "lucide-react";
 
-export type ViewId = "inicio" | "agentes" | "aovivo" | "modulos" | "conexoes";
+export type ViewId = "inicio" | "agentes" | "aovivo" | "modulos" | "conexoes" | "admin";
 
 export const NAV: { id: ViewId; label: string; icon: any; hint: string }[] = [
   { id: "inicio", label: "Início", icon: Activity, hint: "o estado da operação" },
@@ -39,6 +40,7 @@ export const NAV: { id: ViewId; label: string; icon: any; hint: string }[] = [
   { id: "aovivo", label: "Ao vivo", icon: Radio, hint: "o que rola agora" },
   { id: "modulos", label: "Módulos", icon: Blocks, hint: "novas habilidades" },
   { id: "conexoes", label: "Conexões", icon: Plug, hint: "MCP, CRM e canais" },
+  { id: "admin", label: "Admin", icon: UsersRound, hint: "contas e acessos" },
 ];
 
 export type AgentState = "ativo" | "idle" | "pausado";
@@ -143,8 +145,9 @@ export type Mudanca = {
   origem: "voce" | "metrik" | "escola";
   /** o pedido, na fala do cliente */
   pedido: string;
-  antes: string;
-  agora: string;
+  /** antes/agora: a Metrik preenche ao publicar (mudança recém-pedida ainda não tem) */
+  antes?: string;
+  agora?: string;
   /** onde encaixou: o caminho e a situação exata (casa com Regra.se) */
   ramoId?: string;
   situacao?: string;
@@ -799,7 +802,7 @@ export const AGENTS: Agent[] = [
       mudancas: [
         {
           quando: "há 3 dias",
-          origem: "voce",
+          origem: "voce" as const,
           pedido: "Quando negar o BPC, não deixa a pessoa no vácuo — oferece outro caminho antes de encerrar.",
           antes: "Negava pela renda e encerrava a conversa ali.",
           agora: "Nega com carinho, explica o porquê e oferece verificar outro benefício antes de encerrar.",
@@ -820,6 +823,115 @@ export const AGENTS: Agent[] = [
           status: "no ar",
         },
       ],
+    },
+  },
+  {
+    // A PROVA DA FÁBRICA: mapa compilado do PROMPT REAL da Bia
+    // (clientes/metriksales/agente-ia/prompt.md — a IA comercial da Metrik no GHL).
+    id: "bia",
+    name: "Bia",
+    glyph: Bot,
+    papel: "A consultora comercial da Metrik no WhatsApp — vende, agenda e escala",
+    tipo: "resposta",
+    state: "ativo",
+    color: "#e879f9",
+    agora: "conduzindo um lead pra reunião de diagnóstico",
+    expectativa: "Todo lead que chama é atendido na hora, cai numa das 3 rotas (implementação, Kommo Academy ou GHL Academy) e sai com reunião marcada, checkout na mão ou humano assumindo.",
+    metrics: { execucoes: 48, acertos: 47, erros: 0, custo: "R$ 2,31" },
+    shield: "As rotas, os preços oficiais (R$ 997 · R$ 197 · R$ 47) e as travas de escalação são blindados — vêm do prompt certificado. Você ajusta o tom, nunca a oferta.",
+    features: [
+      { name: "Ouve áudio e lê imagem/PDF", icon: Volume2, fonte: "metrik", on: true },
+      { name: "Agenda no calendário real", icon: CalendarClock, fonte: "metrik", on: true },
+      { name: "CRM atualizado em silêncio", icon: Columns3, fonte: "metrik", on: true },
+    ],
+    live: [
+      { t: "agora", acao: "Ofereceu 2 horários de diagnóstico", status: "run" },
+      { t: "18 min", acao: "Enviou o checkout da Kommo Academy na própria resposta", status: "ok" },
+    ],
+    insights: [
+      { tipo: "elogio", titulo: "Rota certa de primeira", texto: "47 de 48 conversas caíram na rota certa sem entrevista longa.", prova: "máx. 2 perguntas de triagem, como manda a regra." },
+    ],
+    fluxo: [
+      { label: "Recebe o lead", deveria: "responde primeiro o que a pessoa perguntou", status: "ok" },
+      { label: "Tria em até 2 perguntas", deveria: "empresa própria × aprender/prestar serviço", status: "ok" },
+      { label: "Executa a rota", deveria: "diagnóstico, Academy ou escalação — sem inventar preço/link", status: "ok" },
+      { label: "CRM em silêncio", deveria: "origem, qualificação, etapa e resumo gravados", status: "ok" },
+    ],
+    simCenario: "Lead pede desconto e link que não existe no catálogo",
+    sim: [
+      { label: "Não inventa preço, link nem desconto", ok: true },
+      { label: "Reapresenta o valor antes de rebaixar a oferta", ok: true },
+      { label: "Escala pra humano quando o link não está no catálogo", ok: true },
+    ],
+    mapa: {
+      entrada: "Lead chama no WhatsApp da Metrik",
+      triagem: {
+        faz: "Se apresenta, responde primeiro o que a pessoa perguntou e descobre em NO MÁXIMO 2 perguntas qual é o caso",
+        coleta: ["é pra empresa própria ou pra aprender e prestar serviço?", "principal gargalo comercial", "Kommo, GHL ou agentes? (se for aprender)"],
+      },
+      ramos: [
+        {
+          id: "implementacao", nome: "Implementação (empresa)", cor: "#22d3ee",
+          quando: "quer resultado na própria operação: fala de equipe, atendimento, CRM, funil, automação",
+          coleta: ["gargalo principal", "segmento", "CRM atual (só se mudar a recomendação)"],
+          on: true, execucoesHoje: 6, ultima: "há 12 min — lead jurídico",
+          regras: [
+            {
+              se: "o lead aceita a reunião de diagnóstico",
+              entao: "consulta a agenda real e oferece 2–3 horários em dias diferentes; confirma por extenso",
+              diz: "Consegui quinta às 10h ou sexta às 14h. Qual fica melhor pra você?",
+              move: "→ etapa “Diagnóstico agendado” (tag agendado entra, tag ia sai)",
+            },
+            {
+              se: "pergunta o preço da implementação",
+              entao: "NUNCA inventa preço no chat: explica que depende do escopo e leva pro diagnóstico",
+              diz: "O investimento depende do escopo do seu cenário. No diagnóstico a gente desenha isso certinho, sem chute.",
+            },
+            {
+              se: "nenhum horário serve",
+              entao: "escala pra uma pessoa buscar um encaixe",
+              aviso: true,
+            },
+          ],
+        },
+        {
+          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#8b7cff",
+          quando: "quer aprender Kommo, prestar serviço ou implementar pra clientes",
+          on: true, execucoesHoje: 4, ultima: "há 18 min — agência SP",
+          regras: [
+            {
+              se: "o interesse por aprender Kommo fica claro",
+              entao: "apresenta a oferta completa OBRIGATORIAMENTE já na primeira resposta",
+              diz: "Kommo Academy, R$ 997 por ano: mais de 50 horas do zero ao avançado, IA e automação aplicadas a vendas e aulas ao vivo de segunda a quinta.",
+            },
+            {
+              se: "diz que quer entrar",
+              entao: "envia o checkout NA MESMA resposta — nunca “depois te mando o link”",
+              move: "→ checkout na resposta + funil educação",
+            },
+          ],
+        },
+        {
+          id: "ghl", nome: "GHL Academy · R$ 197/mês", cor: "#34d399",
+          quando: "quer montar agência, ter contas GHL próprias e margem recorrente",
+          on: true, execucoesHoje: 3,
+          regras: [
+            {
+              se: "acha R$ 197 caro",
+              entao: "relembra as 2 contas GHL e a possibilidade de margem (sem prometer lucro) antes de qualquer oferta menor",
+              diz: "A assinatura te dá duas contas. A segunda você pode oferecer a um cliente, e ela ajuda a pagar a sua. Esse modelo faz sentido pra sua agência?",
+            },
+            {
+              se: "rejeita as Academies e pede uma entrada menor",
+              entao: "só então apresenta o webinar de Claude Code por R$ 47; pro link, chama o time (não está no catálogo)",
+              move: "→ oferta de último recurso",
+              aviso: true,
+            },
+          ],
+        },
+      ],
+      aposRamos: "Todo caminho termina em: diagnóstico agendado, venda com checkout na resposta, ou humano assumindo — com o CRM atualizado em silêncio. Suporte, irritação ou pedido de humano escalam na hora, sem vender.",
+      mudancas: [],
     },
   },
 ];

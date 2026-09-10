@@ -312,6 +312,59 @@ export async function loadPublishedSpec(ctx: Ctx, agentId: string): Promise<Agen
   return (row?.spec as AgentSpec | undefined) ?? null;
 }
 
+// ═══ ESCOLA / PORTEIRO — o pedido do cliente vira mudança testada ═══
+
+/**
+ * avaliarMudanca — o PORTEIRO roda de verdade no servidor: executa a suíte de
+ * evals OFFLINE (FakeBrain × casos da Bia) e grava a PROVA no próprio ChangeSet
+ * (impact.evals) com status "evaluated". Quando o cérebro real (OPENAI_API_KEY)
+ * ligar, o mesmo gate roda contra o agente de verdade — o contrato não muda.
+ */
+export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
+  const [cs] = await db
+    .select()
+    .from(changeSets)
+    .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
+  if (!cs) throw new Error("mudança não encontrada neste tenant");
+
+  const { FakeBrain } = await import("@motor/llm");
+  const { runEvals } = await import("@motor/evals");
+  const { biaEvals, biaSDR } = await import("@motor/samples");
+
+  const brain = new FakeBrain({
+    regras: [
+      { quando: /pre[çc]o|valor|quanto custa/i, responder: () => ({ texto: "Claro! Pra te passar certinho, me conta: qual o tamanho da sua operação hoje?" }) },
+      { quando: /marcar|reuni|hor[áa]rio|agenda/i, responder: () => ({ texto: "Perfeito, vou marcar nossa reunião!", toolCalls: [{ tool: "agendar", args: { quando: "2026-09-12T14:00:00Z" } }] }) },
+      { quando: /rob[ôo]|\bia\b|intelig[êe]ncia/i, responder: () => ({ texto: "Sou a Bia, da Vega 😊 tô aqui pra te ajudar. Como posso ajudar hoje?" }) },
+    ],
+    textoPadrao: "Que bom que você chegou! O que te chamou atenção pra falar com a gente?",
+  });
+  const c = biaSDR.cerebro;
+  const system = [c.identidade, c.oferta ?? "", ...c.regras.map((r) => `- ${r}`)].filter(Boolean).join("\n");
+  const evals = await runEvals(
+    biaEvals,
+    async (entrada) => {
+      const turn = await brain.responder({ system, historico: [{ role: "user", content: entrada.texto ?? "" }] });
+      const moved = turn.toolCalls?.find((t) => t.tool === "moverEtapa");
+      return { texto: turn.texto, toolCalls: turn.toolCalls, movedStage: moved ? String(moved.args.stageId ?? "") : undefined };
+    },
+    0.75
+  );
+
+  const [updated] = await db
+    .update(changeSets)
+    .set({ status: "evaluated", impact: { evals } })
+    .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)))
+    .returning();
+  await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado });
+  return { changeSet: updated, evals };
+}
+
+/** usuários/membros do tenant (Admin) — quem tem login nesta organização. */
+export function listMembers(ctx: Ctx) {
+  return db.select().from(memberships).where(eq(memberships.orgId, ctx.orgId)).orderBy(desc(memberships.createdAt));
+}
+
 // ═══ FLIGHT RECORDER — a caixa-preta REAL (o que separa produto de demo) ═══
 
 /** grava UMA execução de agente. Ingerido pelos agentes reais via action=log. */

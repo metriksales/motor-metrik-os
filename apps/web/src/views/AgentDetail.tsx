@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Radio, Zap, Wand2, Check, X, Loader2, ShieldCheck, Lock, Plus,
@@ -12,6 +12,9 @@ import WorkTab from "./WorkTab";
 import MapaTab from "./MapaTab";
 import MudancasTab from "./MudancasTab";
 import VoiceMode from "./VoiceMode";
+import { api } from "../lib/api";
+import { useMotorAuth } from "../lib/auth";
+import { tempoRelativo } from "../lib/live";
 
 type Sub = "trabalho" | "aovivo" | "mudancas" | "logs" | "estrutura" | "melhorar";
 
@@ -520,12 +523,65 @@ const ORIG: Record<string, { label: string; color: string }> = {
 };
 
 function MelhorarTab({ agent }: { agent: Agent }) {
+  const auth = useMotorAuth();
   const [sim, setSim] = useState<"idle" | "running" | "done">("idle");
   const [real, setReal] = useState<"idle" | "running" | "done">("idle");
   const [pedido, setPedido] = useState<string | null>(null);
   const [gravando, setGravando] = useState(false);
   const allOk = agent.sim.every((s) => s.ok);
   const resp = pedido ? RESP[pedido] : null;
+
+  // ── ESCOLA v1: pedido digitado vira MUDANÇA REAL (ChangeSet no Neon) ──
+  const [texto, setTexto] = useState("");
+  const [envio, setEnvio] = useState<{
+    fase: "idle" | "registrando" | "porteiro" | "pronto" | "aprovado" | "erro";
+    cs?: any;
+    evals?: any;
+    erro?: string;
+  }>({ fase: "idle" });
+  const [reaisHist, setReaisHist] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    if (!agent.real) return;
+    let vivo = true;
+    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
+      .then((rows) => {
+        if (vivo && Array.isArray(rows) && rows.length > 0) setReaisHist(rows);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id, envio.fase]);
+
+  const enviar = async () => {
+    const t = texto.trim();
+    if (!t || envio.fase === "registrando" || envio.fase === "porteiro") return;
+    if (!agent.real) {
+      setEnvio({ fase: "erro", erro: "modo demo — com o agente real, o pedido entra no histórico único e passa no porteiro" });
+      return;
+    }
+    try {
+      setEnvio({ fase: "registrando" });
+      const cs: any = await api.propor({ agentId: agent.id, origin: "hub_chat", intent: t, patch: { pedido: t } }, auth.getToken);
+      setEnvio({ fase: "porteiro", cs });
+      const r: any = await api.avaliar(cs.id, auth.getToken);
+      setEnvio({ fase: "pronto", cs, evals: r.evals });
+      setTexto("");
+    } catch (e) {
+      setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao registrar" });
+    }
+  };
+
+  const aprovarReal = async () => {
+    try {
+      await api.aprovar(envio.cs.id, auth.getToken);
+      setEnvio((s) => ({ ...s, fase: "aprovado" }));
+    } catch (e) {
+      setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao aprovar" });
+    }
+  };
 
   const historico = [
     { origem: "chat", oque: "Você pediu: tom mais próximo", quando: "há 2 dias", estado: "no ar" },
@@ -538,6 +594,18 @@ function MelhorarTab({ agent }: { agent: Agent }) {
 
   const runSim = () => { setSim("running"); setReal("idle"); window.setTimeout(() => setSim("done"), 1500); };
   const runReal = () => { setReal("running"); window.setTimeout(() => setReal("done"), 1700); };
+
+  // Histórico REAL (ledger do Neon) quando o agente é real; senão o demo.
+  const ORIGIN_KEY: Record<string, string> = { hub_chat: "chat", hub_visual: "ajuste", claude_code: "claude", codex: "codex", metrik: "metrik", api: "claude" };
+  const ESTADO_LBL: Record<string, string> = { draft: "recebido", evaluated: "testado", approved: "aprovado", published: "no ar", ignored: "ignorado", rejected: "rejeitado" };
+  const histReal = reaisHist?.map((r) => ({
+    origem: ORIGIN_KEY[r.origin] ?? "chat",
+    oque: r.origin === "hub_chat" ? `Você pediu: “${r.intent}”` : r.intent ?? "mudança",
+    quando: r.createdAt ? tempoRelativo(r.createdAt) : "",
+    estado: ESTADO_LBL[r.status] ?? String(r.status ?? ""),
+  }));
+  const hist = histReal ?? historico;
+  const emPreparo = hist.filter((h) => ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado)).length;
 
   return (
     <div className="space-y-4">
@@ -564,12 +632,51 @@ function MelhorarTab({ agent }: { agent: Agent }) {
             </motion.div>
           )}
           <div className="flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 focus-within:border-[var(--line-hi)] transition-colors" style={gravando ? { borderColor: "#fb718560" } : undefined}>
-            <textarea rows={1} placeholder={gravando ? "gravando o áudio…" : `Ex: faz o ${agent.name} puxar o preço de outra API…`} className="flex-1 bg-transparent resize-none px-2 py-1.5 text-[13.5px] outline-none placeholder:text-[var(--txt-4)]" />
+            <textarea
+              rows={1}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(); } }}
+              placeholder={gravando ? "gravando o áudio…" : `Ex: faz o ${agent.name} puxar o preço de outra API…`}
+              className="flex-1 bg-transparent resize-none px-2 py-1.5 text-[13.5px] outline-none placeholder:text-[var(--txt-4)]"
+            />
             <button onClick={() => setGravando((g) => !g)} title="Gravar áudio" className={cx("btn !p-2.5 !rounded-xl flex-none", gravando && "!border-[#fb7185]")}>
               {gravando ? <span className="live-dot" style={{ width: 12, height: 12, background: "#fb7185" }} /> : <Mic size={16} />}
             </button>
-            <button className="btn btn-primary !p-2.5 !rounded-xl flex-none"><ArrowUp size={16} /></button>
+            <button onClick={() => void enviar()} className="btn btn-primary !p-2.5 !rounded-xl flex-none"><ArrowUp size={16} /></button>
           </div>
+
+          {envio.fase !== "idle" && (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl p-3 mt-3 text-[12.5px]" style={{
+              border: `1px solid ${envio.fase === "erro" ? "#fb718540" : envio.fase === "aprovado" ? "#34d39940" : "#8b7cff30"}`,
+              background: envio.fase === "erro" ? "rgba(251,113,133,.07)" : envio.fase === "aprovado" ? "rgba(52,211,153,.08)" : "rgba(139,124,255,.06)",
+            }}>
+              {envio.fase === "registrando" && (
+                <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> registrando no histórico único (Neon)…</span>
+              )}
+              {envio.fase === "porteiro" && (
+                <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> registrado ✓ — o porteiro está testando a mudança…</span>
+              )}
+              {envio.fase === "pronto" && envio.evals && (
+                <div>
+                  <div className="flex items-center gap-2 text-[var(--txt)]">
+                    <ShieldCheck size={14} style={{ color: envio.evals.aprovado ? "#34d399" : "#fb7185" }} />
+                    <b>Registrado ✓ · porteiro: {envio.evals.passaram}/{envio.evals.total} casos · nota {(envio.evals.taxa * 10).toFixed(1).replace(".", ",")}</b>
+                  </div>
+                  <p className="text-[var(--txt-3)] mt-1">
+                    {envio.evals.aprovado ? "Passou no teste — falta só a sua aprovação." : "O porteiro segurou: precisa de ajuste antes de aprovar."}
+                  </p>
+                  {envio.evals.aprovado && (
+                    <button className="btn btn-primary btn-sm mt-2" onClick={() => void aprovarReal()}><Rocket size={13} /> Aprovar mudança</button>
+                  )}
+                </div>
+              )}
+              {envio.fase === "aprovado" && (
+                <span className="flex items-center gap-2" style={{ color: "#34d399" }}><Check size={14} /> Aprovada — a Metrik publica com a prova; acompanhe no histórico abaixo e na aba Mudanças.</span>
+              )}
+              {envio.fase === "erro" && <span style={{ color: "#fb7185" }}>{envio.erro}</span>}
+            </motion.div>
+          )}
           {gravando ? (
             <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: "#fb7185" }}>
               <span className="live-dot" style={{ width: 6, height: 6, background: "#fb7185" }} /> gravando… fale a correção e toque no microfone pra parar
@@ -621,17 +728,20 @@ function MelhorarTab({ agent }: { agent: Agent }) {
       </div>
 
       <div className="card p-5">
-        <div className="mono-label mb-1">Histórico — tudo que mudou</div>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="mono-label">Histórico — tudo que mudou</div>
+          {histReal && <span className="pill" style={{ color: "#8b7cff" }}>real · Neon</span>}
+        </div>
         <p className="text-[12px] text-[var(--txt-3)] mb-4">De qualquer porta: aqui, no Turbinar, ou pelo Claude Code. Nada duplica, nada se perde.</p>
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className="pill" style={{ color: "#34d399", borderColor: "#34d39940", background: "#34d39914" }}>{historico.filter((h) => h.estado === "no ar").length} no ar</span>
-          <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>{historico.filter((h) => h.estado === "rascunho").length} em rascunho</span>
-          <span className="pill">{historico.filter((h) => h.estado === "ignorado").length} não precisou</span>
+          <span className="pill" style={{ color: "#34d399", borderColor: "#34d39940", background: "#34d39914" }}>{hist.filter((h) => h.estado === "no ar").length} no ar</span>
+          <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>{emPreparo} em preparo</span>
+          <span className="pill">{hist.filter((h) => h.estado === "ignorado").length} não precisou</span>
         </div>
         <ul className="space-y-1">
-          {historico.map((h, i) => {
-            const o = ORIG[h.origem];
-            const ec = h.estado === "no ar" ? "#34d399" : h.estado === "rascunho" ? "#fbbf24" : "#83879a";
+          {hist.map((h, i) => {
+            const o = ORIG[h.origem] ?? ORIG.chat;
+            const ec = h.estado === "no ar" ? "#34d399" : ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado) ? "#fbbf24" : "#83879a";
             return (
               <li key={i} className="flex items-center gap-3 py-2.5 border-b border-[var(--line)] last:border-0">
                 <span className="pill flex-none justify-center" style={{ color: o.color, borderColor: `${o.color}40`, background: `${o.color}14`, minWidth: 96 }}>{o.label}</span>

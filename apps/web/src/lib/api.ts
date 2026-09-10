@@ -40,6 +40,8 @@ export const api = {
   propor: (input: { agentId: string; origin: string; intent: string; patch: unknown }, getToken?: GetToken) =>
     control("propor", { body: input, getToken }),
   aprovar: (changeSetId: string, getToken?: GetToken) => control("aprovar", { body: { changeSetId }, getToken }),
+  avaliar: (changeSetId: string, getToken?: GetToken) => control("avaliar", { body: { changeSetId }, getToken }),
+  listMembers: (getToken?: GetToken) => control("members", { getToken }),
   listLogs: (agentId?: string, getToken?: GetToken) =>
     control("logs", { getToken, query: agentId ? { agentId } : undefined }),
   stats: (getToken?: GetToken) => control("stats", { getToken }),

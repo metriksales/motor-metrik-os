@@ -2,8 +2,12 @@
 // Cada mudança é uma história completa, em LEITURA (zero botões): o pedido na
 // fala dele → antes/agora → onde encaixou no processo → a prova do porteiro →
 // status. Quem alimenta isto é o Melhorar (pedido) + o porteiro (teste).
+import { useEffect, useState } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { type Agent, type Mudanca, type Ramo } from "../data";
+import { api } from "../lib/api";
+import { useMotorAuth } from "../lib/auth";
+import { tempoRelativo } from "../lib/live";
 import { Reveal } from "../ui";
 
 const ORIGEM_LABEL: Record<Mudanca["origem"], string> = {
@@ -19,9 +23,38 @@ const STATUS_COR: Record<Mudanca["status"], string> = {
 };
 
 export default function MudancasTab({ agent }: { agent: Agent }) {
+  const auth = useMotorAuth();
   const mapa = agent.mapa!;
-  const mudancas = mapa.mudancas ?? [];
   const ramoById = (id?: string) => mapa.ramos.find((r) => r.id === id);
+
+  // Agente REAL → mudanças reais do ledger (ChangeSets no Neon); senão, o demo.
+  const [reais, setReais] = useState<Mudanca[] | null>(null);
+  useEffect(() => {
+    if (!agent.real) return;
+    let vivo = true;
+    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
+      .then((rows) => {
+        if (!vivo || !Array.isArray(rows) || rows.length === 0) return;
+        setReais(
+          rows.map((r): Mudanca => ({
+            quando: r.createdAt ? tempoRelativo(r.createdAt) : "",
+            origem: r.origin === "hub_chat" ? "voce" : "metrik",
+            pedido: r.intent ?? "mudança",
+            status: r.status === "published" ? "no ar" : r.status === "approved" ? "em teste" : "aguardando aprovação",
+            porteiro: r.impact?.evals
+              ? { nota: (r.impact.evals.taxa * 10).toFixed(1).replace(".", ","), casos: `${r.impact.evals.passaram}/${r.impact.evals.total} casos passaram` }
+              : undefined,
+          }))
+        );
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id]);
+
+  const mudancas = reais ?? mapa.mudancas ?? [];
 
   return (
     <div className="space-y-4">
@@ -64,16 +97,18 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
 
       <p className="text-[15px] text-[var(--txt)] leading-relaxed mb-3.5">“{m.pedido}”</p>
 
-      <div className="grid md:grid-cols-2 gap-2.5 mb-3">
-        <div className="rounded-lg px-3.5 py-2.5 bg-[var(--surface-2)] border border-[var(--line)]">
-          <div className="mono-label !text-[9px] mb-1 !text-[var(--txt-4)]">antes</div>
-          <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{m.antes}</p>
+      {(m.antes || m.agora) && (
+        <div className="grid md:grid-cols-2 gap-2.5 mb-3">
+          <div className="rounded-lg px-3.5 py-2.5 bg-[var(--surface-2)] border border-[var(--line)]">
+            <div className="mono-label !text-[9px] mb-1 !text-[var(--txt-4)]">antes</div>
+            <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{m.antes}</p>
+          </div>
+          <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#34d3990d", border: "1px solid #34d39928" }}>
+            <div className="mono-label !text-[9px] mb-1" style={{ color: "#34d399" }}>agora</div>
+            <p className="text-[13px] text-[var(--txt)] leading-relaxed">{m.agora}</p>
+          </div>
         </div>
-        <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#34d3990d", border: "1px solid #34d39928" }}>
-          <div className="mono-label !text-[9px] mb-1" style={{ color: "#34d399" }}>agora</div>
-          <p className="text-[13px] text-[var(--txt)] leading-relaxed">{m.agora}</p>
-        </div>
-      </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]">
         {ramo && (
