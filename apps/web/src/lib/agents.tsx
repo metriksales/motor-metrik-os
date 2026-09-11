@@ -32,7 +32,23 @@ function mapReal(row: DbAgent, i: number): Agent {
     | undefined;
 
   if (tpl) {
-    return { ...tpl, id: row.id, name: row.name, tipo, state: state ?? tpl.state, real: true, version: row.currentSpecVersion ?? 0 };
+    // herda do template SÓ o visual e a estrutura (cor, mapa, features, escudo).
+    // Telemetria mock NUNCA veste agente real: "respondendo a Marina" congelada
+    // há 30 dias é a mentira mais visível pra quem volta todo dia — as telas
+    // derivam o "agora" e as métricas do Flight Recorder.
+    return {
+      ...tpl,
+      id: row.id,
+      name: row.name,
+      tipo,
+      state: state ?? tpl.state,
+      real: true,
+      version: row.currentSpecVersion ?? 0,
+      agora: "de plantão — aguardando o próximo lead",
+      live: [],
+      insights: [],
+      metrics: { execucoes: 0, acertos: 0, erros: 0, custo: "R$ 0,00" },
+    };
   }
   return {
     id: row.id,

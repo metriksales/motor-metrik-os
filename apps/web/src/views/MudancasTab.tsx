@@ -42,7 +42,11 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
             pedido: r.intent ?? "mudança",
             status: r.status === "published" ? "no ar" : r.status === "approved" ? "em teste" : "aguardando aprovação",
             porteiro: r.impact?.evals
-              ? { nota: (r.impact.evals.taxa * 10).toFixed(1).replace(".", ","), casos: `${r.impact.evals.passaram}/${r.impact.evals.total} casos passaram` }
+              ? {
+                  nota: (r.impact.evals.taxa * 10).toFixed(1).replace(".", ","),
+                  casos: `${r.impact.evals.passaram}/${r.impact.evals.total} casos passaram`,
+                  taxa: r.impact.evals.taxa,
+                }
               : undefined,
           }))
         );
@@ -80,7 +84,8 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
   );
 }
 
-/* a história de UMA mudança: pedido → antes/agora → onde encaixou → prova → status */
+/* a história de UMA mudança: pedido → antes/agora → onde encaixou → prova → status.
+   A prova é um SELO — pra advogado, protocolo e carimbo são linguagem nativa. */
 function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
   const stCor = STATUS_COR[m.status];
   return (
@@ -95,7 +100,10 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
         </span>
       </div>
 
-      <p className="text-[15px] text-[var(--txt)] leading-relaxed mb-3.5">“{m.pedido}”</p>
+      <div className="flex items-start justify-between gap-4 mb-3.5">
+        <p className="text-[15px] text-[var(--txt)] leading-relaxed flex-1">“{m.pedido}”</p>
+        {m.porteiro && <SeloPorteiro nota={m.porteiro.nota} taxa={m.porteiro.taxa} />}
+      </div>
 
       {(m.antes || m.agora) && (
         <div className="grid md:grid-cols-2 gap-2.5 mb-3">
@@ -124,6 +132,37 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/* o CARIMBO do porteiro: círculo de progresso proporcional aos casos que
+   passaram, com a nota no centro — a prova em forma de selo, não de rodapé */
+function SeloPorteiro({ nota, taxa }: { nota: string; taxa?: number }) {
+  const t = taxa ?? Math.min(1, parseFloat(nota.replace(",", ".")) / 10 || 0);
+  const R = 24;
+  const C = 2 * Math.PI * R;
+  const cor = t >= 0.75 ? "#34d399" : "#fbbf24";
+  return (
+    <div className="flex-none flex flex-col items-center" title={`porteiro: nota ${nota}`}>
+      <svg width={62} height={62} viewBox="0 0 62 62">
+        <circle cx={31} cy={31} r={R} fill={`${cor}0d`} stroke="var(--line)" strokeWidth={3} />
+        <circle
+          cx={31}
+          cy={31}
+          r={R}
+          fill="none"
+          stroke={cor}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeDasharray={`${C * t} ${C}`}
+          transform="rotate(-90 31 31)"
+        />
+        <text x={31} y={35} textAnchor="middle" fill="var(--txt)" fontSize={15} fontWeight={700} fontFamily="Space Grotesk, sans-serif">
+          {nota}
+        </text>
+      </svg>
+      <span className="mono-label !text-[8px] mt-0.5" style={{ color: cor }}>porteiro</span>
     </div>
   );
 }

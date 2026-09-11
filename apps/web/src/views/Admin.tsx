@@ -66,7 +66,7 @@ export default function Admin() {
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="mono-label flex items-center gap-1.5"><Users size={12} /> Usuários com acesso</div>
             <span className="pill" style={real ? { color: "#8b7cff" } : undefined}>
-              {real ? <Database size={11} /> : null} {real ? "real · Neon" : "demo"}
+              {real ? <Database size={11} /> : null} {real ? "dado real ✓" : "demo"}
             </span>
           </div>
           <ul className="space-y-1">

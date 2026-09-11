@@ -14,7 +14,7 @@ import MudancasTab from "./MudancasTab";
 import VoiceMode from "./VoiceMode";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
-import { tempoRelativo } from "../lib/live";
+import { tempoRelativo, useLive } from "../lib/live";
 
 type Sub = "trabalho" | "aovivo" | "mudancas" | "logs" | "estrutura" | "melhorar";
 
@@ -206,12 +206,26 @@ function Fluxo({ agent }: { agent: Agent }) {
 function LogsTab({ agent }: { agent: Agent }) {
   const [filtro, setFiltro] = useState<"tudo" | "erros">("tudo");
   const [fix, setFix] = useState<Record<number, "sim" | "nao">>({});
+  const { logs: logsReais, stats } = useLive();
 
   const doFluxo = (agent.fluxo ?? [])
     .filter((p) => p.status === "ok")
     .map((p) => ({ t: "1 h", acao: `Concluiu: ${p.label}`, status: "ok" as const, detalhe: undefined as string | undefined }));
   const logs = [...agent.live, ...doFluxo].map((r, i) => ({ ...r, dur: `${(i % 5) + 1}.${(i * 3) % 10}s`, id: i }));
   const vis = filtro === "erros" ? logs.filter((l) => l.status === "erro") : logs;
+
+  // agente REAL: números do Flight Recorder, não do template
+  const meu = agent.real ? stats?.porAgente?.[agent.id] : undefined;
+  const meuUltimo = agent.real ? (logsReais ?? []).find((l) => l.agentId === agent.id) : undefined;
+  const execsHoje = meu?.execucoes ?? agent.metrics.execucoes;
+  const errosHoje = meu ? meu.execucoes - meu.acertos : agent.metrics.erros;
+  const rodandoAgora = agent.real
+    ? meuUltimo
+      ? `há ${tempoRelativo(meuUltimo.at)} — ${meuUltimo.resumo}`
+      : "de plantão — aguardando o próximo lead"
+    : agent.state === "ativo"
+      ? agent.agora
+      : "em espera — nada rodando";
 
   return (
     <div className="space-y-4">
@@ -221,10 +235,10 @@ function LogsTab({ agent }: { agent: Agent }) {
           {agent.state === "ativo" ? <Loader2 size={16} className="animate-spin" style={{ color: agent.color }} /> : <Clock size={16} style={{ color: "var(--txt-4)" }} />}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="mono-label mb-0.5">Rodando agora</div>
-          <div className="text-[13px] text-[var(--txt)] truncate">{agent.state === "ativo" ? agent.agora : "em espera — nada rodando"}</div>
+          <div className="mono-label mb-0.5">{agent.real && meuUltimo ? "Último trabalho" : "Rodando agora"}</div>
+          <div className="text-[13px] text-[var(--txt)] truncate">{rodandoAgora}</div>
         </div>
-        <span className="tick flex-none hidden sm:block">{agent.metrics.execucoes} hoje · {agent.metrics.erros} erros</span>
+        <span className="tick flex-none hidden sm:block">{execsHoje} hoje · {errosHoje} erros</span>
       </div>
 
       {/* análise diária */}
@@ -234,8 +248,17 @@ function LogsTab({ agent }: { agent: Agent }) {
           <Pill color="#8b7cff">rotina diária · 8h</Pill>
         </div>
         <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
-          Analisei as <b className="text-[var(--txt)]">{agent.metrics.execucoes}</b> execuções de hoje. A última mudança rendeu <b style={{ color: "#34d399" }}>+6% de acerto</b>.
-          {agent.metrics.erros > 0 ? <> Peguei <b style={{ color: "#fb7185" }}>{agent.metrics.erros} erro(s)</b> — dá pra corrigir no log abaixo.</> : <> Nenhum erro hoje.</>}
+          {agent.real ? (
+            <>
+              Hoje foram <b className="text-[var(--txt)]">{execsHoje}</b> {execsHoje === 1 ? "atendimento" : "atendimentos"} deste agente.
+              {errosHoje > 0 ? <> Peguei <b style={{ color: "#fb7185" }}>{errosHoje} erro(s)</b> — dá pra corrigir no log abaixo.</> : <> Nenhum erro hoje.</>}
+            </>
+          ) : (
+            <>
+              Analisei as <b className="text-[var(--txt)]">{agent.metrics.execucoes}</b> execuções de hoje. A última mudança rendeu <b style={{ color: "#34d399" }}>+6% de acerto</b>.
+              {agent.metrics.erros > 0 ? <> Peguei <b style={{ color: "#fb7185" }}>{agent.metrics.erros} erro(s)</b> — dá pra corrigir no log abaixo.</> : <> Nenhum erro hoje.</>}
+            </>
+          )}
         </p>
         <div className="text-[11px] text-[var(--txt-4)] mt-2">a análise pesada roda 1× por dia (barata e escalável); os erros aparecem no log na hora que acontecem.</div>
       </div>
@@ -669,7 +692,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
               background: envio.fase === "erro" ? "rgba(251,113,133,.07)" : envio.fase === "aprovado" ? "rgba(52,211,153,.08)" : "rgba(139,124,255,.06)",
             }}>
               {envio.fase === "registrando" && (
-                <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> registrando no histórico único (Neon)…</span>
+                <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> anotando no caderno de mudanças…</span>
               )}
               {envio.fase === "porteiro" && (
                 <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> registrado ✓ — o porteiro está testando a mudança…</span>
@@ -747,7 +770,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
       <div className="card p-5">
         <div className="flex items-center gap-2 mb-1">
           <div className="mono-label">Histórico — tudo que mudou</div>
-          {histReal && <span className="pill" style={{ color: "#8b7cff" }}>real · Neon</span>}
+          {histReal && <span className="pill" style={{ color: "var(--emerald)" }}>dado real ✓</span>}
         </div>
         <p className="text-[12px] text-[var(--txt-3)] mb-4">De qualquer porta: aqui, no Turbinar, ou pelo Claude Code. Nada duplica, nada se perde.</p>
         <div className="flex flex-wrap gap-2 mb-4">

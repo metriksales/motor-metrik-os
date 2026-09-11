@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowRight, Bell, MessageCircle } from "lucide-react";
 
@@ -54,6 +54,12 @@ export default function App() {
   );
 
   const routeKey = agent ? `agent-${agent.id}` : view;
+
+  // trocar de tela SEMPRE volta pro topo — cair no meio da página desorienta
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [routeKey]);
 
   return (
     <div className="h-screen w-screen flex overflow-hidden relative">
@@ -189,7 +195,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 min-h-0 overflow-y-auto scroll-thin px-5 md:px-7 py-6">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-thin px-5 md:px-7 py-6">
           {/* modo LOGADO: falha real da API nunca vira maquete — vira aviso claro */}
           {!auth.demo && erro && (
             <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]" style={{ borderColor: "rgba(251,113,133,.4)", background: "rgba(251,113,133,.08)", color: "#fb7185" }}>

@@ -1,7 +1,7 @@
 // @motor/control — Control API (camada de serviço, sem framework).
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
-import { and, desc, eq, gte, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs } from "@motor/db";
 import { FakeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
@@ -440,12 +440,36 @@ export async function statsHoje(ctx: Ctx) {
     porAgente[k].execucoes++;
     if (r.ok) porAgente[k].acertos++;
   }
+  // Radar de Dinheiro nunca abre em zero: acumuladores + o último R$ que a
+  // frota fez (a tela mostra "último: reunião com X · +R$ 1.500 · há 2 dias"
+  // num dia parado, em vez de um R$ 0 gigante).
+  const [acum] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${runtimeLogs.valorCentavos}), 0)`,
+      d7: sql<number>`coalesce(sum(${runtimeLogs.valorCentavos}) filter (where ${runtimeLogs.at} >= now() - interval '7 days'), 0)`,
+      d30: sql<number>`coalesce(sum(${runtimeLogs.valorCentavos}) filter (where ${runtimeLogs.at} >= now() - interval '30 days'), 0)`,
+    })
+    .from(runtimeLogs)
+    .where(and(eq(runtimeLogs.orgId, ctx.orgId), isNotNull(runtimeLogs.valorCentavos)));
+  const [ultimo] = await db
+    .select()
+    .from(runtimeLogs)
+    .where(and(eq(runtimeLogs.orgId, ctx.orgId), isNotNull(runtimeLogs.valorCentavos)))
+    .orderBy(desc(runtimeLogs.at))
+    .limit(1);
+
   return {
     execucoes,
     acertos,
     erros: execucoes - acertos,
     taxa: execucoes ? acertos / execucoes : null,
     valorCentavos,
+    valor7dCentavos: Number(acum?.d7 ?? 0),
+    valor30dCentavos: Number(acum?.d30 ?? 0),
+    valorTotalCentavos: Number(acum?.total ?? 0),
+    ultimoValor: ultimo
+      ? { resumo: ultimo.resumo, valorCentavos: ultimo.valorCentavos ?? 0, at: ultimo.at }
+      : null,
     porAgente,
   };
 }

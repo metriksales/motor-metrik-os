@@ -238,6 +238,58 @@ html[data-theme="light"] .aurora {
   animation: pulse-ring 2.4s ease-out infinite;
 }
 
+/* keyframes usados por classes deste arquivo — precisam viver AQUI: os do
+   tailwind.config só entram no bundle se alguma utility animate-* for usada,
+   e `animation:` direto não conta (cicatriz: o app inteiro ficou sem pulso). */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45); }
+  70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+@keyframes shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+@keyframes aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(2.5%, 1.5%, 0) scale(1.05); }
+  66% { transform: translate3d(-2%, -1%, 0) scale(0.98); }
+}
+.aurora {
+  animation: aurora-drift 18s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot, .aurora, .grad-text-shimmer { animation: none; }
+}
+
+/* ---------- bolha de WhatsApp (fala literal do agente no Mapa) ---------- */
+.wa-bubble {
+  position: relative;
+  background: #005c4b; /* verde do WhatsApp dark — reconhecimento instantâneo */
+  color: #e9edef;
+  border-radius: 12px;
+  border-top-right-radius: 3px; /* o "rabinho" */
+  padding: 8px 12px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.wa-bubble .wa-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-size: 10.5px;
+  color: rgba(233, 237, 239, 0.6);
+  margin-top: 2px;
+}
+html[data-theme="light"] .wa-bubble {
+  background: #d9fdd3;
+  color: #111b21;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+}
+html[data-theme="light"] .wa-bubble .wa-meta {
+  color: rgba(17, 27, 33, 0.45);
+}
+
 /* ---------- buttons ---------- */
 .btn {
   display: inline-flex;

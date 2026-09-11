@@ -8,3 +8,5 @@ dist/
 .DS_Store
 .vite/
 apps/web/api/_bundled/*.mjs
+
+.vercel

@@ -4,7 +4,8 @@
 // ação no Melhorar. As situações alteradas ficam marcadas com ✨ aqui.
 // O conteúdo é lido do cérebro do agente — mudou o cérebro, muda aqui sozinho.
 import { type ReactNode } from "react";
-import { Sparkles, UserRound } from "lucide-react";
+import { motion } from "framer-motion";
+import { Sparkles, UserRound, CheckCheck } from "lucide-react";
 import { type Agent, type Mudanca, type Ramo, type Regra } from "../data";
 import { Reveal } from "../ui";
 
@@ -57,9 +58,13 @@ export default function MapaTab({ agent }: { agent: Agent }) {
 
             <Passo n={3} titulo={`Cai num dos ${mapa.ramos.length} caminhos`} cor="#22d3ee" ultimo={!mapa.aposRamos}>
               <div className="space-y-4 mt-2">
-                {mapa.ramos.map((r) => (
-                  <Caminho key={r.id} ramo={r} mudancas={mudancas} />
-                ))}
+                {(() => {
+                  // calor: o caminho mais rodado do dia fica visualmente óbvio
+                  const max = Math.max(1, ...mapa.ramos.map((r) => r.execucoesHoje ?? 0));
+                  return mapa.ramos.map((r) => (
+                    <Caminho key={r.id} ramo={r} mudancas={mudancas} calor={(r.execucoesHoje ?? 0) / max} />
+                  ));
+                })()}
               </div>
             </Passo>
 
@@ -94,7 +99,7 @@ function Passo({ n, titulo, cor, ultimo, children }: { n: number; titulo: string
 }
 
 /* um caminho, TODO aberto — o cliente lê como um parágrafo, não abre nada */
-function Caminho({ ramo, mudancas }: { ramo: Ramo; mudancas: Mudanca[] }) {
+function Caminho({ ramo, mudancas, calor }: { ramo: Ramo; mudancas: Mudanca[]; calor: number }) {
   return (
     <div className="rounded-xl p-4 md:p-5" style={{ background: "var(--surface)", border: "1px solid var(--line)", borderLeft: `3px solid ${ramo.cor}` }}>
       <div className="flex items-center justify-between gap-3">
@@ -103,21 +108,32 @@ function Caminho({ ramo, mudancas }: { ramo: Ramo; mudancas: Mudanca[] }) {
           {ramo.execucoesHoje ?? 0}× hoje{ramo.ultima ? <span className="text-[var(--txt-4)]"> · {ramo.ultima}</span> : null}
         </span>
       </div>
-      <p className="text-[13px] text-[var(--txt-2)] leading-relaxed mt-1">
+      {/* barra de calor — proporcional ao movimento do dia neste caminho */}
+      <div className="mt-2 h-[3px] rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+        <motion.div
+          className="h-full rounded-full origin-left"
+          style={{ background: ramo.cor, width: `${Math.round(calor * 100)}%` }}
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
+        />
+      </div>
+      <p className="text-[13px] text-[var(--txt-2)] leading-relaxed mt-2">
         {frase(`Entra aqui quando ${ramo.quando}`)}
         {ramo.coleta ? ` ${frase(`Ele pergunta ${listar(ramo.coleta)}`)}` : ""}
       </p>
       <div className="mt-4 space-y-4">
         {ramo.regras.map((rg, i) => {
           const mud = mudancas.find((m) => m.ramoId === ramo.id && m.situacao === rg.se);
-          return <Situacao key={i} regra={rg} cor={ramo.cor} mudanca={mud} />;
+          return <Situacao key={i} regra={rg} cor={ramo.cor} mudanca={mud} ultima={ramo.ultima} />;
         })}
       </div>
     </div>
   );
 }
 
-function Situacao({ regra, cor, mudanca }: { regra: Regra; cor: string; mudanca?: Mudanca }) {
+function Situacao({ regra, cor, mudanca, ultima }: { regra: Regra; cor: string; mudanca?: Mudanca; ultima?: string }) {
   const destino = regra.move?.replace(/^→\s*/, "");
   return (
     <div className="pl-3.5" style={{ borderLeft: `2px solid ${cor}45` }}>
@@ -125,11 +141,15 @@ function Situacao({ regra, cor, mudanca }: { regra: Regra; cor: string; mudanca?
         <b className="text-[var(--txt)]">Se {regra.se}:</b> {frase(regra.entao)}
       </p>
       {regra.diz && (
-        <div className="mt-2 rounded-lg px-3.5 py-2.5" style={{ background: "var(--surface-2)", borderLeft: `3px solid ${cor}` }}>
-          <p className="text-[13.5px] leading-relaxed text-[var(--txt)]">
-            <span className="text-[var(--txt-3)] not-italic">ela diz: </span>
-            <i>“{regra.diz}”</i>
-          </p>
+        // a fala literal vira BOLHA DE WHATSAPP — o cliente reconhece na hora:
+        // "é isso que ela manda pros meus clientes". Print que vende sozinho.
+        <div className="mt-2 flex">
+          <div className="wa-bubble max-w-[520px]">
+            <p className="text-[13.5px] leading-relaxed">{regra.diz}</p>
+            <span className="wa-meta">
+              {ultima ?? "modelo"} <CheckCheck size={13} style={{ color: "#53bdeb" }} />
+            </span>
+          </div>
         </div>
       )}
       {(destino || regra.aviso || mudanca) && (

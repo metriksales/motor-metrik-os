@@ -152,7 +152,7 @@ export type Mudanca = {
   ramoId?: string;
   situacao?: string;
   /** a prova do porteiro: casos que passaram + nota */
-  porteiro?: { nota: string; casos: string };
+  porteiro?: { nota: string; casos: string; taxa?: number };
   status: "no ar" | "em teste" | "aguardando aprovação";
 };
 

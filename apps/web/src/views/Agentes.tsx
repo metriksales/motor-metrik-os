@@ -32,7 +32,7 @@ export default function Agentes({
             </div>
             <div className="relative flex flex-col items-start md:items-end gap-2">
               <Pill color={source === "neon" ? "#8b7cff" : "#83879a"}>
-                <Database size={12} /> {source === "neon" ? "Neon · dados reais" : "Demo"}
+                <Database size={12} /> {source === "neon" ? "dados reais ✓" : "Demo"}
               </Pill>
               <Pill color="#34d399"><span className="live-dot" style={{ width: 7, height: 7 }} /> {ativos} trabalhando agora</Pill>
             </div>
