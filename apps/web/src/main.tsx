@@ -12,6 +12,7 @@ import {
 import App from "./App";
 import { MotorAuthProvider, type MotorAuth } from "./lib/auth";
 import { AgentsProvider } from "./lib/agents";
+import { clerkAppearance } from "./lib/clerkTheme";
 import "./index.css";
 
 // Clerk é OPCIONAL: sem a chave, o app abre em modo demo (1 org fake).
@@ -23,11 +24,16 @@ if (!clerkKey) console.info("Motor OS em modo DEMO — build sem VITE_CLERK_PUBL
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--bg)", padding: 24 }}>
-      <div style={{ textAlign: "center" }}>
-        <div className="font-display" style={{ fontWeight: 700, fontSize: 20, letterSpacing: "-0.02em", marginBottom: 18 }}>
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--bg)", padding: 24, position: "relative", overflow: "hidden" }}>
+      <div className="aurora" />
+      <div className="grid-bg" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
+      <div style={{ textAlign: "center", position: "relative" }}>
+        <div className="font-display" style={{ fontWeight: 700, fontSize: 24, letterSpacing: "-0.02em", marginBottom: 6 }}>
           Metrik <span className="grad-text">Motor OS</span>
         </div>
+        <p style={{ color: "var(--txt-3)", fontSize: 13.5, marginBottom: 22 }}>
+          sua operação trabalhando sozinha — entre pra observar
+        </p>
         <div style={{ display: "flex", justifyContent: "center" }}>{children}</div>
       </div>
     </div>
@@ -71,7 +77,9 @@ function ClerkedApp() {
   };
   return (
     <MotorAuthProvider value={value}>
-      <AgentsProvider>
+      {/* key = org ativa: TROCAR de conta remonta os providers e refaz todo
+          fetch — sem isso o painel seguia mostrando os dados da org anterior */}
+      <AgentsProvider key={organization?.id ?? "sem-org"}>
         <App />
       </AgentsProvider>
     </MotorAuthProvider>
@@ -88,7 +96,7 @@ const demoValue: MotorAuth = {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     {clerkKey ? (
-      <ClerkProvider publishableKey={clerkKey} afterSignOutUrl="/">
+      <ClerkProvider publishableKey={clerkKey} afterSignOutUrl="/" appearance={clerkAppearance}>
         <SignedIn>
           <RequireOrg>
             <ClerkedApp />

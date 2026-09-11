@@ -89,14 +89,12 @@ export default function App() {
           </button>
         ) : (
           <div className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1.5">
+            {/* visual vem do tema global (clerkTheme.ts) — aqui só o layout */}
             <OrganizationSwitcher
               hidePersonal
               afterCreateOrganizationUrl="/"
               afterSelectOrganizationUrl="/"
-              appearance={{
-                variables: { colorPrimary: "#8b7cff", colorText: "#f4f4f7", colorBackground: "transparent", borderRadius: "12px" },
-                elements: { rootBox: { width: "100%" }, organizationSwitcherTrigger: { width: "100%", justifyContent: "flex-start" } },
-              }}
+              appearance={{ elements: { rootBox: { width: "100%" } } }}
             />
           </div>
         )}
@@ -190,7 +188,7 @@ export default function App() {
             {auth.demo ? (
               <span className="pill hidden sm:inline-flex" title="Modo demo — sem login (adicione as chaves do Clerk pra ativar contas)">Demo</span>
             ) : (
-              <UserButton afterSignOutUrl="/" appearance={{ variables: { colorPrimary: "#8b7cff" }, elements: { avatarBox: { width: 30, height: 30 } } }} />
+              <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: 30, height: 30 } } }} />
             )}
           </div>
         </header>
