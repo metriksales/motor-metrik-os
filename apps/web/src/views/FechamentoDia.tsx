@@ -56,7 +56,7 @@ export default function FechamentoDia({
           <div className="flex items-center justify-between gap-3 mb-5">
             <div className="mono-label">Fechamento · {hojePorExtenso()}</div>
             <div className="flex items-center gap-1.5 text-[var(--txt-3)]">
-              <Gauge size={13} style={{ color: "#8b7cff" }} />
+              <Gauge size={13} style={{ color: "#e0a44a" }} />
               <span className="mono-label !text-[9px]">Motor Metrik OS</span>
             </div>
           </div>
@@ -65,7 +65,7 @@ export default function FechamentoDia({
           <div className="grid grid-cols-3 gap-4">
             <Numero valor={String(execucoes)} rotulo={execucoes === 1 ? "atendimento" : "atendimentos"} />
             <Numero valor={`${acerto}%`} rotulo="de acerto" cor="#34d399" />
-            <Numero valor={reais(valorMostrado)} rotulo={rotuloValor} cor="#8b7cff" />
+            <Numero valor={reais(valorMostrado)} rotulo={rotuloValor} cor="#e0a44a" />
           </div>
 
           {/* melhor momento do dia */}

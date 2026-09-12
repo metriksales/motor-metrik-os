@@ -33,7 +33,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
             <span className="text-[11px] text-[var(--txt-4)] flex-none">lido do cérebro do agente · atualiza sozinho</span>
           </div>
           {mudancas.length > 0 && (
-            <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#8b7cff" }}>
+            <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#e0a44a" }}>
               <Sparkles size={13} />
               {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ abaixo · detalhes na aba Mudanças
             </div>
@@ -47,7 +47,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
               <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{frase(mapa.entrada)}</p>
             </Passo>
 
-            <Passo n={2} titulo="Ele descobre o caso" cor="#8b7cff">
+            <Passo n={2} titulo="Ele descobre o caso" cor="#e0a44a">
               <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{frase(mapa.triagem.faz)}</p>
               {mapa.triagem.coleta && (
                 <p className="text-[13px] text-[var(--txt-3)] leading-relaxed mt-1">
@@ -56,7 +56,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
               )}
             </Passo>
 
-            <Passo n={3} titulo={`Cai num dos ${mapa.ramos.length} caminhos`} cor="#22d3ee" ultimo={!mapa.aposRamos}>
+            <Passo n={3} titulo={`Cai num dos ${mapa.ramos.length} caminhos`} cor="#58aae4" ultimo={!mapa.aposRamos}>
               <div className="space-y-4 mt-2">
                 {(() => {
                   // calor: o caminho mais rodado do dia fica visualmente óbvio
@@ -69,7 +69,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
             </Passo>
 
             {mapa.aposRamos && (
-              <Passo n={4} titulo="Fim de linha" cor="#d16bff" ultimo>
+              <Passo n={4} titulo="Fim de linha" cor="#58aae4" ultimo>
                 <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{mapa.aposRamos}</p>
               </Passo>
             )}
@@ -167,7 +167,7 @@ function Situacao({ regra, cor, mudanca, ultima }: { regra: Regra; cor: string; 
           )}
           {(destino || regra.aviso) && mudanca && <span className="mx-1.5 text-[var(--txt-4)]">·</span>}
           {mudanca && (
-            <span className="inline-flex items-center gap-1" style={{ color: "#8b7cff" }}>
+            <span className="inline-flex items-center gap-1" style={{ color: "#e0a44a" }}>
               <Sparkles size={12} /> alterado {mudanca.quando}
             </span>
           )}

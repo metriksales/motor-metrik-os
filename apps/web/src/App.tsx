@@ -83,7 +83,7 @@ export default function App() {
       {/* SIDEBAR */}
       <aside className="relative z-10 w-[248px] flex-none hidden md:flex flex-col glass border-r border-[var(--line)] p-3.5">
         <div className="flex items-center gap-2.5 px-1.5 py-2 mb-1">
-          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 34, height: 34, background: "var(--grad)", boxShadow: "0 8px 22px -10px #8b7cff" }}>
+          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 34, height: 34, background: "var(--grad)", boxShadow: "0 8px 22px -10px #e0a44a" }}>
             <Gauge size={19} style={{ color: "#0a0714" }} strokeWidth={2.2} />
           </span>
           <div className="leading-none">
@@ -94,7 +94,7 @@ export default function App() {
 
         {auth.demo ? (
           <button className="w-full flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors p-2.5 mb-4">
-            <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "rgba(139,124,255,.2)", color: "#a78bfa", border: "1px solid rgba(139,124,255,.4)" }}>{auth.orgInitial}</span>
+            <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "rgba(224,164,74,.2)", color: "#edc074", border: "1px solid rgba(224,164,74,.4)" }}>{auth.orgInitial}</span>
             <div className="text-left min-w-0 flex-1">
               <div className="text-[13px] font-medium truncate">{auth.orgName}</div>
               <div className="text-[10.5px] text-[var(--txt-3)] truncate">{auth.orgDesc}</div>
@@ -151,7 +151,7 @@ export default function App() {
         <header className="flex-none flex items-center justify-between gap-3 px-4 md:px-7 h-[62px] border-b border-[var(--line)] glass">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* celular: logo = voltar pro Início (âncora de "casa" sempre visível) */}
-            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #8b7cff" }} aria-label="Início">
+            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #e0a44a" }} aria-label="Início">
               <Gauge size={17} style={{ color: "#0a0714" }} strokeWidth={2.2} />
             </button>
             <div className="min-w-0">
@@ -234,8 +234,8 @@ export default function App() {
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-thin px-4 md:px-7 py-6 pb-24 md:pb-6">
           {/* modo DEMO: deixa claro que é EXEMPLO — a conta real começa limpa */}
           {auth.demo && (
-            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ borderColor: "rgba(139,124,255,.35)", background: "rgba(139,124,255,.08)", color: "var(--txt-2)" }}>
-              <Sparkles size={14} style={{ color: "#8b7cff" }} className="flex-none" />
+            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ borderColor: "rgba(224,164,74,.35)", background: "rgba(224,164,74,.08)", color: "var(--txt-2)" }}>
+              <Sparkles size={14} style={{ color: "#e0a44a" }} className="flex-none" />
               <span><b className="text-[var(--txt)]">Isto é um exemplo</b> — números e conversas de demonstração. A sua conta começa limpa e vai enchendo sozinha conforme a IA trabalha.</span>
             </div>
           )}

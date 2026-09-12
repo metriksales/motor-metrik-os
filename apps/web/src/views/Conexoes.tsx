@@ -14,7 +14,7 @@ export default function Conexoes() {
             <div className="aurora !opacity-30" />
             <div className="relative max-w-2xl">
               <div className="flex items-center gap-2 mb-2">
-                <Plug size={16} style={{ color: "#8b7cff" }} />
+                <Plug size={16} style={{ color: "#e0a44a" }} />
                 <span className="mono-label">As conexões da sua operação</span>
               </div>
               <h2 className="font-display text-[22px] md:text-[26px] font-semibold tracking-tight">
@@ -57,8 +57,8 @@ export default function Conexoes() {
       {/* bastidores — honesto, sem npx/terminal: a Metrik opera por aqui */}
       <Reveal delay={0.1}>
         <div className="card p-5 flex items-start gap-3">
-          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 38, height: 38, background: "rgba(139,124,255,.14)", border: "1px solid rgba(139,124,255,.3)" }}>
-            <Wrench size={18} style={{ color: "#8b7cff" }} />
+          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 38, height: 38, background: "rgba(224,164,74,.14)", border: "1px solid rgba(224,164,74,.3)" }}>
+            <Wrench size={18} style={{ color: "#e0a44a" }} />
           </span>
           <div>
             <div className="text-[13.5px] font-medium text-[var(--txt)]">Bastidores da Metrik</div>

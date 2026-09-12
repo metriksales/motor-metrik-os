@@ -90,7 +90,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
                       {sm.label}
                     </span>
                     {agent.tipo && (
-                      <span className="pill" style={{ color: agent.tipo === "acao" ? "#a78bfa" : "#22d3ee", borderColor: (agent.tipo === "acao" ? "#a78bfa" : "#22d3ee") + "40", background: (agent.tipo === "acao" ? "#a78bfa" : "#22d3ee") + "14" }}>
+                      <span className="pill" style={{ color: agent.tipo === "acao" ? "#edc074" : "#58aae4", borderColor: (agent.tipo === "acao" ? "#edc074" : "#58aae4") + "40", background: (agent.tipo === "acao" ? "#edc074" : "#58aae4") + "14" }}>
                         {agent.tipo === "acao" ? "Ação" : "Resposta"}
                       </span>
                     )}
@@ -131,7 +131,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
           <button key={s.id} onClick={() => setSub(s.id)} className={cx("chip !py-2", sub === s.id && "!border-[var(--line-hi)] !bg-[var(--surface-hi)] !text-[var(--txt)]")}>
             <s.icon size={14} /> {s.label}
             {s.badge != null && (
-              <span className="grid place-items-center text-[10px] font-mono rounded-full" style={{ minWidth: 16, height: 16, background: "#8b7cff22", border: "1px solid #8b7cff45", color: "#a78bfa" }}>{s.badge}</span>
+              <span className="grid place-items-center text-[10px] font-mono rounded-full" style={{ minWidth: 16, height: 16, background: "#e0a44a22", border: "1px solid #e0a44a45", color: "#edc074" }}>{s.badge}</span>
             )}
             {s.id === "aovivo" && alerta && <span className="dot" style={{ background: "#fb7185" }} />}
           </button>
@@ -154,7 +154,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
 const stMeta = {
   ok: { icon: Check, color: "#34d399" },
   erro: { icon: X, color: "#fb7185" },
-  run: { icon: Loader2, color: "#8b7cff" },
+  run: { icon: Loader2, color: "#e0a44a" },
 } as const;
 
 function Fluxo({ agent }: { agent: Agent }) {
@@ -200,7 +200,7 @@ function Fluxo({ agent }: { agent: Agent }) {
                   <div className="text-[12px]" style={{ color: "#fb7185" }}><b>por quê:</b> {p.porque}</div>
                   {p.sugestao && (
                     <div className="text-[12.5px] text-[var(--txt-2)] mt-2 flex gap-1.5">
-                      <Lightbulb size={14} style={{ color: "#8b7cff" }} className="flex-none mt-[1px]" /> {p.sugestao}
+                      <Lightbulb size={14} style={{ color: "#e0a44a" }} className="flex-none mt-[1px]" /> {p.sugestao}
                     </div>
                   )}
                   {fix[i] ? (
@@ -263,10 +263,10 @@ function LogsTab({ agent }: { agent: Agent }) {
       </div>
 
       {/* análise diária */}
-      <div className="card p-5" style={{ borderColor: "#8b7cff2e", background: "linear-gradient(165deg, rgba(139,124,255,.07), var(--surface))" }}>
+      <div className="card p-5" style={{ borderColor: "#e0a44a2e", background: "linear-gradient(165deg, rgba(224,164,74,.07), var(--surface))" }}>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#8b7cff" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
-          <Pill color="#8b7cff">rotina diária · 8h</Pill>
+          <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#e0a44a" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
+          <Pill color="#e0a44a">rotina diária · 8h</Pill>
         </div>
         <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
           {agent.real ? (
@@ -360,7 +360,7 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
       {/* o que dá pra melhorar */}
       {insights.length > 0 && (
         <div>
-          <div className="mono-label flex items-center gap-1.5 mb-3"><Lightbulb size={12} style={{ color: "#8b7cff" }} /> O que dá pra melhorar</div>
+          <div className="mono-label flex items-center gap-1.5 mb-3"><Lightbulb size={12} style={{ color: "#e0a44a" }} /> O que dá pra melhorar</div>
           <div className="grid md:grid-cols-2 gap-3">
             {insights.map((ins, i) => <InsightCard key={i} ins={ins} onGo={onMelhorar} />)}
           </div>
@@ -373,7 +373,7 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
 const insMeta = {
   elogio: { icon: ThumbsUp, color: "#34d399", tag: "indo bem" },
   critico: { icon: AlertTriangle, color: "#fbbf24", tag: "pede permissão" },
-  dica: { icon: Lightbulb, color: "#8b7cff", tag: "ideia" },
+  dica: { icon: Lightbulb, color: "#e0a44a", tag: "ideia" },
 } as const;
 
 function InsightCard({ ins, onGo }: { ins: Insight; onGo: () => void }) {
@@ -441,7 +441,7 @@ function Turbinar({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium truncate">{f.name}</div>
-                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#8b7cff" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você · MCP" : "operado pela Metrik"}</span>
+                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#e0a44a" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você · MCP" : "operado pela Metrik"}</span>
               </div>
               <span className="pill flex-none" style={{ color: f.on ? "#34d399" : "var(--txt-4)", borderColor: f.on ? "#34d39940" : "var(--line)", background: f.on ? "#34d39912" : "var(--surface-2)" }}>
                 {f.on ? <><span className="live-dot" style={{ width: 6, height: 6, background: "#34d399" }} /> ligado</> : "desligado"}
@@ -525,7 +525,7 @@ function UpgradeSetup({ agent, upgrade, onCancel, onConfirm }: { agent: Agent; u
             <div className="text-[11px] text-[var(--txt-3)] mb-1">vai funcionar assim</div>
             <p className="text-[12.5px] text-[var(--txt)]">{upgrade.blurb}{sel.length ? " — " + sel.join(" · ") : ""}.</p>
             <div className="text-[11px] text-[var(--txt-4)] mt-1.5 flex items-center gap-1.5"><ArrowRight size={11} style={{ color: agent.color }} /> cai em: {upgrade.onde}</div>
-            {upgrade.sinergia && <div className="text-[11px] text-[var(--txt-4)] mt-1 flex items-center gap-1.5"><Link2 size={11} style={{ color: "#22d3ee" }} /> {upgrade.sinergia}</div>}
+            {upgrade.sinergia && <div className="text-[11px] text-[var(--txt-4)] mt-1 flex items-center gap-1.5"><Link2 size={11} style={{ color: "#58aae4" }} /> {upgrade.sinergia}</div>}
           </div>
         </div>
 
@@ -550,15 +550,15 @@ const RESP: Record<string, { tipo: string; txt: string }> = {
 };
 const respMeta: Record<string, { label: string; color: string }> = {
   ajuste: { label: "ajuste", color: "#fbbf24" },
-  novo: { label: "recurso novo", color: "#8b7cff" },
-  regra: { label: "trava / regra", color: "#22d3ee" },
+  novo: { label: "recurso novo", color: "#e0a44a" },
+  regra: { label: "trava / regra", color: "#58aae4" },
 };
 const ORIG: Record<string, { label: string; color: string }> = {
   metrik: { label: "Metrik", color: "#83879a" },
-  chat: { label: "chat", color: "#22d3ee" },
+  chat: { label: "chat", color: "#58aae4" },
   ajuste: { label: "botão", color: "#fbbf24" },
-  claude: { label: "Claude Code", color: "#8b7cff" },
-  codex: { label: "Codex", color: "#22d3ee" },
+  claude: { label: "Claude Code", color: "#e0a44a" },
+  codex: { label: "Codex", color: "#58aae4" },
 };
 
 type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string };
@@ -641,7 +641,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
   return (
     <div className="space-y-4">
       <div className="card p-4 flex items-start gap-3">
-        <Link2 size={17} style={{ color: "#8b7cff" }} className="flex-none mt-0.5" />
+        <Link2 size={17} style={{ color: "#e0a44a" }} className="flex-none mt-0.5" />
         <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Uma fonte só.</b> Você pode pedir aqui, ligar no Turbinar ou mexer pelo Claude Code — tudo cai no mesmo agente e aparece no histórico abaixo. Nada duplica, nada se perde.</p>
       </div>
 
@@ -681,7 +681,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
           )}
           {(envio.fase === "registrando" || envio.fase === "ensaiando") && (
             <div className="mt-3 flex items-center gap-2 text-[12.5px] text-[var(--txt-2)]">
-              <Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} />
+              <Loader2 size={14} className="animate-spin" style={{ color: "#e0a44a" }} />
               {envio.fase === "registrando" ? "anotando o seu pedido…" : "montando o ensaio — a IA respondendo antes e depois da mudança…"}
             </div>
           )}
@@ -694,9 +694,9 @@ function MelhorarTab({ agent }: { agent: Agent }) {
       {/* ── ENSAIO: a simulação claríssima — antes vs agora + guardião ── */}
       {envio.fase === "pronto" && envio.evals && (
         <Reveal>
-          <div className="card p-5 md:p-6" style={{ borderColor: "#8b7cff2e" }}>
+          <div className="card p-5 md:p-6" style={{ borderColor: "#e0a44a2e" }}>
             <div className="flex items-center gap-2 mb-1">
-              <FlaskConical size={17} style={{ color: "#8b7cff" }} />
+              <FlaskConical size={17} style={{ color: "#e0a44a" }} />
               <span className="font-display font-semibold text-[16px]">O ensaio da sua mudança</span>
             </div>
             <p className="text-[13.5px] text-[var(--txt-2)] mb-4">Você pediu: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
@@ -774,7 +774,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
         <Reveal>
           <div className="card p-5 flex items-center gap-3" style={{ borderColor: envio.fase === "publicado" ? "#34d39940" : "var(--line)", background: envio.fase === "publicado" ? "rgba(52,211,153,.06)" : undefined }}>
             {envio.fase === "publicando" ? (
-              <><Loader2 size={18} className="animate-spin" style={{ color: "#8b7cff" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
+              <><Loader2 size={18} className="animate-spin" style={{ color: "#e0a44a" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
             ) : (
               <>
                 <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid rgba(52,211,153,.34)" }}><Check size={17} style={{ color: "#34d399" }} /></div>

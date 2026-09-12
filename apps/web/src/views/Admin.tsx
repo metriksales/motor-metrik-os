@@ -16,8 +16,8 @@ const DEMO_MEMBROS: Membro[] = [
 ];
 
 const ROLE_LABEL: Record<string, { label: string; cor: string }> = {
-  owner: { label: "dono", cor: "#8b7cff" },
-  admin: { label: "admin", cor: "#22d3ee" },
+  owner: { label: "dono", cor: "#e0a44a" },
+  admin: { label: "admin", cor: "#58aae4" },
   operator: { label: "operador", cor: "#34d399" },
   viewer: { label: "só leitura", cor: "#83879a" },
 };
@@ -47,8 +47,8 @@ export default function Admin() {
       {/* organização */}
       <Reveal>
         <div className="card p-5 flex items-center gap-4">
-          <span className="grid place-items-center rounded-xl flex-none" style={{ width: 42, height: 42, background: "#8b7cff16", border: "1px solid #8b7cff30" }}>
-            <Building2 size={20} style={{ color: "#8b7cff" }} />
+          <span className="grid place-items-center rounded-xl flex-none" style={{ width: 42, height: 42, background: "#e0a44a16", border: "1px solid #e0a44a30" }}>
+            <Building2 size={20} style={{ color: "#e0a44a" }} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="font-display font-semibold text-[16px]">{auth.orgName}</div>
@@ -65,7 +65,7 @@ export default function Admin() {
         <div className="card p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="mono-label flex items-center gap-1.5"><Users size={12} /> Usuários com acesso</div>
-            <span className="pill" style={real ? { color: "#8b7cff" } : undefined}>
+            <span className="pill" style={real ? { color: "#e0a44a" } : undefined}>
               {real ? <Database size={11} /> : null} {real ? "dado real ✓" : "demo"}
             </span>
           </div>

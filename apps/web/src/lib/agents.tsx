@@ -16,7 +16,7 @@ interface AgentsData {
   erro?: string;
 }
 
-const PALETTE = ["#22d3ee", "#8b7cff", "#6366f1", "#34d399", "#fbbf24", "#d16bff", "#fb7185", "#a78bfa"];
+const PALETTE = ["#58aae4", "#e0a44a", "#6366f1", "#34d399", "#fbbf24", "#58aae4", "#fb7185", "#edc074"];
 
 type DbAgent = { id: string; name: string; tipo?: string; state?: string; currentSpecVersion?: number | null };
 

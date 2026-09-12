@@ -18,7 +18,7 @@ const SOLID = {
   txt: "#f4f4f7",
   txt2: "#b7b9c6",
   txt3: "#83879a",
-  violet: "#8b7cff",
+  violet: "#e0a44a",
 };
 
 export const clerkAppearance: Appearance = {
@@ -64,15 +64,15 @@ export const clerkAppearance: Appearance = {
       background: SOLID.input,
       border: `1px solid ${SOLID.line}`,
       color: SOLID.txt,
-      "&:focus": { borderColor: SOLID.violet, boxShadow: `0 0 0 3px rgba(139,124,255,.22)` },
+      "&:focus": { borderColor: SOLID.violet, boxShadow: `0 0 0 3px rgba(224,164,74,.22)` },
     },
     formButtonPrimary: {
-      background: "linear-gradient(135deg, #8b7cff 0%, #a06bff 100%)",
+      background: "linear-gradient(135deg, #e0a44a 0%, #a06bff 100%)",
       color: "#0a0714",
       fontWeight: 700,
       textTransform: "none",
       fontSize: "14px",
-      boxShadow: "0 10px 26px -12px rgba(139,124,255,.65)",
+      boxShadow: "0 10px 26px -12px rgba(224,164,74,.65)",
       "&:hover": { filter: "brightness(1.08)" },
     },
     footerActionText: { color: SOLID.txt3 },

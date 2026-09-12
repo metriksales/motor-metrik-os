@@ -18,7 +18,7 @@ const FEED: FeedRow[] = AGENTS.flatMap((a) =>
 const statusMeta = {
   ok: { icon: Check, color: "#34d399", label: "acerto" },
   erro: { icon: X, color: "#fb7185", label: "erro" },
-  run: { icon: Loader2, color: "#8b7cff", label: "rodando" },
+  run: { icon: Loader2, color: "#e0a44a", label: "rodando" },
 } as const;
 
 /** minutos desde o log — pros pontinhos de "digitando" só piscarem se é AGORA */
@@ -50,7 +50,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           detalhe: l.erro ?? undefined,
           valorCentavos: l.valorCentavos,
           agente: a?.name ?? l.motor ?? "motor",
-          color: a?.color ?? "#8b7cff",
+          color: a?.color ?? "#e0a44a",
           id: l.id,
           raw: l,
         };
@@ -147,7 +147,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                       key={r.id}
                       onClick={abrir}
                       role="button"
-                      initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(139,124,255,.14)" } : false}
+                      initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(224,164,74,.14)" } : false}
                       animate={{ opacity: 1, y: 0, backgroundColor: "rgba(0,0,0,0)" }}
                       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1], backgroundColor: { duration: 2 } }}
                       className={cx(

@@ -144,13 +144,13 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               />
               <Pilar
                 icon={GraduationCap}
-                color="#8b7cff"
+                color="#e0a44a"
                 titulo="Escola"
                 texto="A IA errou? Você corrige apontando, como faria com uma pessoa. O motor aprende sem você tocar em nada por dentro."
               />
               <Pilar
                 icon={BadgeCheck}
-                color="#22d3ee"
+                color="#58aae4"
                 titulo="Porteiro"
                 texto="Nenhuma mudança vai pro ar sem passar no teste. Você vê a nota e a prova antes de aprovar."
               />
@@ -205,7 +205,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
         <Reveal delay={0.15}>
           <Decision
             icon={Wallet}
-            color="#8b7cff"
+            color="#e0a44a"
             titulo="Rendeu"
             linhas={
               stats
@@ -243,7 +243,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           <div className="card p-5 h-full">
             <div className="flex items-center justify-between mb-4">
               <div className="mono-label">Ao vivo</div>
-              <button className="text-[12px] flex items-center gap-1" style={{ color: "#8b7cff" }} onClick={() => go("aovivo")}>ver tudo <ArrowRight size={13} /></button>
+              <button className="text-[12px] flex items-center gap-1" style={{ color: "#e0a44a" }} onClick={() => go("aovivo")}>ver tudo <ArrowRight size={13} /></button>
             </div>
             {logs && logs.length > 0 ? (
               <ul className="space-y-1">
@@ -251,7 +251,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                   const a = agents.find((x) => x.id === l.agentId);
                   return (
                     <li key={l.id} className={cx("flex items-center gap-3 py-2.5", i !== arr.length - 1 && "border-b border-[var(--line)]")}>
-                      <Robot state={a?.state ?? "ativo"} color={a?.color ?? "#8b7cff"} size={30} />
+                      <Robot state={a?.state ?? "ativo"} color={a?.color ?? "#e0a44a"} size={30} />
                       <div className="min-w-0 flex-1">
                         <span className="text-[13.5px] text-[var(--txt)]">{a?.name ?? l.motor ?? "Motor"}</span>{" "}
                         <span className="text-[13.5px] text-[var(--txt-2)]">{l.resumo}</span>
@@ -287,7 +287,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               <div className="aurora !h-[40%] !opacity-30" />
               <div className="relative">
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={17} style={{ color: "#8b7cff" }} />
+                  <Sparkles size={17} style={{ color: "#e0a44a" }} />
                   <span className="font-display font-semibold text-[15px]">Quer mudar algo?</span>
                 </div>
                 <p className="text-[13.5px] text-[var(--txt-2)] leading-relaxed">

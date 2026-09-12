@@ -57,8 +57,8 @@ function Agenda({ w, color }: { w: Work; color: string }) {
 function Followups({ w, color }: { w: Work; color: string }) {
   const items = w.followups ?? [];
   const meta: Record<string, { color: string; label: string }> = {
-    agora: { color: "#8b7cff", label: "enviando" },
-    agendado: { color: "#22d3ee", label: "vai enviar" },
+    agora: { color: "#e0a44a", label: "enviando" },
+    agendado: { color: "#58aae4", label: "vai enviar" },
     feito: { color: "#34d399", label: "enviado" },
   };
   return (
@@ -97,7 +97,7 @@ function Followups({ w, color }: { w: Work; color: string }) {
 function Contratos({ w }: { w: Work }) {
   const items = w.contratos ?? [];
   const meta: Record<string, { color: string }> = {
-    assinado: { color: "#34d399" }, enviado: { color: "#22d3ee" }, vencendo: { color: "#fbbf24" }, expirado: { color: "#fb7185" },
+    assinado: { color: "#34d399" }, enviado: { color: "#58aae4" }, vencendo: { color: "#fbbf24" }, expirado: { color: "#fb7185" },
   };
   const atencao = items.filter((c) => c.status === "vencendo" || c.status === "expirado");
   return (

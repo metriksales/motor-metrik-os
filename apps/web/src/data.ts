@@ -213,7 +213,7 @@ export const AGENTS: Agent[] = [
       ],
     },
     state: "ativo",
-    color: "#22d3ee",
+    color: "#58aae4",
     mapa: {
       entrada: "Lead chama no WhatsApp",
       triagem: { faz: "Entende em 1–2 perguntas o que a pessoa quer", coleta: ["o que procura", "urgência", "já é cliente?"] },
@@ -229,7 +229,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "cliente", nome: "Já é cliente", cor: "#22d3ee",
+          id: "cliente", nome: "Já é cliente", cor: "#58aae4",
           quando: "menciona problema, acesso ou suporte",
           on: true, execucoesHoje: 3, ultima: "há 1 h — Studio Lumen",
           regras: [
@@ -319,7 +319,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#8b7cff",
+    color: "#e0a44a",
     agora: "movendo 3 leads pra etapa “Qualificada”",
     fluxo: [
       { label: "Lê a conversa", deveria: "a cada lead novo", status: "ok" },
@@ -372,7 +372,7 @@ export const AGENTS: Agent[] = [
       ],
     },
     state: "ativo",
-    color: "#6366f1",
+    color: "#7c9fe0",
     agora: "confirmando sex 10h com Rodrigo",
     fluxo: [
       { label: "Vê que o lead está pronto", deveria: "quando demonstra interesse", status: "ok" },
@@ -537,7 +537,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#d16bff",
+    color: "#58aae4",
     agora: "marcando origem de 5 leads novos",
     fluxo: [
       { label: "Captura o clique", deveria: "UTM e click id de cada lead novo", status: "ok" },
@@ -650,7 +650,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#a78bfa",
+    color: "#edc074",
     agora: "gerando petição pra 3 casos na etapa “Protocolar”",
     fluxo: [
       { label: "Recebe o gatilho", deveria: "caso entra na etapa “Protocolar” — ou você clica no card", status: "ok" },
@@ -696,7 +696,7 @@ export const AGENTS: Agent[] = [
     papel: "Faz a triagem previdenciária e diz quem tem direito a quê",
     tipo: "resposta",
     state: "ativo",
-    color: "#38bdf8",
+    color: "#58aae4",
     agora: "triando um caso de auxílio maternidade",
     expectativa: "Todo lead que chega é triado, cai no ramo certo (BPC, aposentadoria ou maternidade) e sai com resposta clara: agenda, sem direito ou humano.",
     metrics: { execucoes: 64, acertos: 62, erros: 0, custo: "R$ 1,74" },
@@ -759,7 +759,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "previdenciario", nome: "Aposentadoria", cor: "#8b7cff",
+          id: "previdenciario", nome: "Aposentadoria", cor: "#e0a44a",
           quando: "menciona INSS, tempo de contribuição ou “me aposentar”",
           coleta: ["anos de contribuição", "idade", "quando contribuiu por último"],
           on: true, execucoesHoje: 7, ultima: "há 25 min — Sr. Almir",
@@ -778,7 +778,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "maternidade", nome: "Auxílio Maternidade", cor: "#d16bff",
+          id: "maternidade", nome: "Auxílio Maternidade", cor: "#58aae4",
           quando: "menciona gravidez, parto recente ou adoção",
           coleta: ["data do parto ou adoção", "trabalhou/contribuiu nos últimos meses?", "trabalhadora rural?"],
           on: true, execucoesHoje: 5, ultima: "há 2 min — Ana Paula",
@@ -834,7 +834,7 @@ export const AGENTS: Agent[] = [
     papel: "A consultora comercial da Metrik no WhatsApp — vende, agenda e escala",
     tipo: "resposta",
     state: "ativo",
-    color: "#e879f9",
+    color: "#d98a5c",
     agora: "conduzindo um lead pra reunião de diagnóstico",
     expectativa: "Todo lead que chama é atendido na hora, cai numa das 3 rotas (implementação, Kommo Academy ou GHL Academy) e sai com reunião marcada, checkout na mão ou humano assumindo.",
     metrics: { execucoes: 48, acertos: 47, erros: 0, custo: "R$ 2,31" },
@@ -871,7 +871,7 @@ export const AGENTS: Agent[] = [
       },
       ramos: [
         {
-          id: "implementacao", nome: "Implementação (empresa)", cor: "#22d3ee",
+          id: "implementacao", nome: "Implementação (empresa)", cor: "#58aae4",
           quando: "quer resultado na própria operação: fala de equipe, atendimento, CRM, funil, automação",
           coleta: ["gargalo principal", "segmento", "CRM atual (só se mudar a recomendação)"],
           on: true, execucoesHoje: 6, ultima: "há 12 min — lead jurídico",
@@ -895,7 +895,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#8b7cff",
+          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#e0a44a",
           quando: "quer aprender Kommo, prestar serviço ou implementar pra clientes",
           on: true, execucoesHoje: 4, ultima: "há 18 min — agência SP",
           regras: [
@@ -966,12 +966,12 @@ export type Modulo = {
 export const MODULOS: Modulo[] = [
   { id: "m2", name: "Recuperar no-show", icon: CalendarX, color: "#34d399", blurb: "reativa quem faltou na reunião, sem você lembrar", gatilho: "faltou na reunião", acao: "reoferece 2 horários", installed: true, tag: "popular" },
   { id: "m3", name: "Alerta por palavra", icon: BellRing, color: "#fbbf24", blurb: "te avisa quando alguém fala “cancelar” ou “reembolso”", gatilho: "palavra crítica", acao: "avisa seu grupo", installed: true },
-  { id: "m1", name: "Upsell inteligente", icon: TrendingUp, color: "#8b7cff", blurb: "oferece o upgrade certo pra quem já é cliente", gatilho: "compra confirmada", acao: "sugere o plano acima", installed: false, tag: "popular" },
-  { id: "m5", name: "Contrato ZapSign", icon: FileSignature, color: "#6366f1", blurb: "gera e manda o contrato pra assinar assim que fecha", gatilho: "negócio ganho", acao: "envia contrato", installed: false, tag: "novo" },
-  { id: "m4", name: "Enriquecer campo", icon: Sparkles, color: "#22d3ee", blurb: "descobre e completa os dados do lead sozinho", gatilho: "dado faltando", acao: "preenche o campo", installed: false },
-  { id: "m6", name: "Rastreio de origem", icon: Radar, color: "#d16bff", blurb: "mostra de qual anúncio cada lead realmente veio", gatilho: "novo lead", acao: "marca a origem", installed: true },
+  { id: "m1", name: "Upsell inteligente", icon: TrendingUp, color: "#e0a44a", blurb: "oferece o upgrade certo pra quem já é cliente", gatilho: "compra confirmada", acao: "sugere o plano acima", installed: false, tag: "popular" },
+  { id: "m5", name: "Contrato ZapSign", icon: FileSignature, color: "#7c9fe0", blurb: "gera e manda o contrato pra assinar assim que fecha", gatilho: "negócio ganho", acao: "envia contrato", installed: false, tag: "novo" },
+  { id: "m4", name: "Enriquecer campo", icon: Sparkles, color: "#58aae4", blurb: "descobre e completa os dados do lead sozinho", gatilho: "dado faltando", acao: "preenche o campo", installed: false },
+  { id: "m6", name: "Rastreio de origem", icon: Radar, color: "#58aae4", blurb: "mostra de qual anúncio cada lead realmente veio", gatilho: "novo lead", acao: "marca a origem", installed: true },
   { id: "m7", name: "Auditoria de funil", icon: ScanSearch, color: "#fb7185", blurb: "acha leads parados e dinheiro esquecido no funil", gatilho: "toda segunda", acao: "manda o relatório", installed: true },
-  { id: "m8", name: "Resumo por voz", icon: Volume2, color: "#22d3ee", blurb: "te manda um áudio com o resumo do dia", gatilho: "fim do dia", acao: "envia o áudio", installed: false, tag: "novo" },
+  { id: "m8", name: "Resumo por voz", icon: Volume2, color: "#58aae4", blurb: "te manda um áudio com o resumo do dia", gatilho: "fim do dia", acao: "envia o áudio", installed: false, tag: "novo" },
 ];
 
 export const CHAT_EXEMPLOS = [
@@ -982,8 +982,8 @@ export const CHAT_EXEMPLOS = [
 ];
 
 export const CONEXOES_MCP = [
-  { id: "claude", name: "Claude Code", desc: "conecte e peça direto do terminal — vira mudança segura, testada e reversível aqui dentro", status: "conectado", color: "#8b7cff" },
-  { id: "codex", name: "Codex", desc: "mesma tomada, outro assistente — a Metrik aprova e publica com prova", status: "conectado", color: "#22d3ee" },
+  { id: "claude", name: "Claude Code", desc: "conecte e peça direto do terminal — vira mudança segura, testada e reversível aqui dentro", status: "conectado", color: "#e0a44a" },
+  { id: "codex", name: "Codex", desc: "mesma tomada, outro assistente — a Metrik aprova e publica com prova", status: "conectado", color: "#58aae4" },
 ];
 
 export const CONEXOES_CANAIS = [
