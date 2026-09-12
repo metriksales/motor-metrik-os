@@ -118,6 +118,45 @@ export function usePendencias(): Pendencia[] {
   return pend;
 }
 
+/**
+ * Alerta no TÍTULO da aba: com a aba em 2º plano, cada atendimento novo vira
+ * "(N) Motor Metrik OS" — o gatilho externo que traz o cliente de volta sem
+ * depender de push/WhatsApp. Chamado UMA vez (App) pra ser o único dono do
+ * título. Só no modo logado (a vitrine demo não alerta).
+ */
+export function useTituloAoVivo(): void {
+  const auth = useMotorAuth();
+  useEffect(() => {
+    if (auth.demo) return;
+    const base = document.title;
+    const seen = new Set<string>();
+    let naoVistos = 0;
+    let primeiro = true;
+    const pintar = () => { document.title = naoVistos > 0 ? `(${naoVistos}) ${base}` : base; };
+
+    const buscar = async () => {
+      try {
+        const logs = (await api.listLogs(undefined, auth.getToken)) as LogReal[];
+        if (!Array.isArray(logs)) return;
+        const novos = logs.filter((l) => !seen.has(l.id));
+        logs.forEach((l) => seen.add(l.id));
+        if (primeiro) { primeiro = false; return; } // 1º fetch popula, não alerta
+        if (document.hidden && novos.length) { naoVistos += novos.length; pintar(); }
+      } catch { /* nunca derruba a UI */ }
+    };
+
+    buscar();
+    const poll = setInterval(buscar, POLL_MS);
+    const aoVoltar = () => { if (!document.hidden) { naoVistos = 0; pintar(); buscar(); } };
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", aoVoltar);
+      document.title = base;
+    };
+  }, [auth.getToken, auth.demo]);
+}
+
 /** "há 27 min", "há 2 h", "ontem", "há 3 dias" */
 export function tempoRelativo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();

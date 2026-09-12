@@ -5,7 +5,7 @@ import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowR
 type SubId = "trabalho" | "aovivo" | "estrutura" | "melhorar";
 import { NAV, type ViewId } from "./data";
 import { useAgents } from "./lib/agents";
-import { usePendencias } from "./lib/live";
+import { usePendencias, useTituloAoVivo } from "./lib/live";
 import { cx, Toggle } from "./ui";
 import Inicio from "./views/Inicio";
 import Agentes from "./views/Agentes";
@@ -51,6 +51,7 @@ export default function App() {
   const agent = agentId ? byId(agentId) : null;
   const ativos = agents.filter((a) => a.state === "ativo").length;
   const pendencias = usePendencias();
+  useTituloAoVivo(); // alerta "(N)" no título quando a aba está em 2º plano
   // insights críticos só valem no DEMO (mock); logado, o que pede atenção são
   // as pendências reais do porteiro (mudanças do cliente esperando aprovação).
   const notifs = auth.demo
