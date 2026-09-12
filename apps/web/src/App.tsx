@@ -5,6 +5,7 @@ import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowR
 type SubId = "trabalho" | "aovivo" | "estrutura" | "melhorar";
 import { NAV, type ViewId } from "./data";
 import { useAgents } from "./lib/agents";
+import { usePendencias } from "./lib/live";
 import { cx, Toggle } from "./ui";
 import Inicio from "./views/Inicio";
 import Agentes from "./views/Agentes";
@@ -49,9 +50,15 @@ export default function App() {
   const nav = NAV.find((n) => n.id === view)!;
   const agent = agentId ? byId(agentId) : null;
   const ativos = agents.filter((a) => a.state === "ativo").length;
-  const notifs = agents.flatMap((a) =>
-    (a.insights ?? []).filter((i) => i.tipo === "critico").map((i) => ({ agentId: a.id, agentName: a.name, color: a.color, titulo: i.titulo, texto: i.texto }))
-  );
+  const pendencias = usePendencias();
+  // insights críticos só valem no DEMO (mock); logado, o que pede atenção são
+  // as pendências reais do porteiro (mudanças do cliente esperando aprovação).
+  const notifs = auth.demo
+    ? agents.flatMap((a) =>
+        (a.insights ?? []).filter((i) => i.tipo === "critico").map((i) => ({ agentId: a.id, agentName: a.name, color: a.color, titulo: i.titulo, texto: i.texto }))
+      )
+    : [];
+  const totalAvisos = notifs.length + pendencias.length;
 
   const routeKey = agent ? `agent-${agent.id}` : view;
 
@@ -143,8 +150,8 @@ export default function App() {
             <div className="relative">
               <button onClick={() => setNotifOpen((o) => !o)} className="btn btn-sm !px-2.5 relative" aria-label="Avisos">
                 <Bell size={15} />
-                {notifs.length > 0 && (
-                  <span className="absolute -top-1 -right-1 grid place-items-center text-[9px] font-mono rounded-full" style={{ minWidth: 16, height: 16, background: "#fbbf24", color: "#0a0714", fontWeight: 700 }}>{notifs.length}</span>
+                {totalAvisos > 0 && (
+                  <span className="absolute -top-1 -right-1 grid place-items-center text-[9px] font-mono rounded-full" style={{ minWidth: 16, height: 16, background: "#fbbf24", color: "#0a0714", fontWeight: 700 }}>{totalAvisos}</span>
                 )}
               </button>
               <AnimatePresence>
@@ -155,18 +162,33 @@ export default function App() {
                       <span className="font-display font-semibold text-[13.5px]">Seus robôs pedem atenção</span>
                     </div>
                     <div className="p-2">
-                      {notifs.length === 0 ? (
+                      {totalAvisos === 0 ? (
                         <div className="text-[12.5px] text-[var(--txt-3)] p-3">Nada pendente 🎉</div>
                       ) : (
-                        notifs.map((n, i) => (
-                          <button key={i} onClick={() => openAgent(n.agentId, "aovivo")} className="w-full text-left rounded-xl p-2.5 hover:bg-[var(--surface-2)] transition-colors flex gap-2.5">
-                            <span className="dot mt-1.5 flex-none" style={{ background: n.color }} />
-                            <div className="min-w-0">
-                              <div className="text-[12.5px] font-medium">{n.agentName} · {n.titulo}</div>
-                              <div className="text-[11.5px] text-[var(--txt-3)]">{n.texto}</div>
-                            </div>
-                          </button>
-                        ))
+                        <>
+                          {/* PENDÊNCIAS do porteiro: o pedido do cliente esperando o aval dele */}
+                          {pendencias.map((p) => {
+                            const nota = p.impact?.evals?.taxa != null ? (p.impact.evals.taxa * 10).toFixed(1).replace(".", ",") : null;
+                            return (
+                              <button key={p.id} onClick={() => openAgent(p.agentId, "melhorar")} className="w-full text-left rounded-xl p-2.5 hover:bg-[var(--surface-2)] transition-colors flex gap-2.5">
+                                <span className="grid place-items-center rounded-md flex-none mt-0.5" style={{ width: 18, height: 18, background: "rgba(52,211,153,.16)", border: "1px solid rgba(52,211,153,.34)", color: "#34d399", fontSize: 10, fontWeight: 700 }}>✓</span>
+                                <div className="min-w-0">
+                                  <div className="text-[12.5px] font-medium">{p.agentName} · passou no porteiro{nota ? ` · nota ${nota}` : ""}</div>
+                                  <div className="text-[11.5px] text-[var(--txt-3)] truncate">“{p.intent}” — falta você aprovar</div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {notifs.map((n, i) => (
+                            <button key={`n${i}`} onClick={() => openAgent(n.agentId, "aovivo")} className="w-full text-left rounded-xl p-2.5 hover:bg-[var(--surface-2)] transition-colors flex gap-2.5">
+                              <span className="dot mt-1.5 flex-none" style={{ background: n.color }} />
+                              <div className="min-w-0">
+                                <div className="text-[12.5px] font-medium">{n.agentName} · {n.titulo}</div>
+                                <div className="text-[11.5px] text-[var(--txt-3)]">{n.texto}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </>
                       )}
                     </div>
                     <div className="px-3 py-2.5 border-t border-[var(--line)] flex items-center justify-between">

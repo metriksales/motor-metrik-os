@@ -1,13 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Radio, Check, X, Loader2, ArrowRight, Database } from "lucide-react";
+import { Radio, Check, X, Loader2, ArrowRight, Database, MessageSquareText } from "lucide-react";
 import { AGENTS, STATS, type LiveRow } from "../data";
 import { useAgents } from "../lib/agents";
 import { useLive, tempoRelativo, reais, kpiDinheiro, type LogReal } from "../lib/live";
 import { Reveal, cx } from "../ui";
 import { Robot } from "../Robot";
+import ConversaDrawer, { type ConversaAberta } from "./ConversaDrawer";
 
-type FeedRow = LiveRow & { agente: string; color: string; id: string; valorCentavos?: number | null };
+type FeedRow = LiveRow & { agente: string; color: string; id: string; valorCentavos?: number | null; raw?: LogReal };
 
 const FEED: FeedRow[] = AGENTS.flatMap((a) =>
   a.live.map((r, i) => ({ ...r, agente: a.name, color: a.color, id: `${a.id}-${i}` }))
@@ -33,6 +34,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
   // só linha NOVA (chegou num poll depois do 1º paint) ganha entrada animada —
   // a recompensa variável é ver o trabalho ENTRAR, não a lista inteira piscar.
   const vistos = useRef<Set<string> | null>(null);
+  const [conversa, setConversa] = useState<ConversaAberta | null>(null);
 
   // Feed REAL (Flight Recorder no Neon) quando existe; senão o demo — com selo.
   const feed: FeedRow[] = logs
@@ -47,6 +49,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           agente: a?.name ?? l.motor ?? "motor",
           color: a?.color ?? "#8b7cff",
           id: l.id,
+          raw: l,
         };
       })
     : FEED;
@@ -109,14 +112,22 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                   const st = statusMeta[r.status];
                   const dinheiroLinha = (r.valorCentavos ?? 0) > 0;
                   const nova = vistos.current !== null && !vistos.current.has(r.id);
+                  const abrir = () =>
+                    setConversa(
+                      r.raw
+                        ? { tipo: "real", log: r.raw, agente: r.agente, cor: r.color }
+                        : { tipo: "demo", agente: r.agente, cor: r.color }
+                    );
                   return (
                     <motion.li
                       key={r.id}
+                      onClick={abrir}
+                      role="button"
                       initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(139,124,255,.14)" } : false}
                       animate={{ opacity: 1, y: 0, backgroundColor: "rgba(0,0,0,0)" }}
                       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1], backgroundColor: { duration: 2 } }}
                       className={cx(
-                        "flex items-center gap-3 py-2.5 rounded-lg px-1 -mx-1",
+                        "group flex items-center gap-3 py-2.5 rounded-lg px-1 -mx-1 cursor-pointer hover:bg-[var(--surface-2)] transition-colors",
                         i !== feed.length - 1 && "border-b border-[var(--line)]"
                       )}
                       style={dinheiroLinha ? { boxShadow: "inset 3px 0 0 var(--emerald)" } : undefined}
@@ -140,11 +151,15 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                           +{reais(r.valorCentavos)}
                         </span>
                       )}
+                      <MessageSquareText size={13} className="flex-none text-[var(--txt-4)] opacity-0 group-hover:opacity-100 transition-opacity" />
                       <span className="tick flex-none">{r.t}</span>
                     </motion.li>
                   );
                 })}
             </ul>
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--line)] text-[11.5px] text-[var(--txt-4)]">
+              <MessageSquareText size={13} /> clique numa linha pra ler a conversa que a IA teve
+            </div>
           </div>
         </Reveal>
 
@@ -187,6 +202,8 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           </div>
         </Reveal>
       </div>
+
+      <ConversaDrawer aberta={conversa} onClose={() => setConversa(null)} />
     </div>
   );
 }

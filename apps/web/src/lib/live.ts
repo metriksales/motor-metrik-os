@@ -29,6 +29,7 @@ export interface StatsReais {
   valor7dCentavos?: number;
   valor30dCentavos?: number;
   valorTotalCentavos?: number;
+  reunioesTotal?: number;
   ultimoValor?: { resumo: string; valorCentavos: number; at: string } | null;
   porAgente: Record<string, { execucoes: number; acertos: number }>;
 }
@@ -91,6 +92,30 @@ export function useLive(): { logs: LogReal[] | null; stats: StatsReais | null; c
   }, [auth.getToken, auth.demo]);
 
   return { logs, stats, carregando };
+}
+
+export interface Pendencia {
+  id: string;
+  agentId: string;
+  agentName: string;
+  intent: string;
+  impact?: { evals?: { taxa?: number; passaram?: number; total?: number } } | null;
+  createdAt: string;
+}
+
+/** mudanças que passaram no porteiro e esperam SÓ a aprovação do cliente. */
+export function usePendencias(): Pendencia[] {
+  const auth = useMotorAuth();
+  const [pend, setPend] = useState<Pendencia[]>([]);
+  useEffect(() => {
+    if (auth.demo) return; // vitrine não tem ledger real
+    let vivo = true;
+    (api.pendencias(auth.getToken) as Promise<Pendencia[]>)
+      .then((rows) => { if (vivo && Array.isArray(rows)) setPend(rows); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [auth.getToken, auth.demo]);
+  return pend;
 }
 
 /** "há 27 min", "há 2 h", "ontem", "há 3 dias" */

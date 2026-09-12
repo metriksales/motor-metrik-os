@@ -63,6 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       case "stats":
         return res.json(await control.statsHoje(ctx));
+      case "pendencias":
+        return res.json(await control.listPendencias(ctx));
       case "connections":
         return res.json(await control.listConnections(ctx));
       case "upsertConnection":

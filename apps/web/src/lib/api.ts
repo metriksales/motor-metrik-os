@@ -45,4 +45,5 @@ export const api = {
   listLogs: (agentId?: string, getToken?: GetToken) =>
     control("logs", { getToken, query: agentId ? { agentId } : undefined }),
   stats: (getToken?: GetToken) => control("stats", { getToken }),
+  pendencias: (getToken?: GetToken) => control("pendencias", { getToken }),
 };

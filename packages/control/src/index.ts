@@ -105,6 +105,29 @@ export function listChangeSets(ctx: Ctx, agentId: string) {
     .orderBy(desc(changeSets.createdAt));
 }
 
+/**
+ * PENDÊNCIAS do tenant: mudanças que já passaram no porteiro (status
+ * "evaluated") e esperam SÓ o cliente aprovar. Alimenta o sino — o pedido do
+ * cliente ganha um motivo concreto de voltar amanhã (fechar o ciclo que ele
+ * mesmo abriu). Junta o nome do agente pra mostrar direto no aviso.
+ */
+export async function listPendencias(ctx: Ctx) {
+  const rows = await db
+    .select({
+      id: changeSets.id,
+      agentId: changeSets.agentId,
+      agentName: agents.name,
+      intent: changeSets.intent,
+      impact: changeSets.impact,
+      createdAt: changeSets.createdAt,
+    })
+    .from(changeSets)
+    .innerJoin(agents, eq(agents.id, changeSets.agentId))
+    .where(and(eq(changeSets.orgId, ctx.orgId), eq(changeSets.status, "evaluated")))
+    .orderBy(desc(changeSets.createdAt));
+  return rows;
+}
+
 export async function aprovarMudanca(ctx: Ctx, changeSetId: string) {
   if (ctx.role === "viewer") throw new Error("sem permissão pra aprovar");
   const [cs] = await db
@@ -448,6 +471,8 @@ export async function statsHoje(ctx: Ctx) {
       total: sql<number>`coalesce(sum(${runtimeLogs.valorCentavos}), 0)`,
       d7: sql<number>`coalesce(sum(${runtimeLogs.valorCentavos}) filter (where ${runtimeLogs.at} >= now() - interval '7 days'), 0)`,
       d30: sql<number>`coalesce(sum(${runtimeLogs.valorCentavos}) filter (where ${runtimeLogs.at} >= now() - interval '30 days'), 0)`,
+      // total de "momentos de dinheiro" (reuniões marcadas etc.) — degraus dos marcos
+      reunioes: sql<number>`count(*)`,
     })
     .from(runtimeLogs)
     .where(and(eq(runtimeLogs.orgId, ctx.orgId), isNotNull(runtimeLogs.valorCentavos)));
@@ -467,6 +492,7 @@ export async function statsHoje(ctx: Ctx) {
     valor7dCentavos: Number(acum?.d7 ?? 0),
     valor30dCentavos: Number(acum?.d30 ?? 0),
     valorTotalCentavos: Number(acum?.total ?? 0),
+    reunioesTotal: Number(acum?.reunioes ?? 0),
     ultimoValor: ultimo
       ? { resumo: ultimo.resumo, valorCentavos: ultimo.valorCentavos ?? 0, at: ultimo.at }
       : null,

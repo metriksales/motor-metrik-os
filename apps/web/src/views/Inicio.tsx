@@ -7,6 +7,7 @@ import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
 import { Reveal, Delta, cx } from "../ui";
 import { Robot } from "../Robot";
 import FechamentoDia from "./FechamentoDia";
+import Marcos from "./Marcos";
 
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
   const auth = useMotorAuth();
@@ -96,6 +97,9 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           </div>
         </div>
       </Reveal>
+
+      {/* marco alcançado (aparece 1× quando cruza um degrau real) */}
+      <Marcos stats={stats} orgKey={auth.orgId ?? "demo"} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

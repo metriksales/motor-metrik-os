@@ -72,6 +72,8 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
               );
             case "stats":
               return send(200, await control.statsHoje(ctx));
+            case "pendencias":
+              return send(200, await control.listPendencias(ctx));
             case "log":
               return send(200, await control.registrarLog(ctx, body));
             case "propor":
