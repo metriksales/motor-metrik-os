@@ -43,6 +43,8 @@ export const api = {
   avaliar: (changeSetId: string, getToken?: GetToken) => control("avaliar", { body: { changeSetId }, getToken }),
   publicarMudanca: (changeSetId: string, getToken?: GetToken) => control("publicarMudanca", { body: { changeSetId }, getToken }),
   listMembers: (getToken?: GetToken) => control("members", { getToken }),
+  setEstado: (agentId: string, estado: "ativo" | "pausado", getToken?: GetToken) =>
+    control("setEstado", { body: { agentId, estado }, getToken }),
   listLogs: (agentId?: string, getToken?: GetToken) =>
     control("logs", { getToken, query: agentId ? { agentId } : undefined }),
   stats: (getToken?: GetToken) => control("stats", { getToken }),

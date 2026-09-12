@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createProductionDeps, handleInbound } from "./_bundled/runtime.mjs";
-import { getDatabaseUrl } from "./_bundled/control.mjs";
+import { getDatabaseUrl, getAgentEstado } from "./_bundled/control.mjs";
 
 // Porta de ENTRADA de mensagem (webhook do canal: uazapi/GHL/IG).
 // Autentica pelo SEGREDO do canal (x-webhook-secret), não por sessão de usuário.
@@ -23,6 +23,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const contactId = String(b.contactId ?? "");
   if (!orgId || !agentId || !contactId) {
     return res.status(400).json({ error: "faltam orgId/agentId/contactId no corpo" });
+  }
+
+  // PAUSE do cliente é honrado AQUI, antes de qualquer resposta: agente pausado
+  // = a IA não fala com o lead (a ação de emergência do cliente vale de verdade).
+  try {
+    const { estado } = await getAgentEstado({ orgId, actor: "webhook", role: "admin" }, agentId);
+    if (estado === "pausado") {
+      return res.json({ ok: true, pausado: true, skipped: "agente pausado pelo cliente — não respondi" });
+    }
+  } catch {
+    // falha ao ler estado não pode derrubar a entrada; segue (fail-open no atendimento)
   }
 
   // Composição de produção. TODO: injetar o vault (token do CRM por org) e o Redis.

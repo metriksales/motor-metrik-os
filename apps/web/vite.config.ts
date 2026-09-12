@@ -88,6 +88,8 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
               return send(200, await control.publicarMudanca(ctx, body.changeSetId));
             case "members":
               return send(200, await control.listMembers(ctx));
+            case "setEstado":
+              return send(200, await control.setAgentEstado(ctx, { agentId: body.agentId, estado: body.estado }));
             default:
               return send(400, { error: `ação '${action}' não suportada no dev middleware` });
           }

@@ -47,6 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.publicarMudanca(ctx, body.changeSetId));
       case "members":
         return res.json(await control.listMembers(ctx));
+      case "setEstado":
+        return res.json(await control.setAgentEstado(ctx, { agentId: body.agentId, estado: body.estado }));
       case "publicar":
         return res.json(await control.publicar(ctx, body));
       case "releases":

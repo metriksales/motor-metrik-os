@@ -480,6 +480,32 @@ export async function publicarMudanca(ctx: Ctx, changeSetId: string) {
   return publicar(ctx, { agentId: cs.agentId, spec: specNovo, changeSetId, runtimeVersion: "web-1" });
 }
 
+/**
+ * PAUSAR/LIGAR um agente de verdade — persiste o estado no banco (não é
+ * toggle cosmético). O runtime (handleInbound) confere isto ANTES de responder:
+ * pausado = a IA não fala com o lead. É a ação de emergência do cliente.
+ */
+export async function setAgentEstado(ctx: Ctx, input: { agentId: string; estado: "ativo" | "pausado" }) {
+  if (ctx.role === "viewer") throw new Error("sem permissão pra pausar/ligar");
+  const [row] = await db
+    .update(agents)
+    .set({ state: input.estado })
+    .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)))
+    .returning();
+  if (!row) throw new Error("agente não encontrado neste tenant");
+  await audit(ctx, "agent.estado", input.agentId, { estado: input.estado });
+  return { id: row.id, state: row.state };
+}
+
+/** o estado atual (ativo/idle/pausado) de um agente — o runtime lê pra decidir. */
+export async function getAgentEstado(ctx: Ctx, agentId: string) {
+  const [row] = await db
+    .select({ state: agents.state })
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
+  return { estado: row?.state ?? "idle" };
+}
+
 /** usuários/membros do tenant (Admin) — quem tem login nesta organização. */
 export function listMembers(ctx: Ctx) {
   return db.select().from(memberships).where(eq(memberships.orgId, ctx.orgId)).orderBy(desc(memberships.createdAt));

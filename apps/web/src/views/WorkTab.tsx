@@ -135,27 +135,16 @@ function Contratos({ w }: { w: Work }) {
 }
 
 function Conhecimento({ w, color }: { w: Work; color: string }) {
-  const [itens, setItens] = useState(w.conhecimento ?? []);
-  const [txt, setTxt] = useState("");
+  const itens = w.conhecimento ?? [];
   const cats = Array.from(new Set(itens.map((i) => i.cat)));
-  const add = () => {
-    if (!txt.trim()) return;
-    setItens((s) => [{ cat: "Novo", titulo: txt.trim() }, ...s]);
-    setTxt("");
-  };
   return (
     <div className="space-y-4">
-      <div className="card p-4 flex items-center gap-3">
-        <BookOpen size={17} style={{ color }} className="flex-none" />
-        <p className="text-[13px] text-[var(--txt-2)]">É daqui que ele tira as respostas. Cadastre algo e ele já passa a usar — sem tocar no prompt.</p>
+      <div className="card p-4 flex items-start gap-3">
+        <BookOpen size={17} style={{ color }} className="flex-none mt-0.5" />
+        <p className="text-[13px] text-[var(--txt-2)]">É daqui que a IA tira as respostas. <b className="text-[var(--txt)]">Pra ensinar algo novo</b> (um plano, uma objeção, uma informação), é no <b className="text-[var(--txt)]">Melhorar</b> — você escreve, a IA testa no ensaio e você vê antes de valer.</p>
       </div>
 
       <div className="card p-5">
-        <div className="flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 focus-within:border-[var(--line-hi)] transition-colors mb-4">
-          <input value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Cadastrar algo novo (um plano, uma objeção, uma regra…)" className="flex-1 bg-transparent px-2 py-1.5 text-[13.5px] outline-none placeholder:text-[var(--txt-4)]" />
-          <button onClick={add} className="btn btn-primary btn-sm flex-none"><Plus size={14} /> Adicionar</button>
-        </div>
-
         {cats.map((cat) => (
           <div key={cat} className="mb-4 last:mb-0">
             <div className="mono-label mb-2">{cat}</div>

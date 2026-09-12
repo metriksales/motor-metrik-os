@@ -37,7 +37,24 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.id, sub]);
   const [state, setState] = useState<AgentState>(agent.state);
+  const [pausaMsg, setPausaMsg] = useState<string | null>(null);
   const sm = STATE_META[state];
+
+  // PAUSE REAL: persiste o estado no banco (o runtime lê antes de responder).
+  // Agente demo segue só visual; agente real para/volta de verdade.
+  const alternarEstado = async () => {
+    const novo: AgentState = state === "pausado" ? "ativo" : "pausado";
+    setState(novo);
+    if (!agent.real) return;
+    try {
+      await api.setEstado(agent.id, novo === "pausado" ? "pausado" : "ativo", auth.getToken);
+      setPausaMsg(novo === "pausado" ? "Pausado — a IA parou de responder os leads." : "Ligado — a IA voltou a responder.");
+      window.setTimeout(() => setPausaMsg(null), 4000);
+    } catch (e) {
+      setState((s) => (s === "pausado" ? "ativo" : "pausado")); // desfaz na falha
+      setPausaMsg(e instanceof Error ? e.message : "não consegui mudar o estado");
+    }
+  };
   const alerta = (agent.fluxo ?? []).some((p) => p.status === "falha") || (agent.insights ?? []).some((i) => i.tipo === "critico");
   const workIconMap: Record<string, any> = { agenda: CalendarClock, followups: Repeat, contratos: FileSignature, conhecimento: BookOpen, acoes: Zap, lista: ListChecks };
   // Cada aba com UMA finalidade: O que faz (ler o processo) · Mudanças (observar
@@ -87,7 +104,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
                 </div>
               </div>
               <div className="flex items-center gap-4 flex-none">
-                <button onClick={() => setState((s) => (s === "pausado" ? "ativo" : "pausado"))} className="flex items-center gap-2.5">
+                <button onClick={() => void alternarEstado()} className="flex items-center gap-2.5" title={state === "pausado" ? "ligar — a IA volta a responder" : "pausar — a IA para de responder os leads"}>
                   <span className="text-[12.5px] text-[var(--txt-3)]">{state === "pausado" ? "pausado" : "ligado"}</span>
                   <Toggle on={state !== "pausado"} />
                 </button>
@@ -97,6 +114,17 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
           </div>
         </div>
       </Reveal>
+
+      {(pausaMsg || state === "pausado") && (
+        <div className="rounded-xl px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{
+          border: `1px solid ${state === "pausado" ? "#fbbf2440" : "#34d39940"}`,
+          background: state === "pausado" ? "rgba(251,191,36,.08)" : "rgba(52,211,153,.08)",
+          color: state === "pausado" ? "#fbbf24" : "#34d399",
+        }}>
+          {state === "pausado" ? <Clock size={14} /> : <Check size={14} />}
+          {pausaMsg ?? "Este agente está pausado — a IA não está respondendo os leads. Ligue no botão acima quando quiser retomar."}
+        </div>
+      )}
 
       <div className="flex gap-1.5 flex-wrap">
         {subs.map((s) => (
@@ -115,7 +143,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
         {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => setSub("melhorar")} />}
         {sub === "mudancas" && agent.mapa && <MudancasTab agent={agent} />}
         {sub === "logs" && <LogsTab agent={agent} />}
-        {sub === "estrutura" && <Turbinar agent={agent} />}
+        {sub === "estrutura" && <Turbinar agent={agent} onMelhorar={() => setSub("melhorar")} />}
         {sub === "melhorar" && <MelhorarTab agent={agent} />}
       </motion.div>
     </div>
@@ -391,50 +419,39 @@ function InsightCard({ ins, onGo }: { ins: Insight; onGo: () => void }) {
 }
 
 /* ---------- TURBINAR (núcleo + recursos + ligar com setup guiado) ---------- */
-function Turbinar({ agent }: { agent: Agent }) {
-  const [feats, setFeats] = useState(agent.features.map((f) => f.on));
-  const [installed, setInstalled] = useState<string[]>([]);
-  const [setup, setSetup] = useState<Upgrade | null>(null);
+function Turbinar({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void }) {
   const upgrades = agent.upgrades ?? [];
-  const disponiveis = upgrades.filter((u) => !installed.includes(u.name));
 
   return (
     <div className="space-y-4">
       {/* núcleo blindado */}
       <div className="card p-4 flex items-start gap-3" style={{ borderColor: "#34d39930", background: "linear-gradient(160deg, rgba(52,211,153,.06), var(--surface))" }}>
         <ShieldCheck size={18} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
-        <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Núcleo blindado.</b> {agent.shield} Você liga recursos por cima — nunca quebra o que já roda.</p>
+        <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Núcleo blindado.</b> {agent.shield} Estes recursos são operados pela Metrik — pra mudar o comportamento, é no <b className="text-[var(--txt)]">Melhorar</b> (com ensaio e guardião).</p>
       </div>
 
-      {/* recursos ligados */}
+      {/* recursos ligados — LEITURA (o que o agente já sabe fazer) */}
       <div className="card p-5">
         <div className="mono-label mb-4">Recursos ligados</div>
         <div className="grid sm:grid-cols-2 gap-2.5">
-          {agent.features.map((f, i) => (
+          {agent.features.map((f) => (
             <div key={f.name} className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
               <span className="grid place-items-center rounded-[10px] flex-none" style={{ width: 34, height: 34, background: `${agent.color}14`, border: `1px solid ${agent.color}2e` }}>
                 <f.icon size={16} style={{ color: agent.color }} />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium truncate">{f.name}</div>
-                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#8b7cff" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você · MCP" : "Metrik"}</span>
+                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#8b7cff" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você · MCP" : "operado pela Metrik"}</span>
               </div>
-              <button onClick={() => setFeats((s) => s.map((v, idx) => (idx === i ? !v : v)))} className="flex-none"><Toggle on={feats[i]} /></button>
+              <span className="pill flex-none" style={{ color: f.on ? "#34d399" : "var(--txt-4)", borderColor: f.on ? "#34d39940" : "var(--line)", background: f.on ? "#34d39912" : "var(--surface-2)" }}>
+                {f.on ? <><span className="live-dot" style={{ width: 6, height: 6, background: "#34d399" }} /> ligado</> : "desligado"}
+              </span>
             </div>
           ))}
-          {upgrades.filter((u) => installed.includes(u.name)).map((u) => (
-            <motion.div key={u.name} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-3 rounded-xl p-3" style={{ border: "1px solid #8b7cff40", background: "rgba(139,124,255,.08)" }}>
-              <span className="grid place-items-center rounded-[10px] flex-none" style={{ width: 34, height: 34, background: "rgba(139,124,255,.16)", border: "1px solid rgba(139,124,255,.3)" }}>
-                <u.icon size={16} style={{ color: "#8b7cff" }} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium truncate">{u.name}</div>
-                <span className="text-[10.5px]" style={{ color: "#8b7cff" }}>ligado · caiu em {u.onde}</span>
-              </div>
-              <Toggle on />
-            </motion.div>
-          ))}
         </div>
+        {onMelhorar && (
+          <button onClick={onMelhorar} className="btn btn-sm mt-4"><Wand2 size={13} /> Ligar, desligar ou turbinar — peça no Melhorar</button>
+        )}
       </div>
 
       {/* turbinar — ligar com setup */}
@@ -443,12 +460,12 @@ function Turbinar({ agent }: { agent: Agent }) {
           <div className="mono-label">Turbinar este agente</div>
           <span className="text-[11px] text-[var(--txt-4)]">só entra neste robô</span>
         </div>
-        <p className="text-[12px] text-[var(--txt-3)] mb-4">Antes de ligar, você escolhe <b className="text-[var(--txt-2)]">como vai funcionar</b>. Nada liga no escuro.</p>
-        {disponiveis.length === 0 ? (
+        <p className="text-[12px] text-[var(--txt-3)] mb-4">Cada um destes é um upgrade que <b className="text-[var(--txt-2)]">a Metrik liga pra você</b> quando você pede — testado no ensaio antes de entrar.</p>
+        {upgrades.length === 0 ? (
           <div className="text-[12.5px] text-[var(--txt-3)] py-4 text-center">Tudo ligado neste agente 🎉</div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
-            {disponiveis.map((u) => (
+            {upgrades.map((u) => (
               <div key={u.name} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 flex flex-col">
                 <div className="flex items-center gap-2.5 mb-2">
                   <span className="grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: `${agent.color}12`, border: `1px solid ${agent.color}2a` }}>
@@ -457,23 +474,12 @@ function Turbinar({ agent }: { agent: Agent }) {
                   <span className="font-display font-semibold text-[13.5px]">{u.name}</span>
                 </div>
                 <p className="text-[12.5px] text-[var(--txt-2)] leading-snug mb-3 flex-1">{u.blurb}</p>
-                <button className="btn btn-sm w-full mt-auto" onClick={() => setSetup(u)}><Plus size={14} /> Ligar</button>
+                <button className="btn btn-sm w-full mt-auto" onClick={onMelhorar}><Wand2 size={14} /> Pedir no Melhorar</button>
               </div>
             ))}
           </div>
         )}
       </div>
-
-      <AnimatePresence>
-        {setup && (
-          <UpgradeSetup
-            agent={agent}
-            upgrade={setup}
-            onCancel={() => setSetup(null)}
-            onConfirm={() => { setInstalled((s) => [...s, setup.name]); setSetup(null); }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
