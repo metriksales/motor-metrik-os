@@ -10,6 +10,7 @@ import { Reveal, Pill, Toggle, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
 import MapaTab from "./MapaTab";
+import MapaAcao from "./MapaAcao";
 import MudancasTab from "./MudancasTab";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
@@ -340,8 +341,8 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
   const insights = agent.insights ?? [];
   return (
     <div className="space-y-4">
-      {/* com mapa: a LEITURA do processo (sem botão) substitui o passo a passo genérico */}
-      {agent.mapa ? <MapaTab agent={agent} /> : agent.fluxo && <Fluxo agent={agent} />}
+      {/* LEITURA do processo (sem botão): conversa → MapaTab · ação → MapaAcao */}
+      {agent.mapa ? <MapaTab agent={agent} /> : agent.fluxo ? <MapaAcao agent={agent} onMelhorar={onMelhorar} /> : null}
 
       {/* fazendo agora + números, numa linha só */}
       <div className="card p-4 flex items-center gap-3 overflow-hidden">

@@ -98,6 +98,8 @@ export type Passo = {
   status: "ok" | "falha" | "espera";
   porque?: string;
   sugestao?: string;
+  /** o que este passo TOCA no CRM/fora — deixa claro etapa × campo × integração */
+  alvo?: { tipo: "etapa" | "campo" | "integracao" | "canal" | "documento"; nome: string };
 };
 
 /**
@@ -595,10 +597,10 @@ export const AGENTS: Agent[] = [
     color: "#fb7185",
     agora: "pausado por você — retoma quando quiser",
     fluxo: [
-      { label: "Negócio é ganho", deveria: "gatilho de ganho no funil", status: "espera" },
-      { label: "Gera pelo modelo", deveria: "preenche os dados certos do cliente", status: "espera" },
-      { label: "Manda pra assinar", deveria: "envia pelo ZapSign no WhatsApp", status: "espera" },
-      { label: "Registra a assinatura", deveria: "cola de volta no card quando assina", status: "espera" },
+      { label: "Negócio é ganho", deveria: "gatilho de ganho no funil", status: "espera", alvo: { tipo: "etapa", nome: "Ganho" } },
+      { label: "Gera pelo modelo", deveria: "preenche os dados certos do cliente", status: "espera", alvo: { tipo: "documento", nome: "modelo de contrato" } },
+      { label: "Manda pra assinar", deveria: "envia pelo ZapSign no WhatsApp", status: "espera", alvo: { tipo: "integracao", nome: "ZapSign" } },
+      { label: "Registra a assinatura", deveria: "cola de volta no card quando assina", status: "espera", alvo: { tipo: "campo", nome: "status do contrato" } },
     ],
     expectativa: "Quando o negócio é ganho, gera o contrato pelo modelo, manda pra assinar e registra a assinatura de volta.",
     integracoes: ["ZapSign"],
@@ -653,11 +655,11 @@ export const AGENTS: Agent[] = [
     color: "#edc074",
     agora: "gerando petição pra 3 casos na etapa “Protocolar”",
     fluxo: [
-      { label: "Recebe o gatilho", deveria: "caso entra na etapa “Protocolar” — ou você clica no card", status: "ok" },
-      { label: "Confere os documentos", deveria: "só segue se procuração e anexos estão no card", status: "ok" },
-      { label: "Monta a peça", deveria: "usa o modelo certo pro tipo de ação", status: "ok" },
-      { label: "Protocola no AdvBox", deveria: "envia pela API e pega o número do processo", status: "falha", porque: "a API do AdvBox recusou 1 caso: campo “comarca” vazio no card", sugestao: "posso exigir a comarca preenchida antes de tentar — aí não falha na API." },
-      { label: "Anexa e avisa", deveria: "cola o número no card e avisa no WhatsApp", status: "espera" },
+      { label: "Recebe o gatilho", deveria: "caso entra na etapa “Protocolar” — ou você clica no card", status: "ok", alvo: { tipo: "etapa", nome: "Protocolar" } },
+      { label: "Confere os documentos", deveria: "só segue se procuração e anexos estão no card", status: "ok", alvo: { tipo: "documento", nome: "procuração + anexos" } },
+      { label: "Monta a peça", deveria: "usa o modelo certo pro tipo de ação", status: "ok", alvo: { tipo: "documento", nome: "modelo da peça" } },
+      { label: "Protocola no AdvBox", deveria: "envia pela API e pega o número do processo", status: "falha", porque: "a API do AdvBox recusou 1 caso: campo “comarca” vazio no card", sugestao: "posso exigir a comarca preenchida antes de tentar — aí não falha na API.", alvo: { tipo: "integracao", nome: "AdvBox" } },
+      { label: "Anexa e avisa", deveria: "cola o número no card e avisa no WhatsApp", status: "espera", alvo: { tipo: "canal", nome: "WhatsApp" } },
     ],
     expectativa: "Quando um caso entra na etapa “Protocolar”, monta a peça pelo modelo, protocola no AdvBox e anexa o número ao card.",
     integracoes: ["AdvBox"],
