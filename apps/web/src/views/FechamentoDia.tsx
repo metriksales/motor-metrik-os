@@ -39,11 +39,13 @@ export default function FechamentoDia({
   const rotuloValor = usaSemana ? "gerado na semana" : "gerado hoje";
 
   const melhor = melhorMomento(logs ?? []);
+  const ehDeHoje = melhor ? new Date(melhor.at).toDateString() === new Date().toDateString() : true;
   const melhorTxt = melhor
     ? { resumo: melhor.resumo, valor: reais(melhor.valorCentavos), quando: `há ${tempoRelativo(melhor.at)}` }
     : demo
       ? { resumo: "reunião marcada com Thiago", valor: "R$ 1.500", quando: "14h32" }
       : null;
+  const melhorRotulo = ehDeHoje ? "melhor momento do dia" : "melhor momento recente";
 
   return (
     <div className="grad-border overflow-hidden">
@@ -73,7 +75,7 @@ export default function FechamentoDia({
                 <Trophy size={16} style={{ color: "#34d399" }} />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="mono-label !text-[9px] mb-0.5" style={{ color: "#34d399" }}>melhor momento do dia</div>
+                <div className="mono-label !text-[9px] mb-0.5" style={{ color: "#34d399" }}>{melhorRotulo}</div>
                 <div className="text-[13.5px] text-[var(--txt)] truncate">
                   {melhorTxt.resumo} <span className="text-[var(--txt-4)]">· {melhorTxt.quando}</span>
                 </div>
