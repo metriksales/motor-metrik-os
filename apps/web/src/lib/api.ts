@@ -41,6 +41,7 @@ export const api = {
     control("propor", { body: input, getToken }),
   aprovar: (changeSetId: string, getToken?: GetToken) => control("aprovar", { body: { changeSetId }, getToken }),
   avaliar: (changeSetId: string, getToken?: GetToken) => control("avaliar", { body: { changeSetId }, getToken }),
+  publicarMudanca: (changeSetId: string, getToken?: GetToken) => control("publicarMudanca", { body: { changeSetId }, getToken }),
   listMembers: (getToken?: GetToken) => control("members", { getToken }),
   listLogs: (agentId?: string, getToken?: GetToken) =>
     control("logs", { getToken, query: agentId ? { agentId } : undefined }),

@@ -3,7 +3,7 @@
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs } from "@motor/db";
-import { FakeBrain } from "@motor/llm";
+import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
 import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
@@ -343,11 +343,43 @@ export async function loadPublishedSpec(ctx: Ctx, agentId: string): Promise<Agen
 
 // ═══ ESCOLA / PORTEIRO — o pedido do cliente vira mudança testada ═══
 
+/** o system-prompt (cérebro) a partir da spec — identidade + oferta + regras. */
+function systemDe(spec: AgentSpec): string {
+  const c = spec.cerebro;
+  return [c.identidade, c.oferta ?? "", c.tom ? `Tom: ${c.tom}` : "", ...c.regras.map((r) => `- ${r}`)]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /**
- * avaliarMudanca — o PORTEIRO roda de verdade no servidor: executa a suíte de
- * evals OFFLINE (FakeBrain × casos da Bia) e grava a PROVA no próprio ChangeSet
- * (impact.evals) com status "evaluated". Quando o cérebro real (OPENAI_API_KEY)
- * ligar, o mesmo gate roda contra o agente de verdade — o contrato não muda.
+ * COMPILA o pedido do cliente (texto livre) numa nova AgentSpec: a mudança
+ * entra como uma NOVA regra no cérebro. Não remove nem edita as regras
+ * blindadas existentes (o guardião confere que continuam valendo) — só
+ * ACRESCENTA a instrução do cliente. É o caminho sancionado do "cliente muda
+ * sozinho": adicionar comportamento, nunca quebrar o núcleo.
+ */
+function compilarSpec(specAtual: AgentSpec, pedido: string): AgentSpec {
+  const regra = pedido.trim();
+  return {
+    ...specAtual,
+    cerebro: { ...specAtual.cerebro, regras: [...specAtual.cerebro.regras, regra] },
+  };
+}
+
+/** situações representativas pro ENSAIO: as entradas da suíte da vertical. */
+function situacoesDoKit(kit: ReturnType<typeof kitParaAgente>, n = 3) {
+  return kit.evals.slice(0, n).map((e) => ({ nome: e.nome, pergunta: e.entrada.texto ?? "" }));
+}
+
+/**
+ * avaliarMudanca — o PORTEIRO (guardião) + o ENSAIO num passo só.
+ *  1) GUARDIÃO: roda a suíte de evals da vertical contra a spec JÁ com a
+ *     mudança aplicada e grava a prova (impact.evals) — status "evaluated".
+ *  2) ENSAIO: com o cérebro real (OPENAI_API_KEY) ligado, roda a mesma
+ *     situação ANTES (spec atual) e AGORA (spec + pedido) e devolve as duas
+ *     respostas lado a lado — a simulação claríssima que o cliente lê pra
+ *     decidir "é isso que eu quero?". Sem cérebro, o ensaio avisa honesto
+ *     ("conecte o cérebro") em vez de mostrar teatro.
  */
 export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
   const [cs] = await db
@@ -356,39 +388,96 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
   if (!cs) throw new Error("mudança não encontrada neste tenant");
 
-  // suíte por VERTICAL: o kit certo vem do nome do agente (jurídico testa
-  // regra de jurídico; sem match cai no comercial/Bia).
   const [ag] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.id, cs.agentId), eq(agents.orgId, ctx.orgId)));
   const kit = kitParaAgente(ag?.name ?? "");
-  const brain = new FakeBrain({
-    regras: kit.roteiro.map((r) => ({
-      quando: new RegExp(r.quando, "i"),
-      responder: () => ({ texto: r.texto, toolCalls: r.tool ? [r.tool] : undefined }),
-    })),
-    textoPadrao: kit.textoPadrao,
-  });
-  const c = kit.spec.cerebro;
-  const system = [c.identidade, c.oferta ?? "", ...c.regras.map((r) => `- ${r}`)].filter(Boolean).join("\n");
-  const evals = await runEvals(
-    kit.evals,
-    async (entrada) => {
-      const turn = await brain.responder({ system, historico: [{ role: "user", content: entrada.texto ?? "" }] });
-      const moved = turn.toolCalls?.find((t) => t.tool === "moverEtapa");
-      return { texto: turn.texto, toolCalls: turn.toolCalls, movedStage: moved ? String(moved.args.stageId ?? "") : undefined };
-    },
-    0.75
-  );
+  const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+
+  // spec ATUAL (a publicada; senão a semente da vertical) e a spec COM a mudança
+  const specAtual = (await loadPublishedSpec(ctx, cs.agentId)) ?? kit.spec;
+  const specNovo = compilarSpec(specAtual, pedido);
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const temCerebro = !!apiKey;
+
+  // ── GUARDIÃO: testa a spec NOVA contra as travas da vertical ──
+  const runner = temCerebro
+    ? (() => {
+        const brain = makeBrain({ apiKey, reasoningEffort: "low" });
+        const system = systemDe(specNovo);
+        return async (entrada: { texto?: string }) => {
+          const turn = await brain.responder({ system, historico: [{ role: "user", content: entrada.texto ?? "" }] });
+          const moved = turn.toolCalls?.find((t) => t.tool === "moverEtapa");
+          return { texto: turn.texto, toolCalls: turn.toolCalls, movedStage: moved ? String(moved.args.stageId ?? "") : undefined };
+        };
+      })()
+    : (() => {
+        // sem cérebro: FakeBrain roteirizado da vertical (confere as travas base)
+        const brain = new FakeBrain({
+          regras: kit.roteiro.map((r) => ({ quando: new RegExp(r.quando, "i"), responder: () => ({ texto: r.texto, toolCalls: r.tool ? [r.tool] : undefined }) })),
+          textoPadrao: kit.textoPadrao,
+        });
+        const system = systemDe(specNovo);
+        return async (entrada: { texto?: string }) => {
+          const turn = await brain.responder({ system, historico: [{ role: "user", content: entrada.texto ?? "" }] });
+          const moved = turn.toolCalls?.find((t) => t.tool === "moverEtapa");
+          return { texto: turn.texto, toolCalls: turn.toolCalls, movedStage: moved ? String(moved.args.stageId ?? "") : undefined };
+        };
+      })();
+  const evals = await runEvals(kit.evals, runner, 0.75);
+
+  // ── ENSAIO: antes vs agora (só com cérebro real; senão, honesto) ──
+  let ensaio: { modo: "real" | "sem-cerebro"; situacoes: { nome: string; pergunta: string; antes: string; agora: string }[] };
+  if (temCerebro) {
+    const brain = makeBrain({ apiKey, reasoningEffort: "low" });
+    const sysAntes = systemDe(specAtual);
+    const sysAgora = systemDe(specNovo);
+    const sits = situacoesDoKit(kit, 3);
+    const situacoes = [];
+    for (const s of sits) {
+      const [antes, agora] = await Promise.all([
+        brain.responder({ system: sysAntes, historico: [{ role: "user", content: s.pergunta }] }),
+        brain.responder({ system: sysAgora, historico: [{ role: "user", content: s.pergunta }] }),
+      ]);
+      situacoes.push({ nome: s.nome, pergunta: s.pergunta, antes: antes.texto ?? "—", agora: agora.texto ?? "—" });
+    }
+    ensaio = { modo: "real", situacoes };
+  } else {
+    ensaio = { modo: "sem-cerebro", situacoes: [] };
+  }
 
   const [updated] = await db
     .update(changeSets)
-    .set({ status: "evaluated", impact: { evals, suite: kit.id } })
+    .set({ status: "evaluated", impact: { evals, suite: kit.id, ensaio } })
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)))
     .returning();
-  await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado, suite: kit.id });
-  return { changeSet: updated, evals };
+  await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado, suite: kit.id, ensaio: ensaio.modo });
+  return { changeSet: updated, evals, ensaio };
+}
+
+/**
+ * publicarMudanca — o "PRO AR" self-service do cliente: pega o pedido do
+ * ChangeSet, COMPILA na spec nova (compilarSpec) e PUBLICA de verdade (nova
+ * versão + release imutável, o runtime passa a ler). Fecha o ciclo que era
+ * a maior trava: a mudança do cliente vai pro ar SEM a Metrik escrever spec.
+ */
+export async function publicarMudanca(ctx: Ctx, changeSetId: string) {
+  const [cs] = await db
+    .select()
+    .from(changeSets)
+    .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
+  if (!cs) throw new Error("mudança não encontrada neste tenant");
+  const [ag] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, cs.agentId), eq(agents.orgId, ctx.orgId)));
+  const kit = kitParaAgente(ag?.name ?? "");
+  const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+  const specAtual = (await loadPublishedSpec(ctx, cs.agentId)) ?? kit.spec;
+  const specNovo = compilarSpec(specAtual, pedido);
+  return publicar(ctx, { agentId: cs.agentId, spec: specNovo, changeSetId, runtimeVersion: "web-1" });
 }
 
 /** usuários/membros do tenant (Admin) — quem tem login nesta organização. */

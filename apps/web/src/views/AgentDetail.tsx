@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Radio, Zap, Wand2, Check, X, Loader2, ShieldCheck, Lock, Plus,
   ArrowUp, Play, FlaskConical, Rocket, Lightbulb, ThumbsUp, AlertTriangle,
-  Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, AudioLines,
+  Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles,
 } from "lucide-react";
 import { type Agent, type AgentState, type Insight, type Upgrade, STATE_META, CHAT_EXEMPLOS } from "../data";
 import { Reveal, Pill, Toggle, cx } from "../ui";
@@ -11,7 +11,6 @@ import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
 import MapaTab from "./MapaTab";
 import MudancasTab from "./MudancasTab";
-import VoiceMode from "./VoiceMode";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo, useLive } from "../lib/live";
@@ -38,7 +37,6 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.id, sub]);
   const [state, setState] = useState<AgentState>(agent.state);
-  const [voiceOpen, setVoiceOpen] = useState(false);
   const sm = STATE_META[state];
   const alerta = (agent.fluxo ?? []).some((p) => p.status === "falha") || (agent.insights ?? []).some((i) => i.tipo === "critico");
   const workIconMap: Record<string, any> = { agenda: CalendarClock, followups: Repeat, contratos: FileSignature, conhecimento: BookOpen, acoes: Zap, lista: ListChecks };
@@ -93,7 +91,6 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
                   <span className="text-[12.5px] text-[var(--txt-3)]">{state === "pausado" ? "pausado" : "ligado"}</span>
                   <Toggle on={state !== "pausado"} />
                 </button>
-                <button className="btn btn-sm" onClick={() => setVoiceOpen(true)}><AudioLines size={14} /> Falar</button>
                 <button className="btn btn-primary btn-sm" onClick={() => setSub("melhorar")}><Wand2 size={14} /> Pedir melhoria</button>
               </div>
             </div>
@@ -121,10 +118,6 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
         {sub === "estrutura" && <Turbinar agent={agent} />}
         {sub === "melhorar" && <MelhorarTab agent={agent} />}
       </motion.div>
-
-      <AnimatePresence>
-        {voiceOpen && <VoiceMode agent={agent} onClose={() => setVoiceOpen(false)} />}
-      </AnimatePresence>
     </div>
   );
 }
@@ -562,23 +555,21 @@ const ORIG: Record<string, { label: string; color: string }> = {
   codex: { label: "Codex", color: "#22d3ee" },
 };
 
+type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string };
+type EnvioState = {
+  fase: "idle" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "erro";
+  cs?: any;
+  evals?: any;
+  ensaio?: { modo: "real" | "sem-cerebro"; situacoes: EnsaioSit[] };
+  pedido?: string;
+  erro?: string;
+};
+
 function MelhorarTab({ agent }: { agent: Agent }) {
   const auth = useMotorAuth();
-  const [sim, setSim] = useState<"idle" | "running" | "done">("idle");
-  const [real, setReal] = useState<"idle" | "running" | "done">("idle");
-  const [pedido, setPedido] = useState<string | null>(null);
   const [gravando, setGravando] = useState(false);
-  const allOk = agent.sim.every((s) => s.ok);
-  const resp = pedido ? RESP[pedido] : null;
-
-  // ── ESCOLA v1: pedido digitado vira MUDANÇA REAL (ChangeSet no Neon) ──
   const [texto, setTexto] = useState("");
-  const [envio, setEnvio] = useState<{
-    fase: "idle" | "registrando" | "porteiro" | "pronto" | "aprovado" | "erro";
-    cs?: any;
-    evals?: any;
-    erro?: string;
-  }>({ fase: "idle" });
+  const [envio, setEnvio] = useState<EnvioState>({ fase: "idle" });
   const [reaisHist, setReaisHist] = useState<any[] | null>(null);
 
   useEffect(() => {
@@ -595,45 +586,39 @@ function MelhorarTab({ agent }: { agent: Agent }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.id, envio.fase]);
 
+  // pedir → registra a mudança → o guardião testa e monta o ENSAIO (antes/agora)
   const enviar = async () => {
     const t = texto.trim();
-    if (!t || envio.fase === "registrando" || envio.fase === "porteiro") return;
+    if (!t || envio.fase === "registrando" || envio.fase === "ensaiando") return;
     if (!agent.real) {
-      setEnvio({ fase: "erro", erro: "modo demo — com o agente real, o pedido entra no histórico único e passa no porteiro" });
+      setEnvio({ fase: "erro", erro: "modo demo — com o agente real, o pedido entra no histórico único, passa no guardião e você vê o ensaio antes/agora" });
       return;
     }
     try {
-      setEnvio({ fase: "registrando" });
+      setEnvio({ fase: "registrando", pedido: t });
       const cs: any = await api.propor({ agentId: agent.id, origin: "hub_chat", intent: t, patch: { pedido: t } }, auth.getToken);
-      setEnvio({ fase: "porteiro", cs });
+      setEnvio({ fase: "ensaiando", cs, pedido: t });
       const r: any = await api.avaliar(cs.id, auth.getToken);
-      setEnvio({ fase: "pronto", cs, evals: r.evals });
+      setEnvio({ fase: "pronto", cs, evals: r.evals, ensaio: r.ensaio, pedido: t });
       setTexto("");
     } catch (e) {
       setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao registrar" });
     }
   };
 
-  const aprovarReal = async () => {
+  // é isso que você queria → PUBLICA de verdade (compila a spec nova + release)
+  const publicar = async () => {
     try {
-      await api.aprovar(envio.cs.id, auth.getToken);
-      setEnvio((s) => ({ ...s, fase: "aprovado" }));
+      setEnvio((s) => ({ ...s, fase: "publicando" }));
+      await api.publicarMudanca(envio.cs.id, auth.getToken);
+      setEnvio((s) => ({ ...s, fase: "publicado" }));
     } catch (e) {
-      setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao aprovar" });
+      setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao publicar" });
     }
   };
 
-  const historico = [
-    { origem: "chat", oque: "Você pediu: tom mais próximo", quando: "há 2 dias", estado: "no ar" },
-    { origem: "claude", oque: "Você ligou um recurso pelo Claude Code", quando: "há 2 dias", estado: "no ar" },
-    { origem: "chat", oque: "Você pediu “ligar agenda” — já estava ligada, não dupliquei", quando: "há 1 dia", estado: "ignorado" },
-    { origem: "codex", oque: "Codex propôs um upgrade — ficou em rascunho", quando: "há 4 dias", estado: "rascunho" },
-    { origem: "ajuste", oque: "Você ligou um módulo no Turbinar", quando: "há 5 dias", estado: "no ar" },
-    { origem: "metrik", oque: "A Metrik entregou o agente pronto", quando: "há 12 dias", estado: "no ar" },
-  ];
-
-  const runSim = () => { setSim("running"); setReal("idle"); window.setTimeout(() => setSim("done"), 1500); };
-  const runReal = () => { setReal("running"); window.setTimeout(() => setReal("done"), 1700); };
+  // não é isso → volta pro campo pra reescrever o pedido de outro jeito
+  const ajustar = () => setEnvio({ fase: "idle" });
 
   // Histórico REAL (ledger do Neon) quando o agente é real; senão o demo.
   const ORIGIN_KEY: Record<string, string> = { hub_chat: "chat", hub_visual: "ajuste", claude_code: "claude", codex: "codex", metrik: "metrik", api: "claude" };
@@ -644,7 +629,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
     quando: r.createdAt ? tempoRelativo(r.createdAt) : "",
     estado: ESTADO_LBL[r.status] ?? String(r.status ?? ""),
   }));
-  const hist = histReal ?? historico;
+  const hist = histReal ?? [];
   const emPreparo = hist.filter((h) => ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado)).length;
 
   return (
@@ -654,118 +639,148 @@ function MelhorarTab({ agent }: { agent: Agent }) {
         <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Uma fonte só.</b> Você pode pedir aqui, ligar no Turbinar ou mexer pelo Claude Code — tudo cai no mesmo agente e aparece no histórico abaixo. Nada duplica, nada se perde.</p>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
+      {/* ── PEDIR: campo livre (chip preenche o campo; áudio vira texto) ── */}
+      {envio.fase === "idle" || envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "erro" ? (
         <div className="card p-5">
-          <div className="mono-label mb-3">Peça uma mudança — por texto ou áudio</div>
+          <div className="mono-label mb-3">Peça uma mudança — escreva do seu jeito</div>
           <div className="flex flex-wrap gap-2 mb-3">
             {CHAT_EXEMPLOS.map((c) => (
-              <button key={c} onClick={() => setPedido(c)} className={cx("chip", pedido === c && "!border-[var(--line-hi)] !bg-[var(--surface-hi)] !text-[var(--txt)]")}>{c}</button>
+              <button key={c} onClick={() => setTexto(c)} className="chip">{c}</button>
             ))}
           </div>
-          {resp && (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl p-3 mb-3" style={{ border: `1px solid ${respMeta[resp.tipo].color}30`, background: `${respMeta[resp.tipo].color}0d` }}>
-              <div className="flex items-center gap-2 mb-1">
-                <Wand2 size={13} style={{ color: respMeta[resp.tipo].color }} />
-                <span className="mono-label !text-[9px]" style={{ color: respMeta[resp.tipo].color }}>{respMeta[resp.tipo].label}</span>
-              </div>
-              <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed">{resp.txt}</p>
-            </motion.div>
-          )}
           <div className="flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 focus-within:border-[var(--line-hi)] transition-colors" style={gravando ? { borderColor: "#fb718560" } : undefined}>
             <textarea
-              rows={1}
+              rows={2}
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(); } }}
-              placeholder={gravando ? "gravando o áudio…" : `Ex: faz o ${agent.name} puxar o preço de outra API…`}
+              placeholder={gravando ? "gravando o áudio…" : `Ex: quando o lead perguntar sobre prazo do auxílio-doença, explica que dá pra pedir em até 30 dias…`}
               className="flex-1 bg-transparent resize-none px-2 py-1.5 text-[13.5px] outline-none placeholder:text-[var(--txt-4)]"
             />
-            <button onClick={() => setGravando((g) => !g)} title="Gravar áudio" className={cx("btn !p-2.5 !rounded-xl flex-none", gravando && "!border-[#fb7185]")}>
+            <button onClick={() => setGravando((g) => !g)} title="Falar em vez de digitar (vira texto)" className={cx("btn !p-2.5 !rounded-xl flex-none", gravando && "!border-[#fb7185]")}>
               {gravando ? <span className="live-dot" style={{ width: 12, height: 12, background: "#fb7185" }} /> : <Mic size={16} />}
             </button>
-            <button onClick={() => void enviar()} className="btn btn-primary !p-2.5 !rounded-xl flex-none"><ArrowUp size={16} /></button>
+            <button onClick={() => void enviar()} disabled={!texto.trim() || envio.fase === "registrando" || envio.fase === "ensaiando"} className="btn btn-primary !px-4 !py-2.5 !rounded-xl flex-none">
+              {envio.fase === "registrando" || envio.fase === "ensaiando" ? <Loader2 size={16} className="animate-spin" /> : <><FlaskConical size={15} /> Ensaiar</>}
+            </button>
           </div>
-
-          {envio.fase !== "idle" && (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl p-3 mt-3 text-[12.5px]" style={{
-              border: `1px solid ${envio.fase === "erro" ? "#fb718540" : envio.fase === "aprovado" ? "#34d39940" : "#8b7cff30"}`,
-              background: envio.fase === "erro" ? "rgba(251,113,133,.07)" : envio.fase === "aprovado" ? "rgba(52,211,153,.08)" : "rgba(139,124,255,.06)",
-            }}>
-              {envio.fase === "registrando" && (
-                <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> anotando no caderno de mudanças…</span>
-              )}
-              {envio.fase === "porteiro" && (
-                <span className="flex items-center gap-2 text-[var(--txt-2)]"><Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} /> registrado ✓ — o porteiro está testando a mudança…</span>
-              )}
-              {envio.fase === "pronto" && envio.evals && (
-                <div>
-                  <div className="flex items-center gap-2 text-[var(--txt)]">
-                    <ShieldCheck size={14} style={{ color: envio.evals.aprovado ? "#34d399" : "#fb7185" }} />
-                    <b>Registrado ✓ · porteiro: {envio.evals.passaram}/{envio.evals.total} casos · nota {(envio.evals.taxa * 10).toFixed(1).replace(".", ",")}</b>
-                  </div>
-                  <p className="text-[var(--txt-3)] mt-1">
-                    {envio.evals.aprovado ? "Passou no teste — falta só a sua aprovação." : "O porteiro segurou: precisa de ajuste antes de aprovar."}
-                  </p>
-                  {envio.evals.aprovado && (
-                    <button className="btn btn-primary btn-sm mt-2" onClick={() => void aprovarReal()}><Rocket size={13} /> Aprovar mudança</button>
-                  )}
-                </div>
-              )}
-              {envio.fase === "aprovado" && (
-                <span className="flex items-center gap-2" style={{ color: "#34d399" }}><Check size={14} /> Aprovada — a Metrik publica com a prova; acompanhe no histórico abaixo e na aba Mudanças.</span>
-              )}
-              {envio.fase === "erro" && <span style={{ color: "#fb7185" }}>{envio.erro}</span>}
-            </motion.div>
-          )}
           {gravando ? (
             <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: "#fb7185" }}>
-              <span className="live-dot" style={{ width: 6, height: 6, background: "#fb7185" }} /> gravando… fale a correção e toque no microfone pra parar
+              <span className="live-dot" style={{ width: 6, height: 6, background: "#fb7185" }} /> gravando… fale a mudança e toque no microfone — vira texto no campo
             </div>
           ) : (
             <div className="flex items-center gap-2 mt-3 text-[11.5px] text-[var(--txt-4)]">
-              <ShieldCheck size={13} style={{ color: "#34d399" }} /> a mudança nunca encosta no núcleo blindado
+              <ShieldCheck size={13} style={{ color: "#34d399" }} /> você escreve, o guardião testa e você vê o antes/agora antes de qualquer coisa ir pro ar
             </div>
           )}
-        </div>
-
-      <div className="card p-5 h-full flex flex-col">
-        <div className="flex items-center gap-2 mb-1">
-          <FlaskConical size={16} style={{ color: "#8b7cff" }} />
-          <span className="font-display font-semibold text-[15px]">Simular antes de aprovar</span>
-        </div>
-        <p className="text-[12.5px] text-[var(--txt-3)] mb-4">Cenário: {agent.simCenario}</p>
-
-        {sim === "idle" ? (
-          <button className="btn w-full" onClick={runSim}><Play size={14} /> Simular agora</button>
-        ) : (
-          <ul className="space-y-2 mb-3">
-            {agent.sim.map((s, i) => (
-              <motion.li key={s.label} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.28 }} className="flex items-center gap-2 text-[12.5px]">
-                {sim === "running" ? <Loader2 size={14} className="animate-spin text-[var(--txt-4)]" /> : s.ok ? <Check size={14} style={{ color: "#34d399" }} /> : <X size={14} style={{ color: "#fb7185" }} />}
-                <span className={sim === "done" && !s.ok ? "text-[var(--txt)]" : "text-[var(--txt-2)]"}>{s.label}</span>
-              </motion.li>
-            ))}
-          </ul>
-        )}
-
-        {sim === "done" && (
-          <Reveal>
-            <div className="rounded-xl p-3 mb-3 text-[12px]" style={{ background: allOk ? "rgba(52,211,153,.1)" : "rgba(251,113,133,.1)", border: `1px solid ${allOk ? "#34d39930" : "#fb718530"}` }}>
-              {allOk ? <span style={{ color: "#34d399" }}>Passou em tudo. Dá pra rodar um teste real.</span> : <span style={{ color: "#fb7185" }}>Segurou: 1 ponto falhou. Ajuste antes de aprovar.</span>}
+          {(envio.fase === "registrando" || envio.fase === "ensaiando") && (
+            <div className="mt-3 flex items-center gap-2 text-[12.5px] text-[var(--txt-2)]">
+              <Loader2 size={14} className="animate-spin" style={{ color: "#8b7cff" }} />
+              {envio.fase === "registrando" ? "anotando o seu pedido…" : "montando o ensaio — a IA respondendo antes e depois da mudança…"}
             </div>
-          </Reveal>
-        )}
-
-        <div className="mt-auto space-y-2">
-          <button className="btn w-full" disabled={!(sim === "done" && allOk) || real === "running"} onClick={runReal} style={{ opacity: sim === "done" && allOk ? 1 : 0.5 }}>
-            {real === "running" ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
-            {real === "done" ? "Teste real: passou" : "Rodar teste real"}
-          </button>
-          <button className="btn btn-primary w-full" disabled={real !== "done"} style={{ opacity: real === "done" ? 1 : 0.5 }}><Rocket size={14} /> Aprovar e publicar</button>
-          <p className="text-[11px] text-[var(--txt-4)] text-center">simular → teste real → aprovar</p>
+          )}
+          {envio.fase === "erro" && (
+            <div className="mt-3 rounded-xl p-3 text-[12.5px]" style={{ border: "1px solid #fb718540", background: "rgba(251,113,133,.07)", color: "#fb7185" }}>{envio.erro}</div>
+          )}
         </div>
-      </div>
-      </div>
+      ) : null}
+
+      {/* ── ENSAIO: a simulação claríssima — antes vs agora + guardião ── */}
+      {envio.fase === "pronto" && envio.evals && (
+        <Reveal>
+          <div className="card p-5 md:p-6" style={{ borderColor: "#8b7cff2e" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <FlaskConical size={17} style={{ color: "#8b7cff" }} />
+              <span className="font-display font-semibold text-[16px]">O ensaio da sua mudança</span>
+            </div>
+            <p className="text-[13.5px] text-[var(--txt-2)] mb-4">Você pediu: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
+
+            {/* GUARDIÃO — o porteiro que carimba antes de ir pro ar */}
+            <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-3" style={{
+              border: `1px solid ${envio.evals.aprovado ? "#34d39938" : "#fb718538"}`,
+              background: envio.evals.aprovado ? "rgba(52,211,153,.07)" : "rgba(251,113,133,.07)",
+            }}>
+              <ShieldCheck size={20} style={{ color: envio.evals.aprovado ? "#34d399" : "#fb7185" }} className="flex-none" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[13.5px] font-medium text-[var(--txt)]">
+                  {envio.evals.aprovado
+                    ? "O guardião testou e a mudança não quebrou nenhuma trava do núcleo."
+                    : "O guardião segurou: essa mudança encostaria numa trava protegida."}
+                </div>
+                <div className="text-[11.5px] text-[var(--txt-3)] mt-0.5">
+                  {envio.evals.passaram}/{envio.evals.total} testes de segurança passaram · nota {(envio.evals.taxa * 10).toFixed(1).replace(".", ",")}
+                </div>
+              </div>
+            </div>
+
+            {/* ANTES vs AGORA — a simulação em si */}
+            <div className="mono-label mb-3">Antes vs agora — a IA respondendo</div>
+            {envio.ensaio?.modo === "real" && envio.ensaio.situacoes.length > 0 ? (
+              <div className="space-y-4">
+                {envio.ensaio.situacoes.map((s, i) => (
+                  <div key={i} className="rounded-xl border border-[var(--line)] overflow-hidden">
+                    <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)]">
+                      <span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}
+                    </div>
+                    <div className="grid md:grid-cols-2">
+                      <div className="p-4 border-t md:border-t-0 md:border-r border-[var(--line)]">
+                        <div className="mono-label !text-[9px] mb-1.5 !text-[var(--txt-4)]">antes</div>
+                        <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{s.antes}</p>
+                      </div>
+                      <div className="p-4 border-t border-[var(--line)]" style={{ background: "rgba(52,211,153,.05)" }}>
+                        <div className="mono-label !text-[9px] mb-1.5" style={{ color: "#34d399" }}>agora</div>
+                        <p className="text-[13px] text-[var(--txt)] leading-relaxed">{s.agora}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl px-4 py-4 text-[12.5px] leading-relaxed" style={{ border: "1px dashed var(--line-hi)", background: "var(--surface)", color: "var(--txt-2)" }}>
+                O guardião já garantiu que a mudança <b className="text-[var(--txt)]">não quebra nenhuma trava</b>. Pra ver o ensaio ao vivo — a IA respondendo <b>antes</b> e <b>agora</b>, lado a lado — falta ligar o cérebro (a chave da OpenAI) neste ambiente.
+              </div>
+            )}
+
+            {/* DECISÃO — é isso que você queria? */}
+            <div className="mt-6 pt-4 border-t border-[var(--line)]">
+              <div className="text-[14px] font-medium text-[var(--txt)] mb-3">É isso que você queria?</div>
+              <div className="flex flex-wrap gap-2.5">
+                <button
+                  onClick={() => void publicar()}
+                  disabled={!envio.evals.aprovado}
+                  className="btn btn-primary"
+                  style={{ opacity: envio.evals.aprovado ? 1 : 0.5 }}
+                  title={envio.evals.aprovado ? "" : "o guardião segurou — ajuste o pedido primeiro"}
+                >
+                  <Rocket size={15} /> Sim — publicar pro ar
+                </button>
+                <button onClick={ajustar} className="btn"><Wand2 size={15} /> Não — quero ajustar</button>
+              </div>
+              {!envio.evals.aprovado && (
+                <p className="text-[11.5px] text-[var(--txt-4)] mt-2">O guardião segurou essa. Clique em “ajustar” e reescreva o pedido de outro jeito.</p>
+              )}
+            </div>
+          </div>
+        </Reveal>
+      )}
+
+      {(envio.fase === "publicando" || envio.fase === "publicado") && (
+        <Reveal>
+          <div className="card p-5 flex items-center gap-3" style={{ borderColor: envio.fase === "publicado" ? "#34d39940" : "var(--line)", background: envio.fase === "publicado" ? "rgba(52,211,153,.06)" : undefined }}>
+            {envio.fase === "publicando" ? (
+              <><Loader2 size={18} className="animate-spin" style={{ color: "#8b7cff" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
+            ) : (
+              <>
+                <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid rgba(52,211,153,.34)" }}><Check size={17} style={{ color: "#34d399" }} /></div>
+                <div>
+                  <div className="text-[14px] font-medium text-[var(--txt)]">No ar! A mudança já está valendo pra sua IA.</div>
+                  <div className="text-[12px] text-[var(--txt-3)] mt-0.5">Ela virou uma nova versão registrada — veja na aba <b>Mudanças</b> e no histórico abaixo.</div>
+                </div>
+              </>
+            )}
+          </div>
+        </Reveal>
+      )}
 
       <div className="card p-5">
         <div className="flex items-center gap-2 mb-1">

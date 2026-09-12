@@ -84,6 +84,8 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
               return send(200, await control.aprovarMudanca(ctx, body.changeSetId));
             case "avaliar":
               return send(200, await control.avaliarMudanca(ctx, body.changeSetId));
+            case "publicarMudanca":
+              return send(200, await control.publicarMudanca(ctx, body.changeSetId));
             case "members":
               return send(200, await control.listMembers(ctx));
             default:
