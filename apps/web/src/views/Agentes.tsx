@@ -1,8 +1,12 @@
 import { Plus, ArrowRight, Radio, Plug, Database } from "lucide-react";
 import { STATE_META, type Agent, type ViewId } from "../data";
 import { useAgents } from "../lib/agents";
+import { useLive } from "../lib/live";
 import { Reveal, Pill, SectionHeader } from "../ui";
 import { Robot } from "../Robot";
+
+/** telemetria do dia por agente: real (Flight Recorder) quando existe. */
+type Vivo = { execucoes: number; acerto: number } | null;
 
 export default function Agentes({
   onOpen,
@@ -12,7 +16,15 @@ export default function Agentes({
   go: (v: ViewId) => void;
 }) {
   const { agents, source } = useAgents();
+  const { stats } = useLive();
   const ativos = agents.filter((a) => a.state === "ativo").length;
+
+  // stats REAIS por agente (só quando o agente veio do banco e tem execução hoje)
+  const vivoDe = (a: Agent): Vivo => {
+    const p = a.real ? stats?.porAgente?.[a.id] : undefined;
+    if (!p) return null;
+    return { execucoes: p.execucoes, acerto: Math.round((p.acertos / Math.max(1, p.execucoes)) * 100) };
+  };
 
   return (
     <div className="space-y-6">
@@ -45,7 +57,7 @@ export default function Agentes({
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {agents.map((a, i) => (
             <Reveal key={a.id} delay={0.04 * i}>
-              <AgentCard a={a} onOpen={() => onOpen(a.id)} />
+              <AgentCard a={a} vivo={vivoDe(a)} onOpen={() => onOpen(a.id)} />
             </Reveal>
           ))}
 
@@ -75,9 +87,12 @@ export default function Agentes({
   );
 }
 
-function AgentCard({ a, onOpen }: { a: Agent; onOpen: () => void }) {
+function AgentCard({ a, vivo, onOpen }: { a: Agent; vivo: Vivo; onOpen: () => void }) {
   const sm = STATE_META[a.state];
-  const acerto = Math.round((a.metrics.acertos / Math.max(1, a.metrics.execucoes)) * 100);
+  // real com movimento hoje → números do Flight Recorder; senão o do template/demo
+  const execucoes = vivo ? vivo.execucoes : a.metrics.execucoes;
+  const acerto = vivo ? vivo.acerto : Math.round((a.metrics.acertos / Math.max(1, a.metrics.execucoes)) * 100);
+  const semMovimento = a.real && !vivo;
   return (
     <button onClick={onOpen} className="card card-hover p-5 h-full text-left w-full flex flex-col">
       <div className="flex items-start gap-3.5 mb-4">
@@ -110,11 +125,17 @@ function AgentCard({ a, onOpen }: { a: Agent; onOpen: () => void }) {
         </div>
       )}
 
-      <div className="mt-auto grid grid-cols-3 gap-2 pt-3 border-t border-[var(--line)]">
-        <Metric label="hoje" value={String(a.metrics.execucoes)} />
-        <Metric label="acertos" value={`${acerto}%`} />
-        <Metric label="custo" value={a.metrics.custo.replace("R$ ", "R$")} />
-      </div>
+      {semMovimento ? (
+        <div className="mt-auto pt-3 border-t border-[var(--line)] text-[12px] text-[var(--txt-3)]">
+          de plantão — nenhum atendimento ainda hoje
+        </div>
+      ) : (
+        <div className="mt-auto grid grid-cols-3 gap-2 pt-3 border-t border-[var(--line)]">
+          <Metric label="hoje" value={String(execucoes)} />
+          <Metric label="acertos" value={`${acerto}%`} />
+          <Metric label="custo" value={a.metrics.custo.replace("R$ ", "R$")} />
+        </div>
+      )}
     </button>
   );
 }

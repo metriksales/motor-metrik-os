@@ -6,6 +6,7 @@ import { useMotorAuth } from "../lib/auth";
 import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
 import { Reveal, Delta, cx } from "../ui";
 import { Robot } from "../Robot";
+import FechamentoDia from "./FechamentoDia";
 
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
   const auth = useMotorAuth();
@@ -205,6 +206,11 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           />
         </Reveal>
       </div>
+
+      {/* fechamento do dia — o recibo pra printar (leitura pura) */}
+      <Reveal delay={0.05}>
+        <FechamentoDia stats={stats} logs={logs} demo={auth.demo} />
+      </Reveal>
 
       {/* ao vivo preview + pedir melhoria */}
       <div className="grid lg:grid-cols-3 gap-4">
