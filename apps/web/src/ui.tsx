@@ -110,6 +110,29 @@ export function SectionHeader({
   );
 }
 
+/** bloco de carregamento — usado enquanto a VERDADE não chegou (modo logado) */
+export function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <div className={cx("skeleton", className)} style={style} />;
+}
+
+/** um card-esqueleto genérico (mesma moldura dos cards reais) */
+export function SkeletonCard({ lines = 3, h = 130 }: { lines?: number; h?: number }) {
+  return (
+    <div className="card p-5" style={{ minHeight: h }}>
+      <div className="flex items-center gap-3 mb-4">
+        <Skeleton className="!rounded-xl" style={{ width: 40, height: 40 }} />
+        <div className="flex-1">
+          <Skeleton style={{ width: "55%", height: 13 }} />
+          <Skeleton className="mt-2" style={{ width: "78%", height: 10 }} />
+        </div>
+      </div>
+      {Array.from({ length: lines }).map((_, i) => (
+        <Skeleton key={i} className="mt-2.5" style={{ width: `${90 - i * 12}%`, height: 11 }} />
+      ))}
+    </div>
+  );
+}
+
 export function Delta({ up, children }: { up: boolean; children: ReactNode }) {
   return (
     <span

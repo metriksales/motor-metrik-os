@@ -262,6 +262,28 @@ html[data-theme="light"] .aurora {
   .live-dot, .aurora, .grad-text-shimmer { animation: none; }
 }
 
+/* ---------- skeleton (carregando a VERDADE, não mock piscando) ---------- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-sweep {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
 /* ---------- bolha de WhatsApp (fala literal do agente no Mapa) ---------- */
 .wa-bubble {
   position: relative;

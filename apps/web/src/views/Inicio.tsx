@@ -4,7 +4,7 @@ import { STATS, type ViewId } from "../data";
 import { useAgents } from "../lib/agents";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
-import { Reveal, Delta, cx } from "../ui";
+import { Reveal, Delta, Skeleton, cx } from "../ui";
 import { Robot } from "../Robot";
 import FechamentoDia from "./FechamentoDia";
 import Marcos from "./Marcos";
@@ -12,7 +12,9 @@ import Marcos from "./Marcos";
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
   const auth = useMotorAuth();
   const { agents } = useAgents();
-  const { logs, stats } = useLive();
+  const { logs, stats, carregando } = useLive();
+  // logado, ainda buscando a verdade → skeleton (nunca zeros/mock piscando)
+  const carregandoReal = !auth.demo && carregando && !stats;
   const ativos = agents.filter((a) => a.state === "ativo").length;
   const feedDemo = agents.filter((a) => a.state === "ativo").slice(0, 4);
 
@@ -103,17 +105,24 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {kpis.map((s, i) => (
-          <Reveal key={s.label} delay={0.04 * i}>
-            <div className="card card-hover p-4">
-              <div className="text-[12.5px] text-[var(--txt-3)] mb-2">{s.label}</div>
-              <div className="flex items-end justify-between">
-                <div className="num text-[26px] leading-none">{s.value}</div>
-                <Delta up={s.up}>{s.delta}</Delta>
+        {carregandoReal
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card p-4">
+                <Skeleton style={{ width: "60%", height: 11 }} />
+                <Skeleton className="mt-3" style={{ width: "45%", height: 24 }} />
               </div>
-            </div>
-          </Reveal>
-        ))}
+            ))
+          : kpis.map((s, i) => (
+              <Reveal key={s.label} delay={0.04 * i}>
+                <div className="card card-hover p-4">
+                  <div className="text-[12.5px] text-[var(--txt-3)] mb-2">{s.label}</div>
+                  <div className="flex items-end justify-between">
+                    <div className="num text-[26px] leading-none">{s.value}</div>
+                    <Delta up={s.up}>{s.delta}</Delta>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
       </div>
 
       {/* POR QUE ISSO NÃO É UM CHATBOT — pitch de venda: SÓ na vitrine (demo).
@@ -212,9 +221,21 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
       </div>
 
       {/* fechamento do dia — o recibo pra printar (leitura pura) */}
-      <Reveal delay={0.05}>
-        <FechamentoDia stats={stats} logs={logs} demo={auth.demo} />
-      </Reveal>
+      {carregandoReal ? (
+        <div className="card p-6 md:p-7">
+          <Skeleton style={{ width: 180, height: 10 }} />
+          <div className="grid grid-cols-3 gap-4 mt-5">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} style={{ width: "70%", height: 30 }} />
+            ))}
+          </div>
+          <Skeleton className="mt-6" style={{ width: "100%", height: 52, borderRadius: 12 }} />
+        </div>
+      ) : (
+        <Reveal delay={0.05}>
+          <FechamentoDia stats={stats} logs={logs} demo={auth.demo} />
+        </Reveal>
+      )}
 
       {/* ao vivo preview + pedir melhoria */}
       <div className="grid lg:grid-cols-3 gap-4">

@@ -2,7 +2,8 @@ import { Plus, ArrowRight, Radio, Plug, Database } from "lucide-react";
 import { STATE_META, type Agent, type ViewId } from "../data";
 import { useAgents } from "../lib/agents";
 import { useLive } from "../lib/live";
-import { Reveal, Pill, SectionHeader } from "../ui";
+import { useMotorAuth } from "../lib/auth";
+import { Reveal, Pill, SectionHeader, SkeletonCard } from "../ui";
 import { Robot } from "../Robot";
 
 /** telemetria do dia por agente: real (Flight Recorder) quando existe. */
@@ -15,8 +16,10 @@ export default function Agentes({
   onOpen: (id: string) => void;
   go: (v: ViewId) => void;
 }) {
-  const { agents, source } = useAgents();
+  const { agents, source, loading } = useAgents();
   const { stats } = useLive();
+  const auth = useMotorAuth();
+  const carregandoReal = !auth.demo && loading && agents.length === 0;
   const ativos = agents.filter((a) => a.state === "ativo").length;
 
   // stats REAIS por agente (só quando o agente veio do banco e tem execução hoje)
@@ -55,11 +58,13 @@ export default function Agentes({
       <div>
         <SectionHeader label="Sua frota" title={<>Agentes <span className="text-[var(--txt-3)] font-normal">· {agents.length}</span></>} />
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {agents.map((a, i) => (
-            <Reveal key={a.id} delay={0.04 * i}>
-              <AgentCard a={a} vivo={vivoDe(a)} onOpen={() => onOpen(a.id)} />
-            </Reveal>
-          ))}
+          {carregandoReal
+            ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} lines={2} h={210} />)
+            : agents.map((a, i) => (
+                <Reveal key={a.id} delay={0.04 * i}>
+                  <AgentCard a={a} vivo={vivoDe(a)} onOpen={() => onOpen(a.id)} />
+                </Reveal>
+              ))}
 
           <Reveal delay={0.04 * agents.length}>
             <button

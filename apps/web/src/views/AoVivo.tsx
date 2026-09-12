@@ -4,7 +4,8 @@ import { Radio, Check, X, Loader2, ArrowRight, Database, MessageSquareText } fro
 import { AGENTS, STATS, type LiveRow } from "../data";
 import { useAgents } from "../lib/agents";
 import { useLive, tempoRelativo, reais, kpiDinheiro, type LogReal } from "../lib/live";
-import { Reveal, cx } from "../ui";
+import { useMotorAuth } from "../lib/auth";
+import { Reveal, Skeleton, cx } from "../ui";
 import { Robot } from "../Robot";
 import ConversaDrawer, { type ConversaAberta } from "./ConversaDrawer";
 
@@ -27,9 +28,11 @@ function minutosDesde(iso: string): number {
 
 export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
   const { agents } = useAgents();
-  const { logs, stats } = useLive();
+  const { logs, stats, carregando } = useLive();
+  const auth = useMotorAuth();
   const ativos = agents.filter((a) => a.state === "ativo");
   const real = logs !== null;
+  const carregandoReal = !auth.demo && carregando && logs === null;
 
   // só linha NOVA (chegou num poll depois do 1º paint) ganha entrada animada —
   // a recompensa variável é ver o trabalho ENTRAR, não a lista inteira piscar.
@@ -80,17 +83,24 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
     <div className="space-y-6">
       {/* counters */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {tiles.map((s, i) => (
-          <Reveal key={s.label} delay={0.04 * i}>
-            <div className="card p-4">
-              <div className="flex items-center gap-2 mb-2">
-                {i === 0 && <span className="live-dot" style={{ width: 7, height: 7 }} />}
-                <span className="text-[12px] text-[var(--txt-3)]">{s.label}</span>
+        {carregandoReal
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card p-4">
+                <Skeleton style={{ width: "55%", height: 11 }} />
+                <Skeleton className="mt-3" style={{ width: "40%", height: 24 }} />
               </div>
-              <div className="num text-[26px] leading-none">{s.value}</div>
-            </div>
-          </Reveal>
-        ))}
+            ))
+          : tiles.map((s, i) => (
+              <Reveal key={s.label} delay={0.04 * i}>
+                <div className="card p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {i === 0 && <span className="live-dot" style={{ width: 7, height: 7 }} />}
+                    <span className="text-[12px] text-[var(--txt-3)]">{s.label}</span>
+                  </div>
+                  <div className="num text-[26px] leading-none">{s.value}</div>
+                </div>
+              </Reveal>
+            ))}
       </div>
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4">
@@ -107,6 +117,20 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                 {real ? "dado real ✓" : "demo"}
               </span>
             </div>
+            {carregandoReal ? (
+              <ul className="space-y-1">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <li key={i} className="flex items-center gap-3 py-2.5">
+                    <Skeleton className="!rounded-lg" style={{ width: 28, height: 28 }} />
+                    <div className="flex-1">
+                      <Skeleton style={{ width: `${70 - i * 6}%`, height: 12 }} />
+                      <Skeleton className="mt-1.5" style={{ width: 90, height: 9 }} />
+                    </div>
+                    <Skeleton style={{ width: 34, height: 9 }} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
             <ul className="space-y-1">
               {feed.map((r, i) => {
                   const st = statusMeta[r.status];
@@ -157,6 +181,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                   );
                 })}
             </ul>
+            )}
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--line)] text-[11.5px] text-[var(--txt-4)]">
               <MessageSquareText size={13} /> clique numa linha pra ler a conversa que a IA teve
             </div>
