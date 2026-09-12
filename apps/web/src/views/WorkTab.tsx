@@ -162,7 +162,6 @@ function Conhecimento({ w, color }: { w: Work; color: string }) {
 
 function Acoes({ w, color }: { w: Work; color: string }) {
   const a = w.acoes!;
-  const [done, setDone] = useState(false);
   const gatilhos = [
     { icon: Layers, t: "por etapa do funil" },
     { icon: MousePointerClick, t: "botão no card" },
@@ -190,14 +189,10 @@ function Acoes({ w, color }: { w: Work; color: string }) {
             </span>
             <div>
               <div className="font-display font-semibold text-[15px]">{a.alvo}</div>
-              <div className="text-[12px] text-[var(--txt-3)]">prontos pra rodar agora, direto no CRM</div>
+              <div className="text-[12px] text-[var(--txt-3)]">a IA dispara sozinha no gatilho acima — você acompanha no log</div>
             </div>
           </div>
-          {done ? (
-            <Pill color="#34d399"><Check size={12} /> disparado — acompanhe no log</Pill>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setDone(true)}><Play size={15} /> Rodar em massa</button>
-          )}
+          <Pill color="#34d399"><span className="live-dot" style={{ width: 6, height: 6, background: "#34d399" }} /> na fila</Pill>
         </div>
       </div>
 

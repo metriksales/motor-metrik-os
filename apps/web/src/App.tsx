@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowRight, Bell, MessageCircle, Menu, X } from "lucide-react";
+import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowRight, Bell, MessageCircle, Menu, X, Sparkles } from "lucide-react";
 
 type SubId = "trabalho" | "aovivo" | "estrutura" | "melhorar";
 import { NAV, type ViewId } from "./data";
@@ -232,21 +232,29 @@ export default function App() {
         </header>
 
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-thin px-4 md:px-7 py-6 pb-24 md:pb-6">
+          {/* modo DEMO: deixa claro que é EXEMPLO — a conta real começa limpa */}
+          {auth.demo && (
+            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ borderColor: "rgba(139,124,255,.35)", background: "rgba(139,124,255,.08)", color: "var(--txt-2)" }}>
+              <Sparkles size={14} style={{ color: "#8b7cff" }} className="flex-none" />
+              <span><b className="text-[var(--txt)]">Isto é um exemplo</b> — números e conversas de demonstração. A sua conta começa limpa e vai enchendo sozinha conforme a IA trabalha.</span>
+            </div>
+          )}
           {/* modo LOGADO: falha real da API nunca vira maquete — vira aviso claro */}
           {!auth.demo && erro && (
             <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]" style={{ borderColor: "rgba(251,113,133,.4)", background: "rgba(251,113,133,.08)", color: "#fb7185" }}>
               Não consegui falar com o motor agora: <span className="font-mono">{erro}</span>. A Metrik já enxerga isso do outro lado — se persistir, chama a gente.
             </div>
           )}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={routeKey}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
-              className="max-w-[1180px] mx-auto"
-            >
+          {/* remonte por chave (sem AnimatePresence/exit): trocar de tela SEMPRE
+              troca o conteúdo — o mode="wait" prendia o bloco antigo no DOM
+              (cicatriz: 2 blocos + removeChild). Fade-in simples, robusto. */}
+          <motion.div
+            key={routeKey}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.26, ease: [0.2, 0.7, 0.2, 1] }}
+            className="max-w-[1180px] mx-auto"
+          >
               {!auth.demo && !erro && !agentsLoading && agents.length === 0 ? (
                 <div className="card !rounded-2xl px-6 py-10 text-center">
                   <div className="font-display font-semibold text-[17px] mb-2">Sua organização está pronta — os agentes chegam por aqui</div>
@@ -267,8 +275,7 @@ export default function App() {
                   {view === "admin" && <Admin />}
                 </>
               )}
-            </motion.div>
-          </AnimatePresence>
+          </motion.div>
         </div>
       </main>
 

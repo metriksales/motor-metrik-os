@@ -39,8 +39,8 @@ export const NAV: { id: ViewId; label: string; icon: any; hint: string }[] = [
   { id: "agentes", label: "Agentes", icon: Bot, hint: "sua frota de robôs" },
   { id: "aovivo", label: "Ao vivo", icon: Radio, hint: "o que rola agora" },
   { id: "modulos", label: "Módulos", icon: Blocks, hint: "novas habilidades" },
-  { id: "conexoes", label: "Conexões", icon: Plug, hint: "MCP, CRM e canais" },
-  { id: "admin", label: "Admin", icon: UsersRound, hint: "contas e acessos" },
+  { id: "conexoes", label: "Conexões", icon: Plug, hint: "WhatsApp, CRM e agenda" },
+  { id: "admin", label: "Admin", icon: UsersRound, hint: "sua conta e quem acessa" },
 ];
 
 export type AgentState = "ativo" | "idle" | "pausado";

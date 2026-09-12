@@ -2,7 +2,7 @@
 // login nela (membros reais do Neon) e o estado do login real (Clerk).
 // Leitura em primeiro lugar; convites entram junto com o Clerk.
 import { useEffect, useState } from "react";
-import { Building2, KeyRound, Users, Bot, Database, ShieldCheck, Check } from "lucide-react";
+import { Building2, KeyRound, Users, Database, ShieldCheck, Check } from "lucide-react";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo } from "../lib/live";
@@ -53,7 +53,7 @@ export default function Admin() {
           <div className="min-w-0 flex-1">
             <div className="font-display font-semibold text-[16px]">{auth.orgName}</div>
             <div className="text-[12.5px] text-[var(--txt-3)] mt-0.5">
-              {auth.demo ? "organização de demonstração" : `tenant isolado · ${auth.orgId?.slice(0, 8)}…`}
+              {auth.demo ? "organização de exemplo" : "a sua organização — os dados são só seus"}
             </div>
           </div>
           <Pill color={auth.demo ? "#83879a" : "#34d399"}>{auth.demo ? "demo" : "conta real"}</Pill>
@@ -90,41 +90,30 @@ export default function Admin() {
         </div>
       </Reveal>
 
-      {/* estado do login real */}
+      {/* login — em linguagem de cliente */}
       <Reveal delay={0.08}>
         <div className="card p-5">
-          <div className="mono-label flex items-center gap-1.5 mb-3"><KeyRound size={12} /> Login real (Clerk)</div>
-          {auth.demo ? (
-            <>
-              <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
-                A ponte multi-tenant está <b className="text-[var(--txt)]">pronta no código</b> (org do Clerk vira tenant
-                sozinha no 1º login). Falta só ativar:
-              </p>
-              <ol className="mt-2.5 space-y-1.5 text-[13px] text-[var(--txt-2)]">
-                <li className="flex gap-2"><span className="tick flex-none">1</span> criar o app no clerk.com e habilitar <b>Organizations</b></li>
-                <li className="flex gap-2"><span className="tick flex-none">2</span> colar as 2 chaves no Vercel (<span className="font-mono text-[11.5px]">pk_ / sk_</span>)</li>
-                <li className="flex gap-2"><span className="tick flex-none">3</span> redeploy — a tela de login aparece sozinha</li>
-              </ol>
-            </>
-          ) : (
-            <p className="text-[13px] text-[var(--txt-2)] leading-relaxed flex items-center gap-2">
-              <Check size={15} style={{ color: "#34d399" }} /> Login ativo — cada pessoa entra com a própria conta e cai no tenant certo.
-            </p>
-          )}
+          <div className="mono-label flex items-center gap-1.5 mb-3"><KeyRound size={12} /> Login e acesso</div>
+          <p className="text-[13px] text-[var(--txt-2)] leading-relaxed flex items-start gap-2">
+            <Check size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+            {auth.demo
+              ? "Cada pessoa da sua equipe entra com o próprio login e senha, e vê só a sua operação. A Metrik cuida de toda a configuração de acesso."
+              : "Login ativo — cada pessoa entra com a própria conta e vê só a sua operação. Pra convidar alguém, é só pedir pra Metrik."}
+          </p>
         </div>
       </Reveal>
 
-      {/* acessos de máquina */}
+      {/* segurança — sem jargão: a Metrik opera por baixo, seus dados protegidos */}
       <Reveal delay={0.12}>
-        <div className="card p-5">
-          <div className="mono-label flex items-center gap-1.5 mb-3"><Bot size={12} /> Acessos de máquina</div>
-          <ul className="space-y-2 text-[13px] text-[var(--txt-2)]">
-            <li className="flex items-center gap-2"><span className="dot" style={{ background: "#34d399" }} /> Claude Code / Codex — a bancada da Metrik (mesma esteira, mesmo histórico)</li>
-            <li className="flex items-center gap-2"><span className="dot" style={{ background: "#34d399" }} /> Agentes reais — gravam execuções na caixa-preta com token de máquina</li>
-          </ul>
-          <p className="text-[11.5px] text-[var(--txt-4)] mt-3 flex items-center gap-1.5">
-            <ShieldCheck size={13} style={{ color: "#34d399" }} /> segredo de máquina nunca aparece aqui — vive só no servidor
-          </p>
+        <div className="card p-5 flex items-start gap-3">
+          <ShieldCheck size={18} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+          <div>
+            <div className="text-[13.5px] font-medium text-[var(--txt)]">Seus dados, protegidos</div>
+            <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed mt-0.5">
+              A Metrik opera o seu motor pelos bastidores com acesso seguro — cada conversa e cada número ficam só
+              na sua operação, separados de qualquer outro cliente.
+            </p>
+          </div>
         </div>
       </Reveal>
     </div>
