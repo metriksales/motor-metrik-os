@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Radio, Zap, Wand2, Check, X, Loader2, ShieldCheck, Lock, Plus,
   ArrowUp, Play, FlaskConical, Rocket, Lightbulb, ThumbsUp, AlertTriangle,
-  Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles,
+  Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, MessageCircle,
 } from "lucide-react";
 import { type Agent, type AgentState, type Insight, type Upgrade, STATE_META, CHAT_EXEMPLOS } from "../data";
 import { Reveal, Pill, Toggle, cx } from "../ui";
@@ -140,7 +140,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       </div>
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        {sub === "trabalho" && agent.work && <WorkTab agent={agent} />}
+        {sub === "trabalho" && agent.work && <WorkTab agent={agent} onMelhorar={() => setSub("melhorar")} />}
         {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => setSub("melhorar")} />}
         {sub === "mudancas" && agent.mapa && <MudancasTab agent={agent} />}
         {sub === "logs" && <LogsTab agent={agent} />}
@@ -564,13 +564,21 @@ const ORIG: Record<string, { label: string; color: string }> = {
 
 type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string };
 type EnvioState = {
-  fase: "idle" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "erro";
+  fase: "idle" | "clarificar" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "erro";
   cs?: any;
   evals?: any;
   ensaio?: { modo: "real" | "sem-cerebro"; situacoes: EnsaioSit[] };
   pedido?: string;
   erro?: string;
 };
+
+/** O pedido está claro o bastante pra virar uma mudança? Sem o cérebro, uso uma
+ *  heurística simples: pedido curto/1-2 palavras = vago → o "professor" pergunta
+ *  em vez de fingir que testou. (Com o cérebro ligado, é a IA que julga.) */
+function pedidoVago(t: string): boolean {
+  const palavras = t.split(/\s+/).filter(Boolean);
+  return t.length < 18 || palavras.length < 4;
+}
 
 function MelhorarTab({ agent }: { agent: Agent }) {
   const auth = useMotorAuth();
@@ -593,10 +601,15 @@ function MelhorarTab({ agent }: { agent: Agent }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.id, envio.fase]);
 
-  // pedir → registra a mudança → o guardião testa e monta o ENSAIO (antes/agora)
-  const enviar = async () => {
+  // pedir → (se vago, o professor PERGUNTA) → registra → ensaia → antes/agora
+  const enviar = async (forcar = false) => {
     const t = texto.trim();
     if (!t || envio.fase === "registrando" || envio.fase === "ensaiando") return;
+    // PROFESSOR: pedido vago não vira "teste 4/4" no escuro — ele pergunta primeiro.
+    if (!forcar && pedidoVago(t)) {
+      setEnvio({ fase: "clarificar", pedido: t });
+      return;
+    }
     if (!agent.real) {
       setEnvio({ fase: "erro", erro: "modo demo — com o agente real, o pedido entra no histórico único, passa no guardião e você vê o ensaio antes/agora" });
       return;
@@ -647,7 +660,7 @@ function MelhorarTab({ agent }: { agent: Agent }) {
       </div>
 
       {/* ── PEDIR: campo livre (chip preenche o campo; áudio vira texto) ── */}
-      {envio.fase === "idle" || envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "erro" ? (
+      {envio.fase === "idle" || envio.fase === "clarificar" || envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "erro" ? (
         <div className="card p-5">
           <div className="mono-label mb-3">Peça uma mudança — escreva do seu jeito</div>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -677,9 +690,27 @@ function MelhorarTab({ agent }: { agent: Agent }) {
             </div>
           ) : (
             <div className="flex items-center gap-2 mt-3 text-[11.5px] text-[var(--txt-4)]">
-              <ShieldCheck size={13} style={{ color: "#34d399" }} /> você escreve, o guardião testa e você vê o antes/agora antes de qualquer coisa ir pro ar
+              <ShieldCheck size={13} style={{ color: "#34d399" }} /> quanto mais claro o pedido, melhor o ensaio — diga o que a IA passa a fazer e em que momento
             </div>
           )}
+
+          {/* PROFESSOR: pedido vago → ele pergunta, não finge que testou */}
+          {envio.fase === "clarificar" && (
+            <div className="mt-3 rounded-xl p-4" style={{ border: "1px solid #58aae440", background: "rgba(88,170,228,.07)" }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <MessageCircle size={15} style={{ color: "#58aae4" }} />
+                <span className="text-[13px] font-medium text-[var(--txt)]">Me conta um pouco mais pra eu entender</span>
+              </div>
+              <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed">
+                Você escreveu <b className="text-[var(--txt)]">“{envio.pedido}”</b> — só isso ainda não me diz o que mudar. O que a IA
+                <b className="text-[var(--txt)]"> passa a fazer</b>, e <b className="text-[var(--txt)]">em que momento</b>? Por exemplo:
+                <i> “quando o lead perguntar sobre prazo, responder que dá pra pedir em até 30 dias”</i>, ou
+                <i> “passa a saber que o plano Start custa R$ 497 e oferece quando perguntarem preço”</i>.
+              </p>
+              <p className="text-[11.5px] text-[var(--txt-4)] mt-2">Escreve com esse detalhe no campo acima e manda de novo.</p>
+            </div>
+          )}
+
           {(envio.fase === "registrando" || envio.fase === "ensaiando") && (
             <div className="mt-3 flex items-center gap-2 text-[12.5px] text-[var(--txt-2)]">
               <Loader2 size={14} className="animate-spin" style={{ color: "#e0a44a" }} />
@@ -702,71 +733,86 @@ function MelhorarTab({ agent }: { agent: Agent }) {
             </div>
             <p className="text-[13.5px] text-[var(--txt-2)] mb-4">Você pediu: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
 
-            {/* GUARDIÃO — o porteiro que carimba antes de ir pro ar */}
-            <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-3" style={{
-              border: `1px solid ${envio.evals.aprovado ? "#34d39938" : "#fb718538"}`,
-              background: envio.evals.aprovado ? "rgba(52,211,153,.07)" : "rgba(251,113,133,.07)",
-            }}>
-              <ShieldCheck size={20} style={{ color: envio.evals.aprovado ? "#34d399" : "#fb7185" }} className="flex-none" />
-              <div className="min-w-0 flex-1">
-                <div className="text-[13.5px] font-medium text-[var(--txt)]">
-                  {envio.evals.aprovado
-                    ? "O guardião testou e a mudança não quebrou nenhuma trava do núcleo."
-                    : "O guardião segurou: essa mudança encostaria numa trava protegida."}
-                </div>
-                <div className="text-[11.5px] text-[var(--txt-3)] mt-0.5">
-                  {envio.evals.passaram}/{envio.evals.total} testes de segurança passaram · nota {(envio.evals.taxa * 10).toFixed(1).replace(".", ",")}
-                </div>
-              </div>
-            </div>
-
-            {/* ANTES vs AGORA — a simulação em si */}
-            <div className="mono-label mb-3">Antes vs agora — a IA respondendo</div>
-            {envio.ensaio?.modo === "real" && envio.ensaio.situacoes.length > 0 ? (
-              <div className="space-y-4">
-                {envio.ensaio.situacoes.map((s, i) => (
-                  <div key={i} className="rounded-xl border border-[var(--line)] overflow-hidden">
-                    <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)]">
-                      <span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}
+            {envio.ensaio?.modo === "real" ? (
+              <>
+                {/* GUARDIÃO — testou o SEU pedido de verdade (cérebro ligado) */}
+                <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-3" style={{
+                  border: `1px solid ${envio.evals.aprovado ? "#34d39938" : "#fb718538"}`,
+                  background: envio.evals.aprovado ? "rgba(52,211,153,.07)" : "rgba(251,113,133,.07)",
+                }}>
+                  <ShieldCheck size={20} style={{ color: envio.evals.aprovado ? "#34d399" : "#fb7185" }} className="flex-none" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-medium text-[var(--txt)]">
+                      {envio.evals.aprovado
+                        ? "O guardião testou e a mudança não quebrou nenhuma trava do núcleo."
+                        : "O guardião segurou: essa mudança encostaria numa trava protegida."}
                     </div>
-                    <div className="grid md:grid-cols-2">
-                      <div className="p-4 border-t md:border-t-0 md:border-r border-[var(--line)]">
-                        <div className="mono-label !text-[9px] mb-1.5 !text-[var(--txt-4)]">antes</div>
-                        <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{s.antes}</p>
-                      </div>
-                      <div className="p-4 border-t border-[var(--line)]" style={{ background: "rgba(52,211,153,.05)" }}>
-                        <div className="mono-label !text-[9px] mb-1.5" style={{ color: "#34d399" }}>agora</div>
-                        <p className="text-[13px] text-[var(--txt)] leading-relaxed">{s.agora}</p>
-                      </div>
+                    <div className="text-[11.5px] text-[var(--txt-3)] mt-0.5">
+                      {envio.evals.passaram}/{envio.evals.total} testes de segurança passaram · nota {(envio.evals.taxa * 10).toFixed(1).replace(".", ",")}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl px-4 py-4 text-[12.5px] leading-relaxed" style={{ border: "1px dashed var(--line-hi)", background: "var(--surface)", color: "var(--txt-2)" }}>
-                O guardião já garantiu que a mudança <b className="text-[var(--txt)]">não quebra nenhuma trava</b>. Pra ver o ensaio ao vivo — a IA respondendo <b>antes</b> e <b>agora</b>, lado a lado — falta ligar o cérebro (a chave da OpenAI) neste ambiente.
-              </div>
-            )}
+                </div>
 
-            {/* DECISÃO — é isso que você queria? */}
-            <div className="mt-6 pt-4 border-t border-[var(--line)]">
-              <div className="text-[14px] font-medium text-[var(--txt)] mb-3">É isso que você queria?</div>
-              <div className="flex flex-wrap gap-2.5">
-                <button
-                  onClick={() => void publicar()}
-                  disabled={!envio.evals.aprovado}
-                  className="btn btn-primary"
-                  style={{ opacity: envio.evals.aprovado ? 1 : 0.5 }}
-                  title={envio.evals.aprovado ? "" : "o guardião segurou — ajuste o pedido primeiro"}
-                >
-                  <Rocket size={15} /> Sim — publicar pro ar
-                </button>
-                <button onClick={ajustar} className="btn"><Wand2 size={15} /> Não — quero ajustar</button>
-              </div>
-              {!envio.evals.aprovado && (
-                <p className="text-[11.5px] text-[var(--txt-4)] mt-2">O guardião segurou essa. Clique em “ajustar” e reescreva o pedido de outro jeito.</p>
-              )}
-            </div>
+                {/* ANTES vs AGORA — a IA respondendo, lado a lado */}
+                <div className="mono-label mb-3">Antes vs agora — a IA respondendo</div>
+                <div className="space-y-4">
+                  {envio.ensaio.situacoes.map((s, i) => (
+                    <div key={i} className="rounded-xl border border-[var(--line)] overflow-hidden">
+                      <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)]">
+                        <span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}
+                      </div>
+                      <div className="grid md:grid-cols-2">
+                        <div className="p-4 border-t md:border-t-0 md:border-r border-[var(--line)]">
+                          <div className="mono-label !text-[9px] mb-1.5 !text-[var(--txt-4)]">antes</div>
+                          <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{s.antes}</p>
+                        </div>
+                        <div className="p-4 border-t border-[var(--line)]" style={{ background: "rgba(52,211,153,.05)" }}>
+                          <div className="mono-label !text-[9px] mb-1.5" style={{ color: "#34d399" }}>agora</div>
+                          <p className="text-[13px] text-[var(--txt)] leading-relaxed">{s.agora}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[var(--line)]">
+                  <div className="text-[14px] font-medium text-[var(--txt)] mb-3">É isso que você queria?</div>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button onClick={() => void publicar()} disabled={!envio.evals.aprovado} className="btn btn-primary" style={{ opacity: envio.evals.aprovado ? 1 : 0.5 }}>
+                      <Rocket size={15} /> Sim — publicar pro ar
+                    </button>
+                    <button onClick={ajustar} className="btn"><Wand2 size={15} /> Não — quero ajustar</button>
+                  </div>
+                  {!envio.evals.aprovado && (
+                    <p className="text-[11.5px] text-[var(--txt-4)] mt-2">O guardião segurou essa. Clique em “ajustar” e reescreva o pedido de outro jeito.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* SEM CÉREBRO — honesto: registrei, mas NÃO testei o seu pedido */
+              <>
+                <div className="rounded-xl px-4 py-4 mb-4" style={{ border: "1px solid #fbbf2440", background: "rgba(251,191,36,.07)" }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <AlertTriangle size={16} style={{ color: "#fbbf24" }} />
+                    <span className="text-[13.5px] font-medium text-[var(--txt)]">Registrei o seu pedido — mas ainda não consigo provar que ele funciona.</span>
+                  </div>
+                  <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed">
+                    Pra ser o ensaio de verdade — te mostrar <b className="text-[var(--txt)]">onde isso entra</b> e a <b className="text-[var(--txt)]">IA respondendo antes e agora</b> —
+                    a Metrik precisa <b className="text-[var(--txt)]">ligar o cérebro</b> (a chave da OpenAI) neste ambiente. Enquanto isso, seu pedido fica guardado no histórico.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-[11.5px] text-[var(--txt-4)] mb-5">
+                  <ShieldCheck size={13} style={{ color: "#34d399" }} /> só dá pra dizer o básico: o pedido não pede nada que quebre as travas do núcleo. Testar SE ele faz o que você quer, só com o cérebro ligado.
+                </div>
+                <div className="pt-4 border-t border-[var(--line)]">
+                  <div className="text-[14px] font-medium text-[var(--txt)] mb-3">O que você quer fazer?</div>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button onClick={ajustar} className="btn btn-primary"><Wand2 size={15} /> Reescrever o pedido</button>
+                    <button onClick={ajustar} className="btn"><Check size={15} /> Deixar registrado pra Metrik</button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </Reveal>
       )}

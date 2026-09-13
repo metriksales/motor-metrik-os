@@ -1,19 +1,19 @@
 import { useState } from "react";
 import {
   CalendarClock, Video, Phone, MapPin, Repeat, Check, X, FileSignature,
-  AlertTriangle, Plus, BookOpen, Zap, MousePointerClick, Layers, Play, ListChecks, Clock,
+  AlertTriangle, Plus, BookOpen, Zap, MousePointerClick, Layers, Play, ListChecks, Clock, Wand2,
 } from "lucide-react";
 import type { Agent, Work } from "../data";
 import { Pill, cx } from "../ui";
 
-export default function WorkTab({ agent }: { agent: Agent }) {
+export default function WorkTab({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void }) {
   const w = agent.work!;
   return (
     <div className="space-y-4">
       {w.kind === "agenda" && <Agenda w={w} color={agent.color} />}
       {w.kind === "followups" && <Followups w={w} color={agent.color} />}
       {w.kind === "contratos" && <Contratos w={w} />}
-      {w.kind === "conhecimento" && <Conhecimento w={w} color={agent.color} />}
+      {w.kind === "conhecimento" && <Conhecimento w={w} color={agent.color} onMelhorar={onMelhorar} />}
       {w.kind === "acoes" && <Acoes w={w} color={agent.color} />}
       {w.kind === "lista" && <Lista w={w} color={agent.color} />}
     </div>
@@ -134,27 +134,52 @@ function Contratos({ w }: { w: Work }) {
   );
 }
 
-function Conhecimento({ w, color }: { w: Work; color: string }) {
+function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelhorar?: () => void }) {
   const itens = w.conhecimento ?? [];
   const cats = Array.from(new Set(itens.map((i) => i.cat)));
   return (
     <div className="space-y-4">
-      <div className="card p-4 flex items-start gap-3">
-        <BookOpen size={17} style={{ color }} className="flex-none mt-0.5" />
-        <p className="text-[13px] text-[var(--txt-2)]">É daqui que a IA tira as respostas. <b className="text-[var(--txt)]">Pra ensinar algo novo</b> (um plano, uma objeção, uma informação), é no <b className="text-[var(--txt)]">Melhorar</b> — você escreve, a IA testa no ensaio e você vê antes de valer.</p>
+      {/* INVENTÁRIO — o herói: tudo que a IA sabe hoje, legível */}
+      <div className="card p-5 md:p-6">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <div className="flex items-center gap-2">
+            <BookOpen size={17} style={{ color }} />
+            <span className="font-display font-semibold text-[16px]">Tudo que sua IA sabe hoje</span>
+          </div>
+          <span className="text-[11.5px] text-[var(--txt-4)] flex-none">{itens.length} informações</span>
+        </div>
+        <p className="text-[13px] text-[var(--txt-3)] mb-5">É daqui que ela tira as respostas quando conversa com seus leads. Esta é a lista completa — nada fica escondido.</p>
+
+        {cats.map((cat) => {
+          const doCat = itens.filter((i) => i.cat === cat);
+          return (
+            <div key={cat} className="mb-5 last:mb-0">
+              <div className="mono-label mb-2.5">{cat} <span className="!text-[var(--txt-4)]">· {doCat.length}</span></div>
+              <ul className="space-y-1.5">
+                {doCat.map((i, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 rounded-lg px-3 py-2" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
+                    <Check size={14} className="flex-none mt-0.5" style={{ color: "#34d399" }} />
+                    <span className="text-[13px] text-[var(--txt)] leading-snug">{i.titulo}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="card p-5">
-        {cats.map((cat) => (
-          <div key={cat} className="mb-4 last:mb-0">
-            <div className="mono-label mb-2">{cat}</div>
-            <div className="flex flex-wrap gap-2">
-              {itens.filter((i) => i.cat === cat).map((i, idx) => (
-                <span key={idx} className="chip !cursor-default">{i.titulo}</span>
-              ))}
-            </div>
-          </div>
-        ))}
+      {/* HANDOFF — ensinar algo novo é ação → só no Melhorar */}
+      <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3.5" style={{ borderColor: "#e0a44a2e", background: "linear-gradient(160deg, rgba(224,164,74,.06), var(--surface))" }}>
+        <span className="grid place-items-center rounded-xl flex-none" style={{ width: 40, height: 40, background: "rgba(224,164,74,.14)", border: "1px solid #e0a44a40" }}>
+          <BookOpen size={19} style={{ color: "#e0a44a" }} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-medium text-[var(--txt)]">Quer ensinar algo novo — um plano, um preço, uma objeção?</div>
+          <p className="text-[12.5px] text-[var(--txt-3)] mt-0.5">Você escreve o que ela passa a saber, a IA faz um ensaio na sua frente (antes × agora) e só entra pra esta lista quando você aprovar.</p>
+        </div>
+        {onMelhorar && (
+          <button onClick={onMelhorar} className="btn btn-primary flex-none"><Wand2 size={15} /> Ensinar no Melhorar</button>
+        )}
       </div>
     </div>
   );
