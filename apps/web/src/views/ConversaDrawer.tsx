@@ -3,15 +3,16 @@
 // com a Dona Cléia de madrugada". Leitura pura, zero botão de ação.
 // A conversa vem do campo `did` do log (a Bia espelha turnoLead/respostaIA).
 import { AnimatePresence, motion } from "framer-motion";
-import { X, CheckCheck, Wrench, Mic } from "lucide-react";
+import { X, Check, CheckCheck, Wrench, Mic, ArrowRight } from "lucide-react";
 import type { LogReal } from "../lib/live";
 import { reais, tempoRelativo } from "../lib/live";
+import { SELO_META, type Conferencia } from "../data";
 
 type Conversa = { contato?: string; lead?: string; ia?: string; tools?: string[]; voz?: boolean };
 
 export type ConversaAberta =
-  | { tipo: "real"; log: LogReal; agente: string; cor: string }
-  | { tipo: "demo"; agente: string; cor: string };
+  | { tipo: "real"; log: LogReal; agente: string; cor: string; conf?: Conferencia }
+  | { tipo: "demo"; agente: string; cor: string; conf?: Conferencia };
 
 const DEMO: Conversa = {
   contato: "Marina",
@@ -127,6 +128,42 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
             </div>
           </div>
         )}
+
+        {/* SEGUIU A REGRA? — a conferência determinística desta execução */}
+        {aberta.conf && (() => {
+          const c = aberta.conf!;
+          const m = SELO_META[c.veredito];
+          const Ico = m.icon;
+          return (
+            <div className="pt-2">
+              <div className="rounded-xl p-3.5" style={{ border: `1px solid ${m.cor}45`, background: `${m.cor}0d` }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Ico size={16} style={{ color: m.cor }} />
+                  <span className="font-display font-semibold text-[13.5px] text-[var(--txt)]">{m.label}</span>
+                </div>
+                {c.regra && <div className="text-[11.5px] text-[var(--txt-3)] mb-2.5">{c.regra}</div>}
+                {c.checks && c.checks.length > 0 && (
+                  <div className="space-y-1.5">
+                    {c.checks.map((ck, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[12.5px] text-[var(--txt-2)] leading-snug">
+                        {ck.ok
+                          ? <Check size={14} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+                          : <X size={14} style={{ color: "#fb7185" }} className="flex-none mt-0.5" />}
+                        {ck.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {c.porque && (!c.checks || c.checks.length === 0) && (
+                  <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed">{c.porque}</p>
+                )}
+                <div className="text-[11.5px] mt-2.5 inline-flex items-center gap-1" style={{ color: "var(--cyan)" }}>
+                  essa regra mora em O que faz <ArrowRight size={12} />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </>
   );

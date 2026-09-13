@@ -30,6 +30,9 @@ import {
   SquarePen,
   Scale,
   UsersRound,
+  Check,
+  ShieldCheck,
+  X,
 } from "lucide-react";
 
 export type ViewId = "inicio" | "agentes" | "aovivo" | "modulos" | "conexoes" | "admin";
@@ -57,7 +60,44 @@ export type LiveRow = {
   acao: string;
   status: "ok" | "erro" | "run";
   detalhe?: string;
+  /** o veredito honesto conferido na hora — quando o log já traz a conferência */
+  conferencia?: Conferencia;
 };
+
+/**
+ * O SELO honesto de cada execução — conferido na HORA, sem custo, sem juiz-LLM.
+ * MVP com 4 selos; "Desviou" (encostou numa trava) entra quando houver a lista de
+ * travas curada por área. A nota 0–10 de qualidade NUNCA mora aqui — só no fecho
+ * do dia (1×/dia) e no ensaio do Melhorar (sob demanda).
+ */
+export type Selo = "seguiu" | "segurou" | "conversou" | "falhou";
+export type Conferencia = {
+  veredito: Selo;
+  /** a regra que ele deveria seguir (do mapa), quando há uma pra conferir */
+  regra?: string;
+  /** o porquê em português — só quando segurou de propósito ou falhou */
+  porque?: string;
+  /** procedência: pego na hora (trava determinística) ou achado da análise das 8h */
+  fonte?: "na-hora" | "analise";
+  /** os checks determinísticos, pro bloco "Seguiu a regra?" na ConversaDrawer */
+  checks?: { ok: boolean; label: string }[];
+};
+
+export const SELO_META: Record<Selo, { label: string; cor: string; icon: any }> = {
+  seguiu: { label: "Seguiu a regra", cor: "#34d399", icon: Check },
+  segurou: { label: "Segurou de propósito", cor: "#58aae4", icon: ShieldCheck },
+  conversou: { label: "Conversou", cor: "#8a94a4", icon: MessageCircleHeart },
+  falhou: { label: "Falhou", cor: "#fb7185", icon: X },
+};
+
+// Deriva o selo honesto: se o log já traz a conferência real, usa; senão só o que
+// dá pra provar de graça — erro = Falhou; o resto fica "Conversou" (registrado),
+// NUNCA um verde falso. Verde/azul só vêm de conferência real (travas do ramo).
+export function conferir(row: { status: "ok" | "erro" | "run"; conferencia?: Conferencia }): Conferencia {
+  if (row.conferencia) return row.conferencia;
+  if (row.status === "erro") return { veredito: "falhou" };
+  return { veredito: "conversou" };
+}
 
 export type SimStep = { label: string; ok: boolean };
 
@@ -708,8 +748,35 @@ export const AGENTS: Agent[] = [
       { name: "Move o funil sozinho", icon: Columns3, fonte: "metrik", on: true },
     ],
     live: [
-      { t: "agora", acao: "Explicando prazo do auxílio maternidade", status: "run" },
-      { t: "9 min", acao: "BPC negado por renda — encerrou com porta aberta", status: "ok" },
+      { t: "agora", acao: "Triando um caso de auxílio maternidade", status: "run" },
+      {
+        t: "9 min", acao: "Dona Cléia · BPC negado pela renda, com porta aberta pra outro benefício", status: "ok",
+        conferencia: {
+          veredito: "seguiu", regra: "BPC · renda acima do limite", fonte: "na-hora",
+          checks: [
+            { ok: true, label: "não prometeu resultado que não existe" },
+            { ok: true, label: "explicou o porquê com carinho" },
+            { ok: true, label: "ofereceu verificar outro benefício antes de encerrar" },
+            { ok: true, label: "moveu o card pra Sem direito com o motivo escrito" },
+          ],
+        },
+      },
+      {
+        t: "22 min", acao: "Ana Paula · confirmou o direito ao auxílio maternidade e agendou com a doutora", status: "ok",
+        conferencia: { veredito: "seguiu", regra: "Maternidade · segurada no prazo", fonte: "na-hora" },
+      },
+      {
+        t: "40 min", acao: "Na dúvida sobre a renda de um caso, preferiu não chutar e passou pro advogado", status: "ok",
+        conferencia: { veredito: "segurou", porque: "Na dúvida ela chama a pessoa, não arrisca um erro de direito — a trava funcionou.", fonte: "na-hora" },
+      },
+      {
+        t: "1 h", acao: "Explicou ao Sr. Bento quais documentos levar na reunião", status: "ok",
+        conferencia: { veredito: "conversou" },
+      },
+      {
+        t: "1 h", acao: "Tentou agendar a análise da Sra. Marta e a agenda recusou", status: "erro", detalhe: "o horário oferecido já estava ocupado — ela não confirmou o retorno pro lead",
+        conferencia: { veredito: "falhou", porque: "o horário oferecido já estava ocupado — ela não confirmou o retorno pro lead", fonte: "na-hora" },
+      },
     ],
     insights: [
       { tipo: "elogio", titulo: "Triagem redonda", texto: "62 de 64 casos caíram no ramo certo de primeira.", prova: "2 na dúvida foram pro humano — nenhum chute." },

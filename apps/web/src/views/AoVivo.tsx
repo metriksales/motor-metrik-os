@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Radio, Check, X, Loader2, ArrowRight, Database, MessageSquareText } from "lucide-react";
-import { AGENTS, STATS, type LiveRow } from "../data";
+import { Radio, Loader2, ArrowRight, Database, MessageSquareText } from "lucide-react";
+import { AGENTS, STATS, type LiveRow, SELO_META, conferir } from "../data";
 import { useAgents } from "../lib/agents";
 import { useLive, tempoRelativo, reais, kpiDinheiro, type LogReal } from "../lib/live";
 import { useMotorAuth } from "../lib/auth";
@@ -14,12 +14,6 @@ type FeedRow = LiveRow & { agente: string; color: string; id: string; valorCenta
 const FEED: FeedRow[] = AGENTS.flatMap((a) =>
   a.live.map((r, i) => ({ ...r, agente: a.name, color: a.color, id: `${a.id}-${i}` }))
 ).sort((x, y) => (x.status === "run" ? -1 : 0) - (y.status === "run" ? -1 : 0));
-
-const statusMeta = {
-  ok: { icon: Check, color: "#34d399", label: "acerto" },
-  erro: { icon: X, color: "#fb7185", label: "erro" },
-  run: { icon: Loader2, color: "#e0a44a", label: "rodando" },
-} as const;
 
 /** minutos desde o log — pros pontinhos de "digitando" só piscarem se é AGORA */
 function minutosDesde(iso: string): number {
@@ -133,14 +127,15 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
             ) : (
             <ul className="space-y-1">
               {feed.map((r, i) => {
-                  const st = statusMeta[r.status];
+                  const conf = conferir(r);
+                  const st = r.status === "run" ? { icon: Loader2, color: "#e0a44a" } : { icon: SELO_META[conf.veredito].icon, color: SELO_META[conf.veredito].cor };
                   const dinheiroLinha = (r.valorCentavos ?? 0) > 0;
                   const nova = vistos.current !== null && !vistos.current.has(r.id);
                   const abrir = () =>
                     setConversa(
                       r.raw
-                        ? { tipo: "real", log: r.raw, agente: r.agente, cor: r.color }
-                        : { tipo: "demo", agente: r.agente, cor: r.color }
+                        ? { tipo: "real", log: r.raw, agente: r.agente, cor: r.color, conf: r.conferencia }
+                        : { tipo: "demo", agente: r.agente, cor: r.color, conf: r.conferencia }
                     );
                   return (
                     <motion.li

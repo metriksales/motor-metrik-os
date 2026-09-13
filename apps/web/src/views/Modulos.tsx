@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Zap, Blocks, Bot, Plug, Check } from "lucide-react";
+import { ArrowRight, Blocks, Bot, Plug, Check } from "lucide-react";
 import { MODULOS, type Modulo, type ViewId } from "../data";
 import { Reveal, IconBox, Pill, SectionHeader, cx } from "../ui";
 
@@ -133,7 +133,7 @@ function ModuloCard({ m, compat, onOpen }: { m: Modulo; compat?: { id: string; l
           <button className="btn btn-ghost btn-sm" onClick={abrir}>Abrir <ArrowRight size={13} /></button>
         </div>
       ) : (
-        <button className="btn btn-primary btn-sm w-full" onClick={abrir}><Zap size={14} /> Ligar no {compat?.label}</button>
+        <button className="btn btn-primary btn-sm w-full" onClick={abrir}>Ver no {compat?.label} <ArrowRight size={14} /></button>
       )}
     </div>
   );

@@ -5,7 +5,7 @@ import {
   ArrowUp, Play, FlaskConical, Rocket, Lightbulb, ThumbsUp, AlertTriangle,
   Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, MessageCircle,
 } from "lucide-react";
-import { type Agent, type AgentState, type Insight, type Upgrade, STATE_META, CHAT_EXEMPLOS } from "../data";
+import { type Agent, type AgentState, type Insight, type Upgrade, type Selo, STATE_META, CHAT_EXEMPLOS, SELO_META, conferir } from "../data";
 import { Reveal, Pill, Toggle, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
@@ -21,6 +21,10 @@ type Sub = "trabalho" | "aovivo" | "mudancas" | "logs" | "estrutura" | "melhorar
 export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: Sub }) {
   const auth = useMotorAuth();
   const [sub, setSub] = useState<Sub>(initialSub ?? "aovivo");
+  // quando o cliente clica "Melhorar isto" num erro do Diário (ou num insight),
+  // o caso já vai ESCRITO pro Melhorar — a única porta de mudança.
+  const [melhorarSeed, setMelhorarSeed] = useState<string | null>(null);
+  const irMelhorar = (seed?: string) => { setMelhorarSeed(seed ?? null); setSub("melhorar"); };
 
   // Badge de Mudanças conta o LEDGER real (ChangeSets) quando o agente é real.
   const [nReal, setNReal] = useState(0);
@@ -65,7 +69,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
     { id: "aovivo", label: "O que faz", icon: Radio },
     ...(nMud > 0 ? [{ id: "mudancas" as Sub, label: "Mudanças", icon: Sparkles, badge: nMud }] : []),
     ...(agent.work ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }] : []),
-    { id: "logs", label: "Logs", icon: ScrollText },
+    { id: "logs", label: "Diário", icon: ScrollText },
     { id: "estrutura", label: "Turbinar", icon: Zap },
     { id: "melhorar", label: "Melhorar", icon: Wand2 },
   ];
@@ -140,24 +144,18 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       </div>
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        {sub === "trabalho" && agent.work && <WorkTab agent={agent} onMelhorar={() => setSub("melhorar")} />}
-        {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => setSub("melhorar")} />}
+        {sub === "trabalho" && agent.work && <WorkTab agent={agent} onMelhorar={() => irMelhorar()} />}
+        {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => irMelhorar()} />}
         {sub === "mudancas" && agent.mapa && <MudancasTab agent={agent} />}
-        {sub === "logs" && <LogsTab agent={agent} />}
-        {sub === "estrutura" && <Turbinar agent={agent} onMelhorar={() => setSub("melhorar")} />}
-        {sub === "melhorar" && <MelhorarTab agent={agent} />}
+        {sub === "logs" && <LogsTab agent={agent} onCorrigir={irMelhorar} />}
+        {sub === "estrutura" && <Turbinar agent={agent} onMelhorar={() => irMelhorar()} />}
+        {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} />}
       </motion.div>
     </div>
   );
 }
 
 /* ---------- passo a passo ---------- */
-const stMeta = {
-  ok: { icon: Check, color: "#34d399" },
-  erro: { icon: X, color: "#fb7185" },
-  run: { icon: Loader2, color: "#e0a44a" },
-} as const;
-
 function Fluxo({ agent }: { agent: Agent }) {
   const passos = agent.fluxo!;
   const [fix, setFix] = useState<Record<number, "sim" | "nao">>({});
@@ -225,16 +223,31 @@ function Fluxo({ agent }: { agent: Agent }) {
 }
 
 /* ---------- LOGS (o que roda + erros + corrigir + análise diária) ---------- */
-function LogsTab({ agent }: { agent: Agent }) {
-  const [filtro, setFiltro] = useState<"tudo" | "erros">("tudo");
-  const [fix, setFix] = useState<Record<number, "sim" | "nao">>({});
+// DIÁRIO — o ledger honesto do dia deste robô: o selo conferido na hora de cada
+// resposta (4 selos no MVP), o fecho do dia, a nota da rotina, e a linha do tempo
+// com o porquê. Clicar "Melhorar isto" num tropeço LEVA pro Melhorar com o caso
+// já escrito (é porta, não muda nada aqui). Zero nota por linha (isso seria caro
+// e viciado) — a nota 0–10 só no fecho/rotina e no ensaio do Melhorar.
+const FECHO_LBL: Record<Selo, string> = {
+  seguiu: "seguiram a regra",
+  segurou: "seguraram de propósito",
+  conversou: "conversaram (sem regra a conferir)",
+  falhou: "falharam",
+};
+const FILTROS_SELO: ("tudo" | Selo)[] = ["tudo", "seguiu", "segurou", "falhou"];
+
+function LogsTab({ agent, onCorrigir }: { agent: Agent; onCorrigir: (seed: string) => void }) {
+  const [filtro, setFiltro] = useState<"tudo" | Selo>("tudo");
   const { logs: logsReais, stats } = useLive();
 
   const doFluxo = (agent.fluxo ?? [])
     .filter((p) => p.status === "ok")
-    .map((p) => ({ t: "1 h", acao: `Concluiu: ${p.label}`, status: "ok" as const, detalhe: undefined as string | undefined }));
-  const logs = [...agent.live, ...doFluxo].map((r, i) => ({ ...r, dur: `${(i % 5) + 1}.${(i * 3) % 10}s`, id: i }));
-  const vis = filtro === "erros" ? logs.filter((l) => l.status === "erro") : logs;
+    .map((p) => ({ t: "1 h", acao: `Concluiu: ${p.label}`, status: "ok" as const }));
+  const logs = [...agent.live, ...doFluxo].map((r, i) => ({ ...r, id: i, conf: conferir(r) }));
+  const timeline = logs.filter((l) => l.status !== "run");
+  const temConf = logs.some((l) => (l as { conferencia?: unknown }).conferencia != null);
+  const cont = (s: Selo) => timeline.filter((l) => l.conf.veredito === s).length;
+  const nFalhou = cont("falhou");
 
   // agente REAL: números do Flight Recorder, não do template
   const meu = agent.real ? stats?.porAgente?.[agent.id] : undefined;
@@ -251,83 +264,128 @@ function LogsTab({ agent }: { agent: Agent }) {
 
   return (
     <div className="space-y-4">
-      {/* rodando agora */}
+      {/* fazendo agora */}
       <div className="card p-4 flex items-center gap-3">
         <span className="grid place-items-center rounded-[10px] flex-none" style={{ width: 34, height: 34, background: `${agent.color}16`, border: `1px solid ${agent.color}30` }}>
           {agent.state === "ativo" ? <Loader2 size={16} className="animate-spin" style={{ color: agent.color }} /> : <Clock size={16} style={{ color: "var(--txt-4)" }} />}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="mono-label mb-0.5">{agent.real && meuUltimo ? "Último trabalho" : "Rodando agora"}</div>
+          <div className="mono-label mb-0.5">Fazendo agora</div>
           <div className="text-[13px] text-[var(--txt)] truncate">{rodandoAgora}</div>
         </div>
-        <span className="tick flex-none hidden sm:block">{execsHoje} hoje · {errosHoje} erros</span>
+        <span className="tick flex-none hidden sm:block">{execsHoje} hoje</span>
       </div>
 
-      {/* análise diária */}
-      <div className="card p-5" style={{ borderColor: "#e0a44a2e", background: "linear-gradient(165deg, rgba(224,164,74,.07), var(--surface))" }}>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#e0a44a" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
-          <Pill color="#e0a44a">rotina diária · 8h</Pill>
+      {/* como sei que tá certo? — a legenda dos selos, sempre à vista */}
+      <div className="card p-4">
+        <div className="text-[11.5px] text-[var(--txt-3)] mb-2.5">Como sei que tá certo? — cada atendimento ganha um destes, conferido na hora:</div>
+        <div className="flex flex-wrap gap-2">
+          {(["seguiu", "segurou", "conversou", "falhou"] as Selo[]).map((s) => {
+            const m = SELO_META[s]; const Ico = m.icon;
+            return (
+              <span key={s} className="inline-flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg" style={{ color: m.cor, border: `1px solid ${m.cor}45`, background: `${m.cor}12` }}>
+                <Ico size={13} /> {m.label}
+              </span>
+            );
+          })}
         </div>
-        <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
-          {agent.real ? (
+        <p className="text-[11px] text-[var(--txt-4)] mt-2.5 leading-relaxed"><b className="text-[var(--txt-3)]">Conferido na hora de cada resposta, sem custo.</b> A nota de qualidade de 0 a 10 sai no fecho do dia, aqui embaixo — nenhuma linha tem nota própria. Quer a nota de uma conversa agora? Peça um ensaio no Melhorar.</p>
+      </div>
+
+      {/* fecho do dia + análise (a única nota) */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="card p-5">
+          <div className="mono-label mb-3">Fecho do dia · o placar</div>
+          {temConf ? (
             <>
-              Hoje foram <b className="text-[var(--txt)]">{execsHoje}</b> {execsHoje === 1 ? "atendimento" : "atendimentos"} deste agente.
-              {errosHoje > 0 ? <> Peguei <b style={{ color: "#fb7185" }}>{errosHoje} erro(s)</b> — dá pra corrigir no log abaixo.</> : <> Nenhum erro hoje.</>}
+              {(["seguiu", "segurou", "conversou", "falhou"] as Selo[]).map((s) => {
+                const m = SELO_META[s];
+                return (
+                  <div key={s} className="flex items-center gap-2.5 mb-2 last:mb-0">
+                    <span className="num text-[14px] w-6 text-right flex-none" style={{ color: m.cor }}>{cont(s)}</span>
+                    <span className="text-[13px] text-[var(--txt-2)]">{FECHO_LBL[s]}</span>
+                  </div>
+                );
+              })}
+              <p className="text-[11px] text-[var(--txt-4)] mt-3 leading-relaxed">Contados na hora, um por atendimento — sem nota e sem custo.</p>
             </>
           ) : (
             <>
-              Analisei as <b className="text-[var(--txt)]">{agent.metrics.execucoes}</b> execuções de hoje. A última mudança rendeu <b style={{ color: "#34d399" }}>+6% de acerto</b>.
-              {agent.metrics.erros > 0 ? <> Peguei <b style={{ color: "#fb7185" }}>{agent.metrics.erros} erro(s)</b> — dá pra corrigir no log abaixo.</> : <> Nenhum erro hoje.</>}
+              <div className="flex items-baseline gap-2 mb-1"><span className="num text-[26px]" style={{ color: agent.color }}>{execsHoje}</span><span className="text-[12px] text-[var(--txt-3)]">atendimentos hoje</span></div>
+              <p className="text-[12.5px] text-[var(--txt-2)]">{errosHoje > 0 ? <>Peguei <b style={{ color: "#fb7185" }}>{errosHoje}</b> que falharam.</> : <>Nenhuma falha hoje.</>}</p>
+              <p className="text-[11px] text-[var(--txt-4)] mt-3 leading-relaxed">O selo de cada resposta (seguiu a regra / segurou / falhou) aparece assim que o robô começa a registrar a conferência.</p>
             </>
           )}
-        </p>
-        <div className="text-[11px] text-[var(--txt-4)] mt-2">a análise pesada roda 1× por dia (barata e escalável); os erros aparecem no log na hora que acontecem.</div>
+        </div>
+
+        <div className="card p-5" style={{ borderColor: "#e0a44a2e", background: "linear-gradient(165deg, rgba(224,164,74,.07), var(--surface))" }}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#e0a44a" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
+            <Pill color="#e0a44a">rotina · 8h</Pill>
+          </div>
+          {(() => { const saiu = temConf ? nFalhou : errosHoje; return (
+            <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
+              {saiu > 0
+                ? <>{saiu === 1 ? "Saiu do padrão " : "Saíram do padrão "}<b style={{ color: "#fb7185" }}>{saiu}</b> — dá pra corrigir na linha do tempo abaixo.</>
+                : <>Nada saiu do padrão hoje.</>}
+            </p>
+          ); })()}
+          <p className="text-[11px] text-[var(--txt-4)] mt-2 leading-relaxed">A nota de qualidade de 0 a 10 é do dia inteiro, tirada uma vez de manhã — nenhuma linha tem nota própria (nota por linha sairia cara e não seria honesta).</p>
+        </div>
       </div>
 
-      {/* log */}
+      {/* a linha do tempo — o filme do dia, com o selo */}
       <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="mono-label">Log de execuções</div>
-          <div className="flex gap-1.5">
-            {(["tudo", "erros"] as const).map((f) => (
-              <button key={f} onClick={() => setFiltro(f)} className={cx("chip !py-1", filtro === f && "!border-[var(--line-hi)] !bg-[var(--surface-hi)] !text-[var(--txt)]")}>{f === "tudo" ? "tudo" : "só erros"}</button>
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+          <div className="mono-label">A linha do tempo · o filme do dia</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {FILTROS_SELO.map((f) => (
+              <button key={f} onClick={() => setFiltro(f)} className={cx("chip !py-1", filtro === f && "!border-[var(--line-hi)] !bg-[var(--surface-hi)] !text-[var(--txt)]")}>
+                {f === "tudo" ? "tudo" : SELO_META[f].label.split(" ")[0].toLowerCase()}
+              </button>
             ))}
           </div>
         </div>
-        <ul className="space-y-1">
-          {vis.map((r) => {
-            const st = stMeta[r.status];
-            const err = r.status === "erro";
+        <ul>
+          {timeline.map((r) => {
+            const m = SELO_META[r.conf.veredito]; const Ico = m.icon;
+            const dim = filtro !== "tudo" && r.conf.veredito !== filtro;
+            const problema = r.conf.veredito === "falhou";
+            const mostraPorque = !!r.conf.porque && (r.conf.veredito === "segurou" || r.conf.veredito === "falhou");
+            const seed = `Neste atendimento a IA "${r.acao}".` + (r.conf.porque ? ` O que rolou: ${r.conf.porque}` : "") + ` Deveria: `;
             return (
-              <li key={r.id} className="py-2.5 border-b border-[var(--line)] last:border-0" style={err ? { background: "rgba(251,113,133,.05)" } : undefined}>
+              <li key={r.id} className="py-3 border-b border-[var(--line)] last:border-0" style={{ opacity: dim ? 0.32 : 1, transition: "opacity .15s" }}>
                 <div className="flex items-start gap-3">
-                  <span className="grid place-items-center rounded-lg flex-none mt-0.5" style={{ width: 26, height: 26, background: `${st.color}16`, border: `1px solid ${st.color}30` }}>
-                    <st.icon size={13} style={{ color: st.color }} className={r.status === "run" ? "animate-spin" : ""} />
+                  <span className="grid place-items-center rounded-lg flex-none mt-0.5" style={{ width: 28, height: 28, background: `${m.cor}16`, border: `1px solid ${m.cor}33` }}>
+                    <Ico size={14} style={{ color: m.cor }} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] text-[var(--txt)]">{r.acao}</div>
-                    {r.detalhe && <div className="text-[11.5px] mt-0.5" style={{ color: err ? "#fb7185" : "var(--txt-3)" }}>{err ? "por quê: " : ""}{r.detalhe}</div>}
+                    <div className="flex items-start gap-2">
+                      <span className="text-[13.5px] text-[var(--txt)] leading-snug flex-1">{r.acao}</span>
+                      <span className="tick flex-none">{r.t}</span>
+                    </div>
+                    {mostraPorque && (
+                      <div className="mt-2 rounded-lg px-3 py-2 text-[12.5px] leading-relaxed" style={{
+                        color: problema ? "#f2cf86" : "#a9d3f2",
+                        background: problema ? "rgba(251,191,36,.07)" : "rgba(88,170,228,.06)",
+                        border: `1px solid ${problema ? "rgba(251,191,36,.24)" : "rgba(88,170,228,.22)"}`,
+                      }}>
+                        {r.conf.fonte && <span className="mono-label !text-[8.5px] block mb-1 opacity-75">{r.conf.fonte === "na-hora" ? "pego na hora" : "achado da análise"}</span>}
+                        {r.conf.porque}
+                      </div>
+                    )}
+                    {problema && (
+                      <div className="mt-2 flex items-center gap-2.5 flex-wrap">
+                        <button className="btn btn-primary btn-sm" onClick={() => onCorrigir(seed)}><Wand2 size={13} /> Melhorar isto</button>
+                        <span className="text-[11px] text-[var(--txt-4)]">isto é leitura — corrigir acontece no Melhorar</span>
+                      </div>
+                    )}
                   </div>
-                  <span className="tick flex-none font-mono">{r.dur}</span>
-                  <span className="tick flex-none w-8 text-right">{r.t}</span>
                 </div>
-                {err && (
-                  fix[r.id] ? (
-                    <div className="ml-9 mt-2 text-[12px]" style={{ color: fix[r.id] === "sim" ? "#34d399" : "var(--txt-3)" }}>
-                      {fix[r.id] === "sim" ? "Preparando a correção — simulo, testo e te mostro a prova antes de publicar." : "Ok, deixei anotado."}
-                    </div>
-                  ) : (
-                    <div className="ml-9 mt-2 flex gap-2">
-                      <button className="btn btn-primary btn-sm" onClick={() => setFix((s) => ({ ...s, [r.id]: "sim" }))}>Corrigir isto</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setFix((s) => ({ ...s, [r.id]: "nao" }))}>Agora não</button>
-                    </div>
-                  )
-                )}
               </li>
             );
           })}
-          {vis.length === 0 && <li className="text-[12.5px] text-[var(--txt-3)] py-4 text-center">Nenhum erro — tá tudo rodando limpo 🎉</li>}
+          {timeline.length === 0 && <li className="text-[12.5px] text-[var(--txt-3)] py-4 text-center">Ainda sem execuções hoje — as respostas aparecem aqui com o selo de cada uma.</li>}
         </ul>
       </div>
     </div>
@@ -442,7 +500,7 @@ function Turbinar({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium truncate">{f.name}</div>
-                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#e0a44a" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você · MCP" : "operado pela Metrik"}</span>
+                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#e0a44a" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você" : "operado pela Metrik"}</span>
               </div>
               <span className="pill flex-none" style={{ color: f.on ? "#34d399" : "var(--txt-4)", borderColor: f.on ? "#34d39940" : "var(--line)", background: f.on ? "#34d39912" : "var(--surface-2)" }}>
                 {f.on ? <><span className="live-dot" style={{ width: 6, height: 6, background: "#34d399" }} /> ligado</> : "desligado"}
@@ -580,10 +638,12 @@ function pedidoVago(t: string): boolean {
   return t.length < 18 || palavras.length < 4;
 }
 
-function MelhorarTab({ agent }: { agent: Agent }) {
+function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: string | null }) {
   const auth = useMotorAuth();
   const [gravando, setGravando] = useState(false);
-  const [texto, setTexto] = useState("");
+  // veio do Diário? o caso já chega ESCRITO no campo (o cliente completa o "Deveria:")
+  const [texto, setTexto] = useState(initialTexto ?? "");
+  const veioDoDiario = !!initialTexto;
   const [envio, setEnvio] = useState<EnvioState>({ fase: "idle" });
   const [reaisHist, setReaisHist] = useState<any[] | null>(null);
 
@@ -654,10 +714,17 @@ function MelhorarTab({ agent }: { agent: Agent }) {
 
   return (
     <div className="space-y-4">
-      <div className="card p-4 flex items-start gap-3">
-        <Link2 size={17} style={{ color: "#e0a44a" }} className="flex-none mt-0.5" />
-        <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Uma fonte só.</b> Você pode pedir aqui, ligar no Turbinar ou mexer pelo Claude Code — tudo cai no mesmo agente e aparece no histórico abaixo. Nada duplica, nada se perde.</p>
-      </div>
+      {veioDoDiario ? (
+        <div className="card p-4 flex items-start gap-3" style={{ borderColor: "#58aae440", background: "linear-gradient(160deg, rgba(88,170,228,.07), var(--surface))" }}>
+          <ScrollText size={17} style={{ color: "#58aae4" }} className="flex-none mt-0.5" />
+          <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Veio do Diário.</b> O caso já está escrito no campo abaixo — só complete o <b className="text-[var(--txt)]">“Deveria:”</b> com o que a IA deveria ter feito, e rode o ensaio. Corrigir de verdade acontece aqui, com prova antes de ir pro ar.</p>
+        </div>
+      ) : (
+        <div className="card p-4 flex items-start gap-3">
+          <Link2 size={17} style={{ color: "#e0a44a" }} className="flex-none mt-0.5" />
+          <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Uma fonte só.</b> Você pode pedir aqui, ligar no Turbinar ou mexer pelo Claude Code — tudo cai no mesmo agente e aparece no histórico abaixo. Nada duplica, nada se perde.</p>
+        </div>
+      )}
 
       {/* ── PEDIR: campo livre (chip preenche o campo; áudio vira texto) ── */}
       {envio.fase === "idle" || envio.fase === "clarificar" || envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "erro" ? (
