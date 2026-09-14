@@ -1,4 +1,4 @@
-// Traje do Clerk com a identidade do Motor OS (dark premium, violeta).
+// Traje do Clerk com a identidade do Motor OS (linha "Bridge": claro, verde menta, Poppins).
 // REGRA DURA: cores SÓLIDAS aqui — o Clerk deriva sombras/tons do
 // colorBackground; "transparent" deixa o popover do seletor de organização
 // ilegível (cicatriz: foi exatamente o bug do "meio transparente").
@@ -10,52 +10,52 @@ import type { ClerkProvider } from "@clerk/clerk-react";
 type Appearance = ComponentProps<typeof ClerkProvider>["appearance"];
 
 const SOLID = {
-  bg: "#141221", // superfície sólida sobre o --bg (#07070b)
-  bgHi: "#1b1830",
-  input: "#1d1a2e",
-  line: "rgba(255,255,255,.09)",
-  lineHi: "rgba(255,255,255,.16)",
-  txt: "#f4f4f7",
-  txt2: "#b7b9c6",
-  txt3: "#83879a",
-  violet: "#e0a44a",
+  bg: "#ffffff", // superfície sólida (cards, popovers)
+  bgHi: "#f2f8f5",
+  input: "#f7faf8",
+  line: "#dbe4de",
+  lineHi: "#c3d3ca",
+  txt: "#0b1a12",
+  txt2: "#33463b",
+  txt3: "#63736a",
+  green: "#1f9d6b",
 };
 
 export const clerkAppearance: Appearance = {
   variables: {
-    colorPrimary: SOLID.violet,
+    colorPrimary: SOLID.green,
     colorBackground: SOLID.bg,
     colorInputBackground: SOLID.input,
     colorText: SOLID.txt,
     colorTextSecondary: SOLID.txt3,
     colorInputText: SOLID.txt,
     colorNeutral: SOLID.txt,
-    colorDanger: "#fb7185",
-    colorSuccess: "#34d399",
-    colorWarning: "#fbbf24",
+    colorDanger: "#d64550",
+    colorSuccess: "#12a150",
+    colorWarning: "#c07d12",
     borderRadius: "12px",
-    fontFamily: "'Onest', ui-sans-serif, system-ui, sans-serif",
+    fontFamily: "'Poppins', ui-sans-serif, system-ui, sans-serif",
     fontSize: "14px",
   },
   elements: {
-    // cartões (login, listas, popovers, modais) — sempre chão sólido
+    // cartões (login, listas, popovers, modais) — sempre chão sólido claro
     card: {
       background: SOLID.bg,
       border: `1px solid ${SOLID.line}`,
-      boxShadow: "0 1px 0 rgba(255,255,255,.05) inset, 0 24px 60px -24px rgba(0,0,0,.85)",
+      boxShadow: "0 1px 2px rgba(18,57,30,.05), 0 24px 60px -28px rgba(18,57,30,.28)",
     },
     cardBox: { boxShadow: "none" },
     headerTitle: {
-      fontFamily: "'Space Grotesk', 'Onest', sans-serif",
+      fontFamily: "'Poppins', sans-serif",
       fontWeight: 700,
       letterSpacing: "-0.02em",
     },
     headerSubtitle: { color: SOLID.txt3 },
     socialButtonsBlockButton: {
-      background: SOLID.bgHi,
+      background: SOLID.bg,
       border: `1px solid ${SOLID.line}`,
       color: SOLID.txt,
-      "&:hover": { background: SOLID.input, borderColor: SOLID.lineHi },
+      "&:hover": { background: SOLID.bgHi, borderColor: SOLID.lineHi },
     },
     dividerLine: { background: SOLID.line },
     dividerText: { color: SOLID.txt3 },
@@ -64,19 +64,19 @@ export const clerkAppearance: Appearance = {
       background: SOLID.input,
       border: `1px solid ${SOLID.line}`,
       color: SOLID.txt,
-      "&:focus": { borderColor: SOLID.violet, boxShadow: `0 0 0 3px rgba(224,164,74,.22)` },
+      "&:focus": { borderColor: SOLID.green, boxShadow: `0 0 0 3px rgba(62,207,142,.22)` },
     },
     formButtonPrimary: {
-      background: "linear-gradient(135deg, #e0a44a 0%, #a06bff 100%)",
-      color: "#0a0714",
+      background: "linear-gradient(135deg, #3ecf8e 0%, #1f9d6b 100%)",
+      color: "#06301f",
       fontWeight: 700,
       textTransform: "none",
       fontSize: "14px",
-      boxShadow: "0 10px 26px -12px rgba(224,164,74,.65)",
-      "&:hover": { filter: "brightness(1.08)" },
+      boxShadow: "0 10px 26px -14px rgba(31,157,107,.6)",
+      "&:hover": { filter: "brightness(1.04)" },
     },
     footerActionText: { color: SOLID.txt3 },
-    footerActionLink: { color: SOLID.violet, fontWeight: 600 },
+    footerActionLink: { color: SOLID.green, fontWeight: 600 },
 
     // seletor de organização — o gatilho vive na sidebar do app
     organizationSwitcherTrigger: {
@@ -85,17 +85,17 @@ export const clerkAppearance: Appearance = {
       padding: "8px 10px",
       color: SOLID.txt,
       borderRadius: "10px",
-      "&:hover": { background: "rgba(255,255,255,.05)" },
+      "&:hover": { background: "rgba(18,57,30,.05)" },
       "&:focus": { boxShadow: "none" },
     },
     organizationSwitcherPopoverCard: {
       background: SOLID.bg,
       border: `1px solid ${SOLID.lineHi}`,
-      boxShadow: "0 28px 70px -20px rgba(0,0,0,.9)",
+      boxShadow: "0 28px 70px -24px rgba(18,57,30,.32)",
     },
     organizationSwitcherPopoverActionButton: {
       color: SOLID.txt2,
-      "&:hover": { background: "rgba(255,255,255,.05)", color: SOLID.txt },
+      "&:hover": { background: "rgba(18,57,30,.05)", color: SOLID.txt },
     },
     organizationPreviewMainIdentifier: { color: SOLID.txt, fontWeight: 600 },
     organizationPreviewSecondaryIdentifier: { color: SOLID.txt3 },
@@ -104,17 +104,17 @@ export const clerkAppearance: Appearance = {
     userButtonPopoverCard: {
       background: SOLID.bg,
       border: `1px solid ${SOLID.lineHi}`,
-      boxShadow: "0 28px 70px -20px rgba(0,0,0,.9)",
+      boxShadow: "0 28px 70px -24px rgba(18,57,30,.32)",
     },
     userButtonPopoverActionButton: {
       color: SOLID.txt2,
-      "&:hover": { background: "rgba(255,255,255,.05)", color: SOLID.txt },
+      "&:hover": { background: "rgba(18,57,30,.05)", color: SOLID.txt },
     },
     userPreviewMainIdentifier: { color: SOLID.txt, fontWeight: 600 },
     userPreviewSecondaryIdentifier: { color: SOLID.txt3 },
 
     // modais (criar organização etc.)
-    modalBackdrop: { background: "rgba(4,3,10,.72)", backdropFilter: "blur(6px)" },
+    modalBackdrop: { background: "rgba(11,26,18,.5)", backdropFilter: "blur(6px)" },
     modalContent: { background: SOLID.bg },
   },
 };

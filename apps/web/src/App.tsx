@@ -20,7 +20,7 @@ import { useMotorAuth } from "./lib/auth";
 export default function App() {
   const [view, setView] = useState<ViewId>("inicio");
   const [agentId, setAgentId] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [palette, setPalette] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [wa, setWa] = useState(true);
