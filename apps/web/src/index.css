@@ -42,7 +42,7 @@
   --grad: linear-gradient(135deg, #3ecf8e 0%, #1f9d6b 100%);
   --grad-soft: linear-gradient(135deg, rgba(62, 207, 142, 0.16), rgba(31, 122, 87, 0.1));
 
-  --radius: 12px;
+  --radius: 8px;
   --shadow: 0 1px 2px rgba(18, 57, 30, 0.045), 0 14px 32px -20px rgba(18, 57, 30, 0.18);
   --glow-violet: 0 0 0 1px rgba(62, 207, 142, 0.35), 0 16px 44px -18px rgba(62, 207, 142, 0.4);
 }
@@ -716,4 +716,48 @@ html[data-theme="dark"] .nav-item.active::before {
 }
 @media (prefers-reduced-motion: reduce) {
   .andr.speaking .mouth { animation: none !important; }
+}
+
+/* ============================================================
+   LINHA BRIDGE — cantos crisp + encaixe firme (não arredondado demais)
+   sobrescreve as utilities do tailwind (mesma especificidade, vem depois)
+   ============================================================ */
+.rounded-3xl { border-radius: 12px; }
+.rounded-2xl { border-radius: 10px; }
+.rounded-xl  { border-radius: 8px; }
+.rounded-lg  { border-radius: 6px; }
+.rounded-\[10px\], .rounded-\[11px\], .rounded-\[12px\], .rounded-\[13px\], .rounded-\[14px\] { border-radius: 8px; }
+.\!rounded-2xl { border-radius: 10px !important; }
+.\!rounded-xl  { border-radius: 8px !important; }
+.\!rounded-lg  { border-radius: 6px !important; }
+
+.btn { border-radius: 8px; }
+.btn-sm { border-radius: 7px; }
+.chip { border-radius: 7px; }
+.nav-item { border-radius: 8px; }
+
+/* card com a barrinha verde que entra no hover (assinatura Bridge) */
+.card { border-radius: 9px; }
+.card-hover { overflow: hidden; }
+.card-hover::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: var(--grad);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+  z-index: 1;
+}
+.card-hover:hover::before { transform: scaleX(1); }
+
+/* hero — banner com peso (gradiente menta edge-to-edge, tipo Bridge) */
+.hero-banner {
+  border: 1px solid #c8e3d5;
+  background: linear-gradient(112deg, #dbf5e7 0%, #ecf9f2 58%, #f8fcfa 100%);
+}
+html[data-theme="dark"] .hero-banner {
+  border-color: var(--line);
+  background: linear-gradient(112deg, rgba(62, 207, 142, 0.09), rgba(16, 20, 28, 0.5) 58%, var(--surface));
 }

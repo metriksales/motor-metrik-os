@@ -50,50 +50,48 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
 
   return (
     <div className="space-y-6">
-      {/* HERO */}
+      {/* HERO — banner com peso (linha Bridge) */}
       <Reveal>
-        <div className="grad-border overflow-hidden">
-          <div className="relative p-6 md:p-8">
-            <div className="aurora !opacity-40" />
-            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="max-w-xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="live-dot" />
-                  <span className="mono-label !text-[var(--emerald)]">{ativos} de {agents.length} agentes trabalhando</span>
-                </div>
-                <h1 className="font-display text-[29px] md:text-[37px] font-semibold tracking-tight leading-[1.08]">
-                  Sua operação está <span className="grad-text">trabalhando sozinha</span>.
-                </h1>
-                {stats && fora.length > 0 ? (
-                  <p className="text-[var(--txt-2)] mt-3 text-[14.5px] leading-relaxed">
-                    <span className="text-[var(--txt)] font-medium">Enquanto você esteve fora</span>{" "}
-                    <span className="text-[var(--txt-3)]">(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
-                    {fora.length === 1 ? "atendimento" : "atendimentos"}
-                    {foraReunioes > 0 && <> · {foraReunioes} {foraReunioes === 1 ? "reunião marcada" : "reuniões marcadas"}</>}
-                    {foraValor > 0 && <> · <span style={{ color: "var(--emerald)" }}>+{reais(foraValor)}</span></>}
-                  </p>
-                ) : (
-                  <p className="text-[var(--txt-2)] mt-3 text-[14.5px] leading-relaxed">
-                    Uma frota de robôs atende, qualifica, agenda, recupera e rastreia — cada um blindado.
-                    Você só observa e, quando quiser, pede uma melhoria.
-                  </p>
-                )}
-                <div className="flex gap-2 mt-4">
-                  <button className="btn btn-primary btn-sm" onClick={() => go("aovivo")}><Radio size={14} /> Ver ao vivo</button>
-                  <button className="btn btn-sm" onClick={() => go("agentes")}>Abrir a frota</button>
-                </div>
+        <div className="hero-banner card-hover relative overflow-hidden rounded-2xl">
+          <div className="aurora !opacity-50" />
+          <div className="relative p-7 md:p-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="live-dot" />
+                <span className="mono-label" style={{ color: "#1f7a57" }}>{ativos} de {agents.length} agentes trabalhando</span>
               </div>
+              <h1 className="font-display font-bold tracking-tight leading-[1.02] text-[34px] md:text-[47px]">
+                Sua operação está <span className="grad-text">trabalhando sozinha</span>.
+              </h1>
+              {stats && fora.length > 0 ? (
+                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed" style={{ color: "#31463b" }}>
+                  <span className="font-medium" style={{ color: "var(--txt)" }}>Enquanto você esteve fora</span>{" "}
+                  <span style={{ color: "var(--txt-3)" }}>(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
+                  {fora.length === 1 ? "atendimento" : "atendimentos"}
+                  {foraReunioes > 0 && <> · {foraReunioes} {foraReunioes === 1 ? "reunião marcada" : "reuniões marcadas"}</>}
+                  {foraValor > 0 && <> · <span style={{ color: "var(--emerald)" }}>+{reais(foraValor)}</span></>}
+                </p>
+              ) : (
+                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed max-w-xl" style={{ color: "#31463b" }}>
+                  Uma frota de robôs atende, qualifica, agenda, recupera e rastreia — cada um blindado.
+                  Você só observa e, quando quiser, pede uma melhoria.
+                </p>
+              )}
+              <div className="flex gap-2.5 mt-6">
+                <button className="btn btn-primary" onClick={() => go("aovivo")}><Radio size={15} /> Ver ao vivo</button>
+                <button className="btn" onClick={() => go("agentes")}>Abrir a frota</button>
+              </div>
+            </div>
 
-              {/* fleet strip */}
-              <div className="flex-none">
-                <div className="mono-label mb-2.5">A frota</div>
-                <div className="flex gap-2">
-                  {agents.map((a) => (
-                    <button key={a.id} onClick={() => onOpen(a.id)} title={a.name} className="rounded-xl p-1.5 border card-hover" style={{ borderColor: a.state === "ativo" ? `${a.color}30` : "var(--line)", background: a.state === "ativo" ? `${a.color}0d` : "var(--surface)" }}>
-                      <Robot state={a.state} color={a.color} size={38} />
-                    </button>
-                  ))}
-                </div>
+            {/* fleet strip */}
+            <div className="flex-none">
+              <div className="mono-label mb-2.5">A frota</div>
+              <div className="flex gap-2">
+                {agents.map((a) => (
+                  <button key={a.id} onClick={() => onOpen(a.id)} title={a.name} className="rounded-lg p-1.5 border card-hover" style={{ borderColor: a.state === "ativo" ? `${a.color}30` : "var(--line)", background: a.state === "ativo" ? `${a.color}12` : "rgba(255,255,255,.6)" }}>
+                    <Robot state={a.state} color={a.color} size={40} />
+                  </button>
+                ))}
               </div>
             </div>
           </div>

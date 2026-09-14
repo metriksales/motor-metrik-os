@@ -94,7 +94,7 @@ export default function App() {
 
         {auth.demo ? (
           <button className="w-full flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors p-2.5 mb-4">
-            <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "rgba(224,164,74,.2)", color: "#edc074", border: "1px solid rgba(224,164,74,.4)" }}>{auth.orgInitial}</span>
+            <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "var(--deep)", color: "#fff" }}>{auth.orgInitial}</span>
             <div className="text-left min-w-0 flex-1">
               <div className="text-[13px] font-medium truncate">{auth.orgName}</div>
               <div className="text-[10.5px] text-[var(--txt-3)] truncate">{auth.orgDesc}</div>
@@ -151,8 +151,8 @@ export default function App() {
         <header className="flex-none flex items-center justify-between gap-3 px-4 md:px-7 h-[62px] border-b border-[var(--line)] glass">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* celular: logo = voltar pro Início (âncora de "casa" sempre visível) */}
-            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #e0a44a" }} aria-label="Início">
-              <Gauge size={17} style={{ color: "#0a0714" }} strokeWidth={2.2} />
+            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #1f9d6b" }} aria-label="Início">
+              <Gauge size={17} style={{ color: "#06301f" }} strokeWidth={2.2} />
             </button>
             <div className="min-w-0">
               <h1 className="font-display font-semibold text-[16px] tracking-tight leading-none truncate">{agent ? agent.name : nav.label}</h1>
