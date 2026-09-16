@@ -5,7 +5,7 @@ import {
   ArrowUp, Play, FlaskConical, Rocket, Lightbulb, ThumbsUp, AlertTriangle,
   Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, MessageCircle,
 } from "lucide-react";
-import { type Agent, type AgentState, type Insight, type Upgrade, type Selo, STATE_META, CHAT_EXEMPLOS, SELO_META, conferir } from "../data";
+import { type Agent, type AgentState, type Insight, type Upgrade, type Selo, STATE_META, SELO_META, conferir } from "../data";
 import { Reveal, Pill, Toggle, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
@@ -196,7 +196,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       </div>
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        {sub === "aovivo" && <AoVivoTab agent={agent} onMelhorar={irMelhorar} />}
+        {sub === "aovivo" && <AoVivoTab agent={agent} onMelhorar={irMelhorar} irModulos={() => setSub("comofunciona")} />}
         {sub === "comofunciona" && <ComoFuncionaTab agent={agent} onMelhorar={irMelhorar} />}
         {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} />}
       </motion.div>
@@ -205,7 +205,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
 }
 
 /* ═══════════ LUGAR 1 · AO VIVO — "o que está acontecendo?" ═══════════ */
-function AoVivoTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: string) => void }) {
+function AoVivoTab({ agent, onMelhorar, irModulos }: { agent: Agent; onMelhorar: (seed?: string) => void; irModulos: () => void }) {
   const auth = useMotorAuth();
   const { logs, stats } = useLive();
 
@@ -323,7 +323,7 @@ function AoVivoTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: st
             ) : (
               <>
                 <p className="text-[11.5px] text-[var(--txt-3)] leading-relaxed">Ligado, ele cutuca quem sumiu — e para na hora se o lead responder.</p>
-                <button onClick={() => onMelhorar("Liga o follow-up neste agente: cutucar quem sumiu no meio da conversa, em horário comercial, com no máximo 3 toques, parando se o lead responder. ")} className="text-[11.5px] font-medium mt-2" style={{ color: "var(--cyan)" }}>ligar — passa pelo ensaio →</button>
+                <button onClick={irModulos} className="text-[11.5px] font-semibold mt-2" style={{ color: "var(--violet-2)" }}>ligar em 1 minuto — nos Módulos →</button>
               </>
             )}
           </div>
@@ -342,6 +342,9 @@ function AoVivoTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: st
 
 /* ═══════════ LUGAR 2 · COMO FUNCIONA — "como ele decide?" ═══════════ */
 function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: string) => void }) {
+  // ligar módulo = modal "Como vai funcionar" (canvas): escolhas prontas, prévia, Ativar
+  const [modal, setModal] = useState<Upgrade | null>(null);
+  const naFila = agent.work?.kind === "followups" ? (agent.work.followups?.filter((f) => f.status !== "feito").length ?? 0) : 0;
   const followOn = agent.work?.kind === "followups";
   const agendaOn = agent.work?.kind === "agenda" || (agent.integracoes ?? []).some((i) => /agenda/i.test(i));
   const contratoOn = agent.work?.kind === "contratos";
@@ -399,27 +402,6 @@ function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (see
         </div>
 
         <div className="space-y-4">
-          <div className="card p-4">
-            <div className="mono-label !text-[9px] mb-2.5">Módulos deste robô</div>
-            <div className="space-y-1">
-              {agent.features.map((f) => (
-                <div key={f.name} className="flex items-center gap-2.5 py-1.5 border-b border-[var(--line)] last:border-0">
-                  <f.icon size={14} style={{ color: "var(--violet)" }} className="flex-none" />
-                  <span className="text-[12px] flex-1 min-w-0 truncate">{f.name}</span>
-                  <Pill color={f.on ? "#34d399" : undefined}>{f.on ? "ligado" : "desligado"}</Pill>
-                </div>
-              ))}
-              {(agent.upgrades ?? []).slice(0, 3).map((u) => (
-                <div key={u.name} className="flex items-center gap-2.5 py-1.5 border-b border-[var(--line)] last:border-0">
-                  <u.icon size={14} style={{ color: "var(--txt-4)" }} className="flex-none" />
-                  <span className="text-[12px] text-[var(--txt-3)] flex-1 min-w-0 truncate">{u.name}</span>
-                  <button onClick={() => onMelhorar(`Liga o módulo "${u.name}" neste agente: ${u.blurb} `)} className="text-[10.5px] font-medium flex-none" style={{ color: "var(--cyan)" }}>ligar →</button>
-                </div>
-              ))}
-            </div>
-            <p className="text-[10px] text-[var(--txt-4)] mt-2.5 leading-relaxed">ligar nunca acontece no escuro: vai pro Melhorar, roda o ensaio, e a lente acende aqui.</p>
-          </div>
-
           <div className="card p-4 flex items-start gap-2.5" style={{ borderColor: "#34d39930", background: "linear-gradient(160deg, rgba(52,211,153,.05), var(--surface))" }}>
             <ShieldCheck size={16} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
             <div>
@@ -441,6 +423,47 @@ function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (see
           )}
         </div>
       </div>
+
+      {/* ── MÓDULOS DESTE ROBÔ (canvas): entender numa frase, ligar em 1 minuto ── */}
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-2.5">
+          <div className="mono-label">Módulos deste robô</div>
+          <span className="text-[11px] text-[var(--txt-4)]">liga em 1 minuto — sem digitar</span>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {agent.features.filter((f) => f.on).map((f) => (
+            <div key={f.name} className="card p-4" style={{ borderColor: "rgba(52,211,153,.3)" }}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 min-w-0">
+                  <f.icon size={15} style={{ color: "#34d399" }} className="flex-none" />
+                  <b className="text-[13px] truncate">{f.name}</b>
+                </span>
+                <Pill color="#34d399"><span className="live-dot" style={{ width: 5, height: 5 }} /> ligado</Pill>
+              </div>
+              {/follow/i.test(f.name) && followOn && (
+                <div className="mt-2.5 rounded-[9px] px-3 py-2 text-[11.5px]" style={{ background: "rgba(52,211,153,.06)", border: "1px solid rgba(52,211,153,.22)" }}>
+                  <b>{naFila} na fila</b> · para se o lead responder
+                </div>
+              )}
+            </div>
+          ))}
+          {(agent.upgrades ?? []).map((u) => (
+            <div key={u.name} className="card p-4 flex flex-col" style={{ borderColor: "rgba(224,164,74,.35)", background: "linear-gradient(150deg, rgba(224,164,74,.06), var(--surface))" }}>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="flex items-center gap-2 min-w-0">
+                  <u.icon size={15} style={{ color: "#e0a44a" }} className="flex-none" />
+                  <b className="text-[13px] truncate">{u.name}</b>
+                </span>
+                <span className="mono-label !text-[8px] flex-none" style={{ color: "#edc074" }}>novo</span>
+              </div>
+              <p className="text-[11.5px] text-[var(--txt-3)] leading-relaxed mb-3 flex-1">{u.blurb}</p>
+              <button className="btn btn-primary btn-sm self-start" onClick={() => setModal(u)}>Ligar em 1 minuto <ArrowRight size={13} /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {modal && <LigarModulo agent={agent} u={modal} onClose={() => setModal(null)} />}
     </div>
   );
 }
@@ -912,7 +935,7 @@ const ORIG: Record<string, { label: string; color: string }> = {
 
 type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string };
 type EnvioState = {
-  fase: "idle" | "clarificar" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "erro";
+  fase: "idle" | "clarificar" | "confirmar" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "erro";
   cs?: any;
   evals?: any;
   ensaio?: { modo: "real" | "sem-cerebro"; situacoes: EnsaioSit[] };
@@ -928,9 +951,154 @@ function pedidoVago(t: string): boolean {
   return t.length < 18 || palavras.length < 4;
 }
 
+/* selo redondo do fluxo 1-2-3 (canvas Porta Única) */
+function StepBadge({ n, cor, ativo }: { n: number; cor: string; ativo: boolean }) {
+  return (
+    <span
+      className="grid place-items-center rounded-full flex-none font-mono font-bold text-[15px] mt-1"
+      style={{
+        width: 38,
+        height: 38,
+        background: ativo ? `${cor}1f` : "var(--surface)",
+        border: `1px solid ${ativo ? `${cor}66` : "var(--line)"}`,
+        color: ativo ? cor : "var(--txt-4)",
+      }}
+    >
+      {n}
+    </span>
+  );
+}
+
+/* a linha do tempo da vitrine (demo) — no agente real vem do ledger do Neon */
+const DEMO_HIST: HistRow[] = [
+  { origem: "chat", oque: "“ao negar, oferece outro caminho”", quando: "há 3 dias", estado: "no ar", prova: "guardião 12/12 · nota 9,6", rendeu: "+4 leads voltaram" },
+  { origem: "chat", oque: "“25% de desconto pra quem pedir”", quando: "há 4 dias", estado: "segurada", prova: "passa do teto do núcleo — por isso nada quebra" },
+  { origem: "ajuste", oque: "Follow-up ligado — 3 toques, para se o lead responder", quando: "há 5 dias", estado: "no ar", rendeu: "recuperou 2" },
+  { origem: "metrik", oque: "Tom mais próximo na rota de implementação", quando: "há 1 semana", estado: "no ar", prova: "guardião 8/8 · nota 9,2" },
+];
+type HistRow = { origem: string; oque: string; quando: string; estado: string; prova?: string; rendeu?: string };
+const BADGE_ORIGEM: Record<string, { label: string; cor: string }> = {
+  chat: { label: "VOCÊ", cor: "#edc074" },
+  ajuste: { label: "MÓDULO", cor: "#edc074" },
+  metrik: { label: "METRIK", cor: "#58aae4" },
+  claude: { label: "METRIK", cor: "#58aae4" },
+  codex: { label: "METRIK", cor: "#58aae4" },
+};
+
+/* ── LIGAR MÓDULO em 1 minuto (canvas): escolhas prontas + prévia + Ativar.
+   NADA liga no escuro: real → propor(hub_visual) + ensaio; com cérebro e
+   guardião ✓ publica; sem cérebro registra honesto pra Metrik. ── */
+function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose: () => void }) {
+  const auth = useMotorAuth();
+  const [escolhas, setEscolhas] = useState<Record<number, string>>(
+    () => Object.fromEntries((u.config ?? []).map((c, i) => [i, c.opcoes[0]])),
+  );
+  const [fase, setFase] = useState<"idle" | "rodando" | "ok" | "registrado" | "segurada" | "demo" | "erro">("idle");
+  const [erro, setErro] = useState<string | null>(null);
+
+  const ativar = async () => {
+    const resumo = (u.config ?? []).map((c, i) => `${c.pergunta} ${escolhas[i]}`).join(" · ");
+    const intent = `Ligar o módulo "${u.name}"${resumo ? ` — ${resumo}` : ""}`;
+    if (!agent.real) {
+      setFase("demo");
+      return;
+    }
+    try {
+      setFase("rodando");
+      const cs: any = await api.propor({ agentId: agent.id, origin: "hub_visual", intent, patch: { modulo: u.name, escolhas } }, auth.getToken);
+      const r: any = await api.avaliar(cs.id, auth.getToken);
+      if (r?.ensaio?.modo === "real" && r?.evals?.aprovado) {
+        await api.publicarMudanca(cs.id, auth.getToken);
+        setFase("ok");
+      } else if (r?.evals && r.evals.aprovado === false) {
+        setFase("segurada");
+      } else {
+        setFase("registrado");
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "não consegui registrar");
+      setFase("erro");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(6,8,12,.6)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#151a24", border: "1px solid rgba(224,164,74,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.8)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div>
+            <div className="mono-label !text-[9px]" style={{ color: "#edc074" }}>Ligar · {u.name}</div>
+            <div className="font-display font-bold text-[16px] tracking-tight mt-1">
+              {(u.config?.length ?? 0) > 0 ? `${u.config!.length} ${u.config!.length === 1 ? "escolha" : "escolhas"} — já vem pronto` : "Já vem pronto"}
+            </div>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost btn-sm !p-1.5 flex-none"><X size={15} /></button>
+        </div>
+
+        {fase === "idle" || fase === "rodando" || fase === "erro" ? (
+          <>
+            <div className="space-y-3 mt-4">
+              {(u.config ?? []).map((c, i) => (
+                <div key={i}>
+                  <div className="text-[11px] text-[var(--txt-3)] mb-1.5">{c.pergunta}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.opcoes.map((o) => {
+                      const sel = escolhas[i] === o;
+                      return (
+                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[11.5px] rounded-lg px-3 py-1.5 transition-colors" style={sel ? { background: "#e0a44a", color: "#0c0f15", fontWeight: 600 } : { border: "1px solid var(--line-hi)", color: "var(--txt-2)" }}>
+                          {o}{sel ? " ✓" : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-xl px-3.5 py-3 mt-4" style={{ background: "rgba(224,164,74,.08)", border: "1px solid rgba(224,164,74,.3)" }}>
+              <p className="text-[12.5px] leading-relaxed m-0">{u.resultado ?? u.blurb}</p>
+            </div>
+            {fase === "erro" && <div className="text-[11.5px] mt-3" style={{ color: "#fb7185" }}>{erro}</div>}
+            <div className="flex items-center gap-2.5 mt-4">
+              <button onClick={() => void ativar()} disabled={fase === "rodando"} className="btn btn-primary">
+                {fase === "rodando" ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Ativar
+              </button>
+              <button onClick={onClose} className="btn">depois</button>
+            </div>
+            <p className="text-[10px] text-[var(--txt-4)] mt-3 leading-relaxed m-0">o ensaio roda antes de valer — se quebrar uma trava, não liga.</p>
+          </>
+        ) : fase === "ok" ? (
+          <div className="mt-4">
+            <div className="flex items-center gap-2.5 text-[14px] font-medium"><Check size={17} style={{ color: "#34d399" }} /> Ligado — no ar.</div>
+            <p className="text-[12px] text-[var(--txt-3)] mt-1.5">Passou no guardião e já está valendo. Ficou registrado no histórico.</p>
+            <button onClick={onClose} className="btn btn-primary btn-sm mt-4">Beleza</button>
+          </div>
+        ) : fase === "segurada" ? (
+          <div className="mt-4">
+            <div className="flex items-center gap-2.5 text-[14px] font-medium" style={{ color: "#fb7185" }}><ShieldCheck size={17} /> O guardião segurou.</div>
+            <p className="text-[12px] text-[var(--txt-3)] mt-1.5">Essa configuração encostaria numa trava do núcleo — por isso não ligou. Está no histórico.</p>
+            <button onClick={onClose} className="btn btn-sm mt-4">Entendi</button>
+          </div>
+        ) : fase === "registrado" ? (
+          <div className="mt-4">
+            <div className="flex items-center gap-2.5 text-[14px] font-medium" style={{ color: "#fbbf24" }}><Clock size={17} /> Registrado — a Metrik liga com segurança.</div>
+            <p className="text-[12px] text-[var(--txt-3)] mt-1.5">Sem o cérebro ligado aqui, não dá pra provar sozinho que funciona — então o pedido ficou no histórico pra Metrik ativar com o ensaio de verdade.</p>
+            <button onClick={onClose} className="btn btn-primary btn-sm mt-4">Beleza</button>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <div className="flex items-center gap-2.5 text-[14px] font-medium" style={{ color: "#fbbf24" }}><Sparkles size={17} /> Modo demonstração.</div>
+            <p className="text-[12px] text-[var(--txt-3)] mt-1.5">No agente real, isto registra a mudança, roda o ensaio e só liga com o guardião aprovando.</p>
+            <button onClick={onClose} className="btn btn-sm mt-4">Entendi</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: string | null }) {
   const auth = useMotorAuth();
   const [gravando, setGravando] = useState(false);
+  const [verHist, setVerHist] = useState(false);
   // veio do Diário? o caso já chega ESCRITO no campo (o cliente completa o "Deveria:")
   const [texto, setTexto] = useState(initialTexto ?? "");
   const veioDoDiario = !!initialTexto;
@@ -951,17 +1119,24 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.id, envio.fase]);
 
-  // pedir → (se vago, o professor PERGUNTA) → registra → ensaia → antes/agora
-  const enviar = async (forcar = false) => {
+  // o fluxo 1-2-3 do canvas: fala (1) → ela confirma (2) → ensaio e prova (3).
+  // "Manda" NUNCA muda nada sozinho: vago → o professor pergunta; claro → passo 2.
+  const enviar = (forcar = false) => {
     const t = texto.trim();
     if (!t || envio.fase === "registrando" || envio.fase === "ensaiando") return;
-    // PROFESSOR: pedido vago não vira "teste 4/4" no escuro — ele pergunta primeiro.
     if (!forcar && pedidoVago(t)) {
       setEnvio({ fase: "clarificar", pedido: t });
       return;
     }
+    setEnvio({ fase: "confirmar", pedido: t });
+  };
+
+  // passo 2 → "É isso" → registra + ensaia (passo 3)
+  const rodarEnsaio = async () => {
+    const t = envio.pedido ?? texto.trim();
+    if (!t) return;
     if (!agent.real) {
-      setEnvio({ fase: "erro", erro: "modo demo — com o agente real, o pedido entra no histórico único, passa no guardião e você vê o ensaio antes/agora" });
+      setEnvio({ fase: "erro", pedido: t, erro: "modo demo — com o agente real, o pedido entra no histórico único, passa no guardião e você vê o ensaio antes/agora" });
       return;
     }
     try {
@@ -1005,6 +1180,50 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
   // pendência da vitrine: a pergunta que ela não soube — 1 clique já semeia o campo
   const pendencia = auth.demo && agent.tipo === "resposta" ? "Vocês parcelam em quantas vezes?" : null;
 
+  // A LINHA DO TEMPO GRANDE (canvas): o histórico é a prova do produto.
+  const linhas: HistRow[] = histReal ?? (auth.demo ? DEMO_HIST : []);
+  const nAr = linhas.filter((h) => h.estado === "no ar").length;
+  const nSeg = linhas.filter((h) => h.estado === "segurada" || h.estado === "rejeitado").length;
+  const nSuas = linhas.filter((h) => h.origem === "chat" || h.origem === "ajuste").length;
+  const nMet = linhas.length - nSuas;
+
+  if (verHist) {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setVerHist(false)} className="btn btn-ghost btn-sm !px-2"><ArrowLeft size={15} /> Melhorar</button>
+        <div className="flex items-end justify-between gap-5 flex-wrap">
+          <h3 className="font-display text-[24px] font-bold tracking-tight m-0">Tudo que {agent.name} <span className="grad-text">já aprendeu</span></h3>
+          <div className="flex gap-6 text-right">
+            <div><div className="num text-[24px] leading-none">{nAr}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">no ar</div></div>
+            <div><div className="num text-[24px] leading-none" style={{ color: "#edc074" }}>{nSuas}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">suas</div></div>
+            <div><div className="num text-[24px] leading-none" style={{ color: "#58aae4" }}>{nMet}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">da Metrik</div></div>
+            <div><div className="num text-[24px] leading-none" style={{ color: nSeg > 0 ? "#fb7185" : "#34d399" }}>{nSeg}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">seguradas 🛡</div></div>
+          </div>
+        </div>
+        <div className="card px-5">
+          {linhas.length === 0 && <p className="text-[12.5px] text-[var(--txt-3)] py-5">A primeira mudança que você pedir aparece aqui — com a prova.</p>}
+          {linhas.map((h, i) => {
+            const b = BADGE_ORIGEM[h.origem] ?? BADGE_ORIGEM.chat;
+            const segurada = h.estado === "segurada" || h.estado === "rejeitado";
+            const ec = h.estado === "no ar" ? "#34d399" : segurada ? "#fb7185" : "#fbbf24";
+            return (
+              <div key={i} className="flex items-center gap-4 py-3.5 border-b border-[var(--line)] last:border-0">
+                <span className="grid place-items-center rounded-[7px] flex-none text-[10px] font-bold" style={{ width: 66, height: 24, background: `${segurada ? "#fb7185" : b.cor}1f`, border: `1px solid ${segurada ? "#fb7185" : b.cor}55`, color: segurada ? "#fb7185" : b.cor }}>{b.label}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-medium leading-snug">{h.oque}</div>
+                  <div className="text-[10.5px] mt-0.5" style={{ color: segurada ? "#fb7185" : "var(--txt-4)" }}>{[h.quando, h.prova].filter(Boolean).join(" · ")}</div>
+                </div>
+                {h.rendeu && <span className="text-[10.5px] font-semibold rounded-[7px] px-2.5 py-1 flex-none hidden sm:block" style={{ color: "#34d399", background: "rgba(52,211,153,.08)" }}>{h.rendeu}</span>}
+                <span className="pill flex-none" style={{ color: ec, borderColor: `${ec}40`, background: `${ec}14` }}>{segurada ? "segurada 🛡" : h.estado === "no ar" ? "no ar ✓" : h.estado}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-[var(--txt-4)] text-center m-0">toda porta cai nesta linha do tempo — nada duplica, nada no escuro.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
       <div className="space-y-4 min-w-0">
@@ -1015,69 +1234,95 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
         </div>
       )}
 
-      {/* ── PEDIR: campo livre (chip preenche o campo; áudio vira texto) ── */}
-      {envio.fase === "idle" || envio.fase === "clarificar" || envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "erro" ? (
-        <div className="card p-5">
-          <div className="mono-label mb-3">Peça do seu jeito — escreva ou fale</div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {CHAT_EXEMPLOS.map((c) => (
-              <button key={c} onClick={() => setTexto(c)} className="chip">{c}</button>
-            ))}
-          </div>
-          <div className="melhorar-campo flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 transition-colors" style={gravando ? { borderColor: "#fb718560" } : undefined}>
-            <textarea
-              rows={2}
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(); } }}
-              placeholder={gravando ? "gravando o áudio…" : `Ex: quando o lead perguntar sobre prazo do auxílio-doença, explica que dá pra pedir em até 30 dias…`}
-              className="flex-1 bg-transparent resize-none px-2 py-1.5 text-[13.5px] outline-none placeholder:text-[var(--txt-4)]"
-            />
-            <button onClick={() => setGravando((g) => !g)} title="Falar em vez de digitar (vira texto)" className={cx("btn !p-2.5 !rounded-xl flex-none", gravando && "!border-[#fb7185]")}>
-              {gravando ? <span className="live-dot" style={{ width: 12, height: 12, background: "#fb7185" }} /> : <Mic size={16} />}
+      {/* ── PASSO 1 · fala ou escreve, do seu jeito (canvas Porta Única) ── */}
+      <div className="flex gap-3.5">
+        <StepBadge n={1} cor="#e0a44a" ativo={envio.fase === "idle" || envio.fase === "clarificar"} />
+        <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "rgba(224,164,74,.3)", background: "linear-gradient(150deg, rgba(224,164,74,.06), var(--surface))" }}>
+          <div className="font-display font-bold text-[16px] tracking-tight mb-3">Fala ou escreve — <span className="grad-text">do seu jeito</span></div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setGravando((g) => !g)}
+              title={gravando ? "parar — o áudio vira texto no campo" : "falar em vez de digitar"}
+              className="grid place-items-center rounded-full flex-none transition-transform hover:scale-105"
+              style={{ width: 54, height: 54, background: gravando ? "#fb7185" : "var(--grad)", boxShadow: gravando ? "0 0 0 5px rgba(251,113,133,.18)" : "0 12px 26px -14px rgba(224,164,74,.7)" }}
+            >
+              <Mic size={22} style={{ color: "#0c0f15" }} />
             </button>
-            <button onClick={() => void enviar()} disabled={!texto.trim() || envio.fase === "registrando" || envio.fase === "ensaiando"} className="btn btn-primary !px-4 !py-2.5 !rounded-xl flex-none">
-              {envio.fase === "registrando" || envio.fase === "ensaiando" ? <Loader2 size={16} className="animate-spin" /> : <><FlaskConical size={15} /> Ensaiar</>}
+            <div className="melhorar-campo flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 transition-colors flex-1 min-w-0" style={gravando ? { borderColor: "#fb718560" } : undefined}>
+              <textarea
+                rows={2}
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                placeholder={gravando ? "gravando o áudio…" : `ó, quando perguntarem de parcelamento fala que é 12x no cartão…`}
+                className="flex-1 bg-transparent resize-none px-2 py-1.5 text-[13.5px] outline-none placeholder:text-[var(--txt-4)]"
+              />
+            </div>
+            <button onClick={() => enviar()} disabled={!texto.trim() || envio.fase === "registrando" || envio.fase === "ensaiando"} className="btn btn-primary !px-5 flex-none" style={{ height: 46 }}>
+              Manda
             </button>
           </div>
           {gravando ? (
-            <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: "#fb7185" }}>
-              <span className="live-dot" style={{ width: 6, height: 6, background: "#fb7185" }} /> gravando… fale a mudança e toque no microfone — vira texto no campo
+            <div className="text-[11px] mt-2.5 flex items-center gap-1.5" style={{ color: "#fb7185" }}>
+              <span className="live-dot" style={{ width: 6, height: 6, background: "#fb7185" }} /> gravando… fale e toque no microfone — vira texto no campo
             </div>
           ) : (
-            <div className="flex items-center gap-2 mt-3 text-[11.5px] text-[var(--txt-4)]">
-              <ShieldCheck size={13} style={{ color: "#34d399" }} /> quanto mais claro o pedido, melhor o ensaio — diga o que a IA passa a fazer e em que momento
-            </div>
+            <div className="text-[10.5px] text-[var(--txt-4)] mt-2.5">bagunçado serve · áudio vira texto na hora · o núcleo é blindado</div>
           )}
 
-          {/* PROFESSOR: pedido vago → ele pergunta, não finge que testou */}
-          {envio.fase === "clarificar" && (
-            <div className="mt-3 rounded-xl p-4" style={{ border: "1px solid #58aae440", background: "rgba(88,170,228,.07)" }}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <MessageCircle size={15} style={{ color: "#58aae4" }} />
-                <span className="text-[13px] font-medium text-[var(--txt)]">Me conta um pouco mais pra eu entender</span>
-              </div>
-              <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed">
-                Você escreveu <b className="text-[var(--txt)]">“{envio.pedido}”</b> — só isso ainda não me diz o que mudar. O que a IA
-                <b className="text-[var(--txt)]"> passa a fazer</b>, e <b className="text-[var(--txt)]">em que momento</b>? Por exemplo:
-                <i> “quando o lead perguntar sobre prazo, responder que dá pra pedir em até 30 dias”</i>, ou
-                <i> “passa a saber que o plano Start custa R$ 497 e oferece quando perguntarem preço”</i>.
-              </p>
-              <p className="text-[11.5px] text-[var(--txt-4)] mt-2">Escreve com esse detalhe no campo acima e manda de novo.</p>
-            </div>
-          )}
+        </div>
+      </div>
 
+      {/* ── PASSO 2 · ela confirma o que entendeu — nada muda no escuro ── */}
+      <div className="flex gap-3.5">
+        <StepBadge n={2} cor="#58aae4" ativo={envio.fase === "confirmar" || envio.fase === "clarificar"} />
+        {envio.fase === "confirmar" ? (
+          <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "#58aae440" }}>
+            <div className="text-[12px] font-semibold mb-2" style={{ color: "#58aae4" }}>Ela confirma o que entendeu</div>
+            <p className="text-[14px] leading-relaxed m-0">Você quer que ela passe a fazer: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
+            <div className="flex items-center gap-2.5 mt-4 flex-wrap">
+              <button className="btn btn-primary" onClick={() => void rodarEnsaio()}>É isso — roda o ensaio</button>
+              <button className="btn" onClick={() => setEnvio({ fase: "idle" })}>Não — escrevo de novo</button>
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] text-[var(--txt-4)] ml-auto"><Lock size={11} /> o núcleo continua blindado</span>
+            </div>
+          </div>
+        ) : envio.fase === "clarificar" ? (
+          <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "#58aae440", background: "rgba(88,170,228,.05)" }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <MessageCircle size={15} style={{ color: "#58aae4" }} />
+              <span className="text-[13px] font-medium text-[var(--txt)]">Me conta um pouco mais pra eu entender</span>
+            </div>
+            <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed m-0">
+              Você mandou <b className="text-[var(--txt)]">“{envio.pedido}”</b> — só isso não me diz o que mudar. O que ela
+              <b className="text-[var(--txt)]"> passa a fazer</b>, e <b className="text-[var(--txt)]">em que momento</b>?
+              Ex.: <i>“quando perguntarem prazo, responder que dá pra pedir em até 30 dias”</i>.
+            </p>
+          </div>
+        ) : (
+          <div className="card p-4 flex-1 min-w-0" style={{ opacity: 0.45 }}>
+            <div className="text-[12.5px] text-[var(--txt-3)]">Ela confirma o que entendeu — antes de qualquer mudança</div>
+          </div>
+        )}
+      </div>
+
+      {/* ── PASSO 3 · a prova (ensaio) e o publicar ── */}
+      <div className="flex gap-3.5">
+        <StepBadge n={3} cor="#34d399" ativo={envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "erro"} />
+        <div className="flex-1 min-w-0 space-y-4">
           {(envio.fase === "registrando" || envio.fase === "ensaiando") && (
-            <div className="mt-3 flex items-center gap-2 text-[12.5px] text-[var(--txt-2)]">
-              <Loader2 size={14} className="animate-spin" style={{ color: "#e0a44a" }} />
-              {envio.fase === "registrando" ? "anotando o seu pedido…" : "montando o ensaio — a IA respondendo antes e depois da mudança…"}
+            <div className="card p-5 flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
+              <Loader2 size={15} className="animate-spin" style={{ color: "#e0a44a" }} />
+              {envio.fase === "registrando" ? "anotando o pedido…" : "ensaio rodando — ela respondendo antes e depois…"}
             </div>
           )}
           {envio.fase === "erro" && (
-            <div className="mt-3 rounded-xl p-3 text-[12.5px]" style={{ border: "1px solid #fb718540", background: "rgba(251,113,133,.07)", color: "#fb7185" }}>{envio.erro}</div>
+            <div className="card p-4 text-[12.5px]" style={{ borderColor: "#fb718540", background: "rgba(251,113,133,.06)", color: "#fb7185" }}>{envio.erro}</div>
           )}
-        </div>
-      ) : null}
+          {!(envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "erro") && (
+            <div className="card p-4" style={{ opacity: 0.45 }}>
+              <div className="text-[12.5px] text-[var(--txt-3)]">Vê a prova — antes ✗ / agora ✓ — e publica</div>
+            </div>
+          )}
 
       {/* ── ENSAIO: a simulação claríssima — antes vs agora + guardião ── */}
       {envio.fase === "pronto" && envio.evals && (
@@ -1190,6 +1435,8 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
           </div>
         </Reveal>
       )}
+        </div>
+      </div>
 
       </div>
 
@@ -1203,36 +1450,29 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
               <div className="text-[10.5px] text-[var(--txt-4)] mt-1">ontem, 19:40 · com Carlos Mendes — ela pediu um tempo pra confirmar</div>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => setTexto(`Quando perguntarem “${pendencia}”, responde: `)}>
-              <Wand2 size={13} /> Ensinar em 30 segundos
+              <Mic size={13} /> Responder — 30s
             </button>
-            <p className="text-[10.5px] mt-2.5 leading-relaxed" style={{ color: "#f2cf86" }}>você responde uma vez → ela nunca mais fica sem essa resposta.</p>
+            <p className="text-[10.5px] mt-2.5 leading-relaxed" style={{ color: "#f2cf86" }}>você responde uma vez → ela nunca mais fica sem.</p>
           </div>
         )}
 
         <div className="card p-4">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="mono-label !text-[9px]">Histórico — tudo que mudou</div>
-            {histReal && <span className="pill" style={{ color: "var(--emerald)" }}>dado real ✓</span>}
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <div className="mono-label !text-[9px]">Mudanças</div>
+            <span className="text-[10px] text-[var(--txt-4)]">{nAr} no ar{emPreparo > 0 ? ` · ${emPreparo} em preparo` : ""}{nSeg > 0 ? ` · ${nSeg} seguradas` : ""}</span>
           </div>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="pill" style={{ color: "#34d399", borderColor: "#34d39940", background: "#34d39914" }}>{hist.filter((h) => h.estado === "no ar").length} no ar</span>
-            <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>{emPreparo} em preparo</span>
-            <span className="pill">{hist.filter((h) => h.estado === "ignorado").length} não precisou</span>
-          </div>
-          {hist.length === 0 && <p className="text-[11.5px] text-[var(--txt-3)]">A primeira mudança que você pedir aparece aqui.</p>}
-          <ul>
-            {hist.slice(0, 6).map((h, i) => {
-              const o = ORIG[h.origem] ?? ORIG.chat;
-              const ec = h.estado === "no ar" ? "#34d399" : ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado) ? "#fbbf24" : "#83879a";
-              return (
-                <li key={i} className="py-2 border-b border-[var(--line)] last:border-0">
-                  <div className="text-[11.5px] leading-snug"><b style={{ color: o.color }}>{o.label}</b>{h.quando ? <span className="text-[var(--txt-4)]"> · {h.quando}</span> : null}: <span className="text-[var(--txt-2)]">{h.oque}</span></div>
-                  <span className="pill mt-1.5" style={{ color: ec, borderColor: `${ec}40`, background: `${ec}14` }}>{h.estado}</span>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-[10px] text-[var(--txt-4)] mt-2.5 leading-relaxed">qualquer porta — aqui, um módulo, ou o Claude Code — cai neste mesmo histórico. Nada duplica, nada se perde.</p>
+          {linhas.length === 0 && <p className="text-[11.5px] text-[var(--txt-3)]">A primeira mudança que você pedir aparece aqui.</p>}
+          {linhas.slice(0, 3).map((h, i) => {
+            const segurada = h.estado === "segurada" || h.estado === "rejeitado";
+            const ec = h.estado === "no ar" ? "#34d399" : segurada ? "#fb7185" : "#fbbf24";
+            return (
+              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-[var(--line)] last:border-0 text-[11.5px]">
+                <span className="flex-1 min-w-0 truncate text-[var(--txt-2)]">{h.oque}</span>
+                <span className="text-[9.5px] font-semibold flex-none" style={{ color: ec }}>{segurada ? "segurada 🛡" : h.estado === "no ar" ? "no ar ✓" : h.estado}</span>
+              </div>
+            );
+          })}
+          <button onClick={() => setVerHist(true)} className="text-[11.5px] font-semibold mt-2.5" style={{ color: "var(--violet-2)" }}>ver a linha do tempo →</button>
         </div>
       </div>
     </div>
