@@ -18,11 +18,18 @@ import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo, useLive } from "../lib/live";
 
-type Sub = "trabalho" | "aovivo" | "conversas" | "followup" | "mudancas" | "logs" | "estrutura" | "melhorar";
+// 3 LUGARES (redesign aprovado no canvas "Agente por Dentro"): VER · ENTENDER · MELHORAR.
+type Sub = "aovivo" | "comofunciona" | "melhorar";
+/** aceita deep-links antigos (estrutura/trabalho/logs…) e mapeia pros 3 lugares */
+function normalizeSub(s?: string): Sub {
+  if (s === "melhorar") return "melhorar";
+  if (s === "estrutura" || s === "comofunciona" || s === "mudancas") return "comofunciona";
+  return "aovivo";
+}
 
-export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: Sub }) {
+export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: string }) {
   const auth = useMotorAuth();
-  const [sub, setSub] = useState<Sub>(initialSub ?? "aovivo");
+  const [sub, setSub] = useState<Sub>(normalizeSub(initialSub));
   // quando o cliente clica "Melhorar isto" num erro do Diário (ou num insight),
   // o caso já vai ESCRITO pro Melhorar — a única porta de mudança.
   const [melhorarSeed, setMelhorarSeed] = useState<string | null>(null);
@@ -63,24 +70,11 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
     }
   };
   const alerta = (agent.fluxo ?? []).some((p) => p.status === "falha") || (agent.insights ?? []).some((i) => i.tipo === "critico");
-  const workIconMap: Record<string, any> = { agenda: CalendarClock, followups: Repeat, contratos: FileSignature, conhecimento: BookOpen, acoes: Zap, lista: ListChecks };
-  // Cada aba com UMA finalidade: O que faz (ler o processo) · Mudanças (observar
-  // o que entrou) · Trabalho (a superfície dele) · Logs · Turbinar · Melhorar.
+  // 3 LUGARES: Ao vivo (ver) · Como funciona (entender) · Melhorar (a porta única).
   const nMud = nReal > 0 ? nReal : (agent.mapa?.mudancas?.length ?? 0);
   const subs: { id: Sub; label: string; icon: any; badge?: number }[] = [
-    { id: "aovivo", label: "O que faz", icon: Radio },
-    // o KIT do robô de resposta: as conversas DELE + o follow como MÓDULO
-    // (desligado continua à vista — a aba mostra o caminho de ligar)
-    ...(agent.tipo === "resposta"
-      ? [
-          { id: "conversas" as Sub, label: "Conversas", icon: MessageCircle },
-          { id: "followup" as Sub, label: "Follow-up", icon: Repeat },
-        ]
-      : []),
-    ...(nMud > 0 ? [{ id: "mudancas" as Sub, label: "Mudanças", icon: Sparkles, badge: nMud }] : []),
-    ...(agent.work ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }] : []),
-    { id: "logs", label: "Diário", icon: ScrollText },
-    { id: "estrutura", label: "Turbinar", icon: Zap },
+    { id: "aovivo", label: "Ao vivo", icon: Radio },
+    { id: "comofunciona", label: "Como funciona", icon: BookOpen, badge: nMud > 0 ? nMud : undefined },
     { id: "melhorar", label: "Melhorar", icon: Wand2 },
   ];
 
@@ -154,15 +148,218 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       </div>
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        {sub === "trabalho" && agent.work && <WorkTab agent={agent} onMelhorar={() => irMelhorar()} />}
-        {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => irMelhorar()} />}
-        {sub === "conversas" && <Conversas agent={agent} />}
-        {sub === "followup" && <Followup agent={agent} onTurbinar={() => setSub("estrutura")} />}
-        {sub === "mudancas" && agent.mapa && <MudancasTab agent={agent} />}
-        {sub === "logs" && <LogsTab agent={agent} onCorrigir={irMelhorar} />}
-        {sub === "estrutura" && <Turbinar agent={agent} onMelhorar={() => irMelhorar()} />}
+        {sub === "aovivo" && <AoVivoTab agent={agent} onMelhorar={irMelhorar} />}
+        {sub === "comofunciona" && <ComoFuncionaTab agent={agent} onMelhorar={irMelhorar} />}
         {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} />}
       </motion.div>
+    </div>
+  );
+}
+
+/* ═══════════ LUGAR 1 · AO VIVO — "o que está acontecendo?" ═══════════ */
+function AoVivoTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: string) => void }) {
+  const auth = useMotorAuth();
+  const { logs, stats } = useLive();
+
+  // placar do dia (selos conferidos na hora — a mesma honestidade do Diário)
+  const doFluxo = (agent.fluxo ?? []).filter((p) => p.status === "ok").map((p) => ({ t: "1 h", acao: `Concluiu: ${p.label}`, status: "ok" as const }));
+  const locais = [...agent.live, ...doFluxo].filter((l) => l.status !== "run").map((r) => ({ ...r, conf: conferir(r) }));
+  const temConf = locais.some((l) => (l as { conferencia?: unknown }).conferencia != null);
+  const cont = (s: Selo) => locais.filter((l) => l.conf.veredito === s).length;
+  const meu = agent.real ? stats?.porAgente?.[agent.id] : undefined;
+  const meuUltimo = agent.real ? (logs ?? []).find((l) => l.agentId === agent.id) : undefined;
+  const execsHoje = meu?.execucoes ?? agent.metrics.execucoes;
+  const falhas = temConf ? cont("falhou") : meu ? meu.execucoes - meu.acertos : agent.metrics.erros;
+  const agora = agent.real
+    ? meuUltimo
+      ? `há ${tempoRelativo(meuUltimo.at)} — ${meuUltimo.resumo}`
+      : "de plantão — aguardando o próximo lead"
+    : agent.state === "ativo"
+      ? agent.agora
+      : "em espera — nada rodando";
+
+  const followOn = agent.work?.kind === "followups";
+  const naFila = agent.work?.followups?.filter((f) => f.status !== "feito").length ?? 0;
+
+  return (
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
+      <div className="space-y-4 min-w-0">
+        {auth.demo && agent.tipo === "resposta" && (
+          <div className="card p-4 flex items-center gap-3.5" style={{ borderColor: "#fbbf2440", background: "linear-gradient(160deg, rgba(251,191,36,.08), var(--surface))" }}>
+            <span className="grid place-items-center rounded-full flex-none font-semibold text-[15px]" style={{ width: 40, height: 40, background: "var(--deep)", color: "#fff" }}>P</span>
+            <div className="min-w-0 flex-1">
+              <div className="mono-label !text-[9px]" style={{ color: "#b8860b" }}>Esperando você · 1</div>
+              <div className="text-[13.5px] font-medium mt-0.5">Dr. Paulo pediu um humano <span className="text-[var(--txt-3)] font-normal text-[12px]">· há 8 min · a IA está segurando com educação — abra a conversa abaixo</span></div>
+            </div>
+          </div>
+        )}
+
+        {agent.tipo === "resposta" ? <Conversas agent={agent} /> : agent.work ? <WorkTab agent={agent} onMelhorar={() => onMelhorar()} /> : null}
+        {agent.tipo === "resposta" && agent.work && agent.work.kind !== "conhecimento" && (
+          <WorkTab agent={agent} onMelhorar={() => onMelhorar()} />
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <div className="card p-4 flex items-center gap-3">
+          <span className="live-dot flex-none" style={{ width: 9, height: 9 }} />
+          <div className="min-w-0 flex-1">
+            <div className="mono-label !text-[9px] mb-0.5">Agora</div>
+            <div className="text-[12.5px] text-[var(--txt)] leading-snug">{agora}</div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="mono-label !text-[9px]">O dia · conferido na hora</div>
+            <span className="tick">{execsHoje} hoje</span>
+          </div>
+          {temConf ? (
+            <div className="space-y-1.5">
+              {(["seguiu", "segurou", "conversou", "falhou"] as Selo[]).map((s) => {
+                const m = SELO_META[s];
+                return (
+                  <div key={s} className="flex items-center gap-2.5">
+                    <span className="num text-[13.5px] w-5 text-right flex-none" style={{ color: m.cor }}>{cont(s)}</span>
+                    <span className="text-[12px] text-[var(--txt-2)]">{FECHO_LBL[s]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[12.5px] text-[var(--txt-2)]">
+              {falhas > 0 ? <>Peguei <b style={{ color: "#fb7185" }}>{falhas}</b> que {falhas === 1 ? "falhou" : "falharam"}.</> : <>Nenhuma falha hoje.</>}
+            </p>
+          )}
+          {falhas > 0 && (
+            <button onClick={() => onMelhorar()} className="text-[11.5px] font-medium mt-2.5" style={{ color: "var(--cyan)" }}>corrigir no Melhorar →</button>
+          )}
+          <p className="text-[10px] text-[var(--txt-4)] mt-2.5 leading-relaxed">contado na hora, um por atendimento — sem nota por linha.</p>
+        </div>
+
+        {agent.tipo === "resposta" && (
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="mono-label !text-[9px]">Follow-up · módulo</div>
+              {followOn ? (
+                <Pill color="#34d399"><span className="live-dot" style={{ width: 5, height: 5 }} /> ligado</Pill>
+              ) : (
+                <Pill>desligado</Pill>
+              )}
+            </div>
+            {followOn ? (
+              <>
+                <div className="text-[12.5px] font-medium">{naFila} na fila</div>
+                <p className="text-[10.5px] text-[var(--txt-4)] mt-1 leading-relaxed">horário comercial · máx. 3 toques · para se o lead responder</p>
+              </>
+            ) : (
+              <>
+                <p className="text-[11.5px] text-[var(--txt-3)] leading-relaxed">Ligado, ele cutuca quem sumiu — e para na hora se o lead responder.</p>
+                <button onClick={() => onMelhorar("Liga o follow-up neste agente: cutucar quem sumiu no meio da conversa, em horário comercial, com no máximo 3 toques, parando se o lead responder. ")} className="text-[11.5px] font-medium mt-2" style={{ color: "var(--cyan)" }}>ligar — passa pelo ensaio →</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {auth.demo && (
+          <div className="card p-3.5 flex items-start gap-2.5" style={{ borderColor: "#34d39930" }}>
+            <ShieldCheck size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+            <p className="text-[11px] text-[var(--txt-2)] leading-relaxed"><b className="text-[var(--txt)]">WhatsApp conectado.</b> Se cair, esta tela vira o alarme — e te avisamos no número reserva.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════ LUGAR 2 · COMO FUNCIONA — "como ele decide?" ═══════════ */
+function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: string) => void }) {
+  const followOn = agent.work?.kind === "followups";
+  const agendaOn = agent.work?.kind === "agenda" || (agent.integracoes ?? []).some((i) => /agenda/i.test(i));
+  const contratoOn = agent.work?.kind === "contratos";
+
+  const lentes: { label: string; estado: "nucleo" | "on" | "off" }[] =
+    agent.tipo === "acao"
+      ? [{ label: "O que faz", estado: "nucleo" }]
+      : [
+          { label: "Como conversa", estado: "nucleo" },
+          { label: "Como recupera (follow-up)", estado: followOn ? "on" : "off" },
+          { label: "Como marca reunião", estado: agendaOn ? "on" : "off" },
+          { label: "Como fecha contrato", estado: contratoOn ? "on" : "off" },
+        ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 flex-wrap">
+        {lentes.map((l) => (
+          <span
+            key={l.label}
+            className="inline-flex items-center gap-2 text-[12px] px-3.5 py-2 rounded-[9px]"
+            style={
+              l.estado === "nucleo"
+                ? { background: "rgba(62,207,142,.12)", border: "1px solid var(--violet-2)", color: "var(--txt)", fontWeight: 600 }
+                : l.estado === "on"
+                  ? { background: "var(--surface)", border: "1px solid var(--line)", color: "var(--txt-2)" }
+                  : { background: "var(--surface-2)", border: "1px dashed var(--line-hi)", color: "var(--txt-4)" }
+            }
+          >
+            {l.label}
+            <span className="mono-label !text-[8px]" style={{ letterSpacing: ".08em" }}>
+              {l.estado === "nucleo" ? "núcleo" : l.estado === "on" ? "módulo · ligado" : "desligado"}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
+        <div className="space-y-4 min-w-0">
+          {agent.mapa ? <MapaTab agent={agent} /> : agent.fluxo ? <MapaAcao agent={agent} onMelhorar={() => onMelhorar()} /> : null}
+          {agent.work?.kind === "conhecimento" && <WorkTab agent={agent} onMelhorar={() => onMelhorar()} />}
+        </div>
+
+        <div className="space-y-4">
+          <div className="card p-4">
+            <div className="mono-label !text-[9px] mb-2.5">Módulos deste robô</div>
+            <div className="space-y-1">
+              {agent.features.map((f) => (
+                <div key={f.name} className="flex items-center gap-2.5 py-1.5 border-b border-[var(--line)] last:border-0">
+                  <f.icon size={14} style={{ color: "var(--violet)" }} className="flex-none" />
+                  <span className="text-[12px] flex-1 min-w-0 truncate">{f.name}</span>
+                  <Pill color={f.on ? "#34d399" : undefined}>{f.on ? "ligado" : "desligado"}</Pill>
+                </div>
+              ))}
+              {(agent.upgrades ?? []).slice(0, 3).map((u) => (
+                <div key={u.name} className="flex items-center gap-2.5 py-1.5 border-b border-[var(--line)] last:border-0">
+                  <u.icon size={14} style={{ color: "var(--txt-4)" }} className="flex-none" />
+                  <span className="text-[12px] text-[var(--txt-3)] flex-1 min-w-0 truncate">{u.name}</span>
+                  <button onClick={() => onMelhorar(`Liga o módulo "${u.name}" neste agente: ${u.blurb} `)} className="text-[10.5px] font-medium flex-none" style={{ color: "var(--cyan)" }}>ligar →</button>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-[var(--txt-4)] mt-2.5 leading-relaxed">ligar nunca acontece no escuro: vai pro Melhorar, roda o ensaio, e a lente acende aqui.</p>
+          </div>
+
+          <div className="card p-4 flex items-start gap-2.5" style={{ borderColor: "#34d39930", background: "linear-gradient(160deg, rgba(52,211,153,.05), var(--surface))" }}>
+            <ShieldCheck size={16} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+            <div>
+              <div className="text-[12.5px] font-medium">Núcleo blindado</div>
+              <p className="text-[11px] text-[var(--txt-3)] mt-1 leading-relaxed">{agent.shield}</p>
+            </div>
+          </div>
+
+          {(agent.mapa?.mudancas?.length ?? 0) > 0 && (
+            <div className="card p-4">
+              <div className="mono-label !text-[9px] mb-2.5">O que mudou nele</div>
+              {agent.mapa!.mudancas!.slice(0, 2).map((m, i) => (
+                <div key={i} className="py-1.5 border-b border-[var(--line)] last:border-0">
+                  <div className="text-[11.5px] leading-snug"><Sparkles size={11} className="inline mr-1" style={{ color: "var(--violet)" }} /><b>{m.quando} · {m.origem === "voce" ? "você" : m.origem === "metrik" ? "Metrik" : "escola"}:</b> "{m.pedido}"</div>
+                  {m.porteiro && <div className="text-[10px] text-[var(--txt-4)] mt-0.5">guardião {m.porteiro.casos} · nota {m.porteiro.nota} · {m.status}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
