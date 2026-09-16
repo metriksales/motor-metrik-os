@@ -1,10 +1,10 @@
-// CONVERSAS — o kit do agente SDR, momento "o que ela está falando AGORA?".
-// Lista as conversas reais (logs com did.lead/did.ia, agrupadas por contato),
-// marca as que estão COM VOCÊ (assumidas) e abre a ConversaDrawer — onde vive
-// o botão de emergência "Assumir a conversa". Leitura + 1 ação de emergência.
+// CONVERSAS — o KIT DO AGENTE (mora DENTRO do robô de resposta, não no app).
+// As conversas DESTE agente: logs reais com did.lead/did.ia agrupados por
+// contato, chip "com você" nas assumidas, e a ConversaDrawer — onde vive o
+// botão de emergência "Assumir a conversa". Leitura + 1 ação de emergência.
 import { useEffect, useMemo, useState } from "react";
 import { MessageCircleHeart, Headphones, Database } from "lucide-react";
-import { useAgents } from "../lib/agents";
+import { type Agent } from "../data";
 import { useLive, tempoRelativo, type LogReal } from "../lib/live";
 import { useMotorAuth } from "../lib/auth";
 import { api } from "../lib/api";
@@ -23,24 +23,23 @@ type Fio = {
   comVoce: boolean;
 };
 
-const DEMO_FIOS: { contato: string; agente: string; cor: string; snippet: string; quando: string }[] = [
-  { contato: "Marina Duarte", agente: "Atendente", cor: "#1f7a57", snippet: "IA: Pra te passar o valor certo: hoje o atendimento é você mesma ou tem equipe?", quando: "há 2 min" },
-  { contato: "Beatriz Nunes", agente: "Atendente", cor: "#1f7a57", snippet: "reunião marcada pra quinta, 14h — confirmação enviada", quando: "há 40 min" },
-  { contato: "Dona Cléia", agente: "Triagem Jurídica", cor: "#2b9e78", snippet: "IA: Seu caso tem tudo pra seguir! Já deixo um horário reservado com a doutora.", quando: "há 1 h" },
+const DEMO_FIOS: { contato: string; snippet: string; quando: string }[] = [
+  { contato: "Marina Duarte", snippet: "IA: Pra te passar o valor certo: hoje o atendimento é você mesma ou tem equipe?", quando: "há 2 min" },
+  { contato: "Beatriz Nunes", snippet: "reunião marcada pra quinta, 14h — confirmação enviada", quando: "há 40 min" },
+  { contato: "Dona Cléia", snippet: "IA: Seu caso tem tudo pra seguir! Já deixo um horário reservado com a doutora.", quando: "há 1 h" },
 ];
 
-export default function Conversas() {
+export default function Conversas({ agent }: { agent: Agent }) {
   const auth = useMotorAuth();
-  const { byId } = useAgents();
   const { logs } = useLive();
   const [aberta, setAberta] = useState<ConversaAberta | null>(null);
   const [assumidos, setAssumidos] = useState<Set<string>>(new Set());
 
-  // quem está COM VOCÊ agora (assumidos) — melhora a leitura; falha não derruba
+  // quem está COM VOCÊ agora (assumidos DESTE agente) — falha não derruba
   useEffect(() => {
-    if (auth.demo) return;
+    if (auth.demo || !agent.real) return;
     let vivo = true;
-    (api.listAssumidos(undefined, auth.getToken) as Promise<{ agentId: string; contato: string }[]>)
+    (api.listAssumidos(agent.id, auth.getToken) as Promise<{ agentId: string; contato: string }[]>)
       .then((rows) => {
         if (vivo && Array.isArray(rows)) setAssumidos(new Set(rows.map((r) => `${r.agentId}:${r.contato}`)));
       })
@@ -49,12 +48,13 @@ export default function Conversas() {
       vivo = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.demo, aberta]);
+  }, [auth.demo, agent.id, aberta]);
 
-  // agrupa os logs REAIS por conversa (contactId do canal, ou o nome espelhado)
+  // agrupa os logs REAIS DESTE agente por conversa (contactId, ou o nome espelhado)
   const fios: Fio[] = useMemo(() => {
     const out = new Map<string, Fio>();
     for (const l of logs ?? []) {
+      if (l.agentId !== agent.id) continue; // o kit é DO agente
       const did = (l.did ?? null) as { contato?: string; lead?: string; ia?: string } | null;
       // conversa DE VERDADE = tem fala espelhada (lead/ia). Erros e ações sem
       // texto moram no Diário/Ao vivo — aqui é só o que dá pra LER.
@@ -64,13 +64,12 @@ export default function Conversas() {
       const contato = did?.contato || "lead";
       const chave = `${l.agentId ?? "?"}:${contactId ?? contato}`;
       if (out.has(chave)) continue; // logs vêm do mais novo pro mais velho
-      const ag = l.agentId ? byId(l.agentId) : undefined;
       out.set(chave, {
         chave,
         contato,
         agentId: l.agentId,
-        agente: ag?.name ?? l.motor ?? "agente",
-        cor: ag?.color ?? "#1f7a57",
+        agente: agent.name,
+        cor: agent.color,
         snippet: did?.ia ? `IA: ${did.ia}` : did?.lead ? `Lead: ${did.lead}` : l.resumo,
         at: l.at,
         log: l,
@@ -78,7 +77,7 @@ export default function Conversas() {
       });
     }
     return Array.from(out.values());
-  }, [logs, assumidos, byId]);
+  }, [logs, assumidos, agent.id, agent.name, agent.color]);
 
   const real = fios.length > 0;
   const semNada = !real && !auth.demo;
@@ -87,7 +86,7 @@ export default function Conversas() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="mono-label mb-1">As conversas da sua IA</div>
+          <div className="mono-label mb-1">As conversas deste robô</div>
           <p className="text-[13px] text-[var(--txt-2)] max-w-xl">
             Toque numa conversa pra ler por dentro — e, se precisar, <b className="text-[var(--txt)]">assumir na hora</b> (a IA cala só naquele contato).
           </p>
@@ -104,7 +103,7 @@ export default function Conversas() {
             <MessageCircleHeart size={26} className="mx-auto mb-3" style={{ color: "var(--txt-4)" }} />
             <p className="text-[13.5px] text-[var(--txt)] font-medium">Ainda sem conversas espelhadas.</p>
             <p className="text-[12px] text-[var(--txt-3)] mt-1.5 max-w-md mx-auto leading-relaxed">
-              Assim que sua IA atender, cada conversa aparece aqui — palavra por palavra, com o botão de assumir quando você precisar.
+              Assim que este robô atender, cada conversa aparece aqui — palavra por palavra, com o botão de assumir quando você precisar.
             </p>
           </div>
         </Reveal>
@@ -126,12 +125,12 @@ export default function Conversas() {
                 : DEMO_FIOS.map((f, i) => ({
                     key: `demo-${i}`,
                     contato: f.contato,
-                    agente: f.agente,
-                    cor: f.cor,
+                    agente: agent.name,
+                    cor: agent.color,
                     snippet: f.snippet,
                     quando: f.quando,
                     comVoce: false,
-                    abrir: () => setAberta({ tipo: "demo", agente: f.agente, cor: f.cor }),
+                    abrir: () => setAberta({ tipo: "demo", agente: agent.name, cor: agent.color }),
                   }))
               ).map((f) => (
                 <li key={f.key} className="border-b border-[var(--line)] last:border-0">

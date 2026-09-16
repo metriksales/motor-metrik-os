@@ -33,15 +33,14 @@ import {
   Check,
   ShieldCheck,
   X,
-  Repeat,
 } from "lucide-react";
 
-export type ViewId = "inicio" | "conversas" | "followup" | "agentes" | "aovivo" | "modulos" | "conexoes" | "admin";
+// Conversas e Follow-up NÃO são abas do app: são o KIT DO AGENTE (moram dentro
+// de cada robô de resposta; o follow é MÓDULO que se ativa). Lei do mestre.
+export type ViewId = "inicio" | "agentes" | "aovivo" | "modulos" | "conexoes" | "admin";
 
 export const NAV: { id: ViewId; label: string; icon: any; hint: string }[] = [
   { id: "inicio", label: "Início", icon: Activity, hint: "o estado da operação" },
-  { id: "conversas", label: "Conversas", icon: MessageCircleHeart, hint: "o que sua IA está falando" },
-  { id: "followup", label: "Follow-up", icon: Repeat, hint: "quem ela está cutucando" },
   { id: "agentes", label: "Agentes", icon: Bot, hint: "sua frota de robôs" },
   { id: "aovivo", label: "Ao vivo", icon: Radio, hint: "o que rola agora" },
   { id: "modulos", label: "Módulos", icon: Blocks, hint: "novas habilidades" },

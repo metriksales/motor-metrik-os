@@ -9,6 +9,8 @@ import { type Agent, type AgentState, type Insight, type Upgrade, type Selo, STA
 import { Reveal, Pill, Toggle, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
+import Conversas from "./Conversas";
+import Followup from "./Followup";
 import MapaTab from "./MapaTab";
 import MapaAcao from "./MapaAcao";
 import MudancasTab from "./MudancasTab";
@@ -16,7 +18,7 @@ import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo, useLive } from "../lib/live";
 
-type Sub = "trabalho" | "aovivo" | "mudancas" | "logs" | "estrutura" | "melhorar";
+type Sub = "trabalho" | "aovivo" | "conversas" | "followup" | "mudancas" | "logs" | "estrutura" | "melhorar";
 
 export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: Sub }) {
   const auth = useMotorAuth();
@@ -67,6 +69,14 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
   const nMud = nReal > 0 ? nReal : (agent.mapa?.mudancas?.length ?? 0);
   const subs: { id: Sub; label: string; icon: any; badge?: number }[] = [
     { id: "aovivo", label: "O que faz", icon: Radio },
+    // o KIT do robô de resposta: as conversas DELE + o follow como MÓDULO
+    // (desligado continua à vista — a aba mostra o caminho de ligar)
+    ...(agent.tipo === "resposta"
+      ? [
+          { id: "conversas" as Sub, label: "Conversas", icon: MessageCircle },
+          { id: "followup" as Sub, label: "Follow-up", icon: Repeat },
+        ]
+      : []),
     ...(nMud > 0 ? [{ id: "mudancas" as Sub, label: "Mudanças", icon: Sparkles, badge: nMud }] : []),
     ...(agent.work ? [{ id: "trabalho" as Sub, label: agent.work.label, icon: workIconMap[agent.work.kind] }] : []),
     { id: "logs", label: "Diário", icon: ScrollText },
@@ -146,6 +156,8 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
         {sub === "trabalho" && agent.work && <WorkTab agent={agent} onMelhorar={() => irMelhorar()} />}
         {sub === "aovivo" && <OQueFaz agent={agent} onMelhorar={() => irMelhorar()} />}
+        {sub === "conversas" && <Conversas agent={agent} />}
+        {sub === "followup" && <Followup agent={agent} onTurbinar={() => setSub("estrutura")} />}
         {sub === "mudancas" && agent.mapa && <MudancasTab agent={agent} />}
         {sub === "logs" && <LogsTab agent={agent} onCorrigir={irMelhorar} />}
         {sub === "estrutura" && <Turbinar agent={agent} onMelhorar={() => irMelhorar()} />}

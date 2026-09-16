@@ -1,9 +1,10 @@
-// FOLLOW-UP — o kit do SDR, momento "quem ela está cutucando (e quem NÃO deve)".
-// A fila com o próximo toque, quem ela parou de cutucar sozinha (respondeu /
-// agendou) e quem esgotou. Leitura pura; a exceção é o "não cutucar este
-// contato" — que por enquanto se pede no Melhorar (1 porta de mudança).
-// REAL: o estado da fila ainda não é espelhado pelo runtime → estado honesto.
-import { Repeat, ShieldCheck, Check, CalendarClock, Clock, Pause } from "lucide-react";
+// FOLLOW-UP — MÓDULO do agente (a analogia do mestre: coisas que se ATIVAM).
+// Mora DENTRO do robô de resposta. Desligado = a aba continua À VISTA, apagada,
+// com o caminho pra ligar (Turbinar) — ninguém procura o que achava que tinha.
+// Ligado = a fila com o próximo toque, quem a IA parou de cutucar sozinha e
+// quem esgotou. REAL: a fila ainda não é espelhada pelo runtime → estado honesto.
+import { Repeat, ShieldCheck, Check, CalendarClock, Clock, Pause, Zap } from "lucide-react";
+import { type Agent } from "../data";
 import { useMotorAuth } from "../lib/auth";
 import { Reveal, Pill } from "../ui";
 
@@ -12,20 +13,46 @@ const DEMO_FILA = [
   { quando: "40min", toque: "1º toque", quem: "Ana Ribeiro", motivo: "pediu proposta e não abriu mais" },
 ];
 
-export default function Followup() {
+export default function Followup({ agent, onTurbinar }: { agent: Agent; onTurbinar?: () => void }) {
   const auth = useMotorAuth();
+  // o módulo está LIGADO neste robô? (v1: a superfície de follow do agente)
+  const ligado = agent.work?.kind === "followups";
 
-  if (!auth.demo) {
-    // logado: honestidade primeiro — a fila real aparece quando o runtime espelhar
+  if (!ligado) {
+    // LENTE DESLIGADA — visível, apagada, com o caminho de ligar (lei do canvas)
     return (
       <div className="space-y-4">
-        <Cabecalho demo={false} />
+        <Cabecalho demo={auth.demo} ligado={false} />
+        <Reveal>
+          <div className="card p-8 text-center" style={{ borderStyle: "dashed" }}>
+            <span className="grid place-items-center rounded-xl mx-auto mb-3" style={{ width: 46, height: 46, background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+              <Repeat size={21} style={{ color: "var(--txt-4)" }} />
+            </span>
+            <p className="text-[14px] text-[var(--txt)] font-medium">O follow-up é um módulo deste robô — e está desligado.</p>
+            <p className="text-[12px] text-[var(--txt-3)] mt-1.5 max-w-md mx-auto leading-relaxed">
+              Ligado, ele cutuca quem sumiu no meio da conversa — só em horário comercial, com limite de toques,
+              parando na hora se o lead responder. A fila inteira aparece aqui, contato por contato.
+            </p>
+            {onTurbinar && (
+              <button onClick={onTurbinar} className="btn btn-primary mt-4"><Zap size={15} /> Ligar no Turbinar</button>
+            )}
+          </div>
+        </Reveal>
+      </div>
+    );
+  }
+
+  if (!auth.demo) {
+    // ligado + logado: honestidade — a fila real aparece quando o runtime espelhar
+    return (
+      <div className="space-y-4">
+        <Cabecalho demo={false} ligado />
         <Reveal>
           <div className="card p-8 text-center">
             <Repeat size={26} className="mx-auto mb-3" style={{ color: "var(--txt-4)" }} />
             <p className="text-[13.5px] text-[var(--txt)] font-medium">Os toques já acontecem — o espelho da fila chega na próxima atualização.</p>
             <p className="text-[12px] text-[var(--txt-3)] mt-1.5 max-w-md mx-auto leading-relaxed">
-              Seu robô segue cutucando quem sumiu (nas regras: horário comercial, máximo de toques, para se o lead responder).
+              Este robô segue cutucando quem sumiu (nas regras: horário comercial, máximo de toques, para se o lead responder).
               O que falta é ESTA tela ler a fila dele em tempo real — está na esteira.
             </p>
           </div>
@@ -36,7 +63,7 @@ export default function Followup() {
 
   return (
     <div className="space-y-4">
-      <Cabecalho demo />
+      <Cabecalho demo ligado />
 
       {/* as regras que protegem o cliente — a confiança primeiro */}
       <div className="card p-3.5 flex items-center gap-2.5">
@@ -109,14 +136,18 @@ export default function Followup() {
   );
 }
 
-function Cabecalho({ demo }: { demo: boolean }) {
+function Cabecalho({ demo, ligado }: { demo: boolean; ligado: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div>
-        <div className="mono-label mb-1">Follow-up</div>
-        <p className="text-[13px] text-[var(--txt-2)]">quem a IA está cutucando por você — e quem ela deixou em paz</p>
+        <div className="mono-label mb-1">Follow-up · módulo</div>
+        <p className="text-[13px] text-[var(--txt-2)]">quem este robô está cutucando por você — e quem ele deixou em paz</p>
       </div>
-      <Pill color={demo ? undefined : "var(--emerald)"}>{demo ? "demo" : "9 na fila"}</Pill>
+      {ligado ? (
+        <Pill color="var(--emerald)"><span className="live-dot" style={{ width: 6, height: 6 }} /> ligado{demo ? " · demo" : ""}</Pill>
+      ) : (
+        <Pill>desligado</Pill>
+      )}
     </div>
   );
 }
