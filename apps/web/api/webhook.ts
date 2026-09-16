@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createProductionDeps, handleInbound } from "./_bundled/runtime.mjs";
-import { getDatabaseUrl, getAgentEstado } from "./_bundled/control.mjs";
+import { getDatabaseUrl, getAgentEstado, getContatoEstado } from "./_bundled/control.mjs";
 
 // Porta de ENTRADA de mensagem (webhook do canal: uazapi/GHL/IG).
 // Autentica pelo SEGREDO do canal (x-webhook-secret), não por sessão de usuário.
@@ -34,6 +34,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch {
     // falha ao ler estado não pode derrubar a entrada; segue (fail-open no atendimento)
+  }
+
+  // ASSUMIR honrado AQUI: humano assumiu ESTE contato = a IA cala só nesta
+  // conversa (o botão de emergência "falou besteira" vale de verdade).
+  try {
+    const { estado } = await getContatoEstado({ orgId, actor: "webhook", role: "admin" }, agentId, contactId);
+    if (estado === "humano") {
+      return res.json({ ok: true, assumido: true, skipped: "conversa assumida por um humano — a IA não respondeu" });
+    }
+  } catch {
+    // idem: leitura falhou, não derruba o atendimento
   }
 
   // Composição de produção. TODO: injetar o vault (token do CRM por org) e o Redis.

@@ -18,6 +18,8 @@ export interface LogReal {
   erro: string | null;
   valorCentavos: number | null;
   at: string;
+  /** contexto do canal (o runtime espelha): contactId é a chave do ASSUMIR */
+  meta?: { contactId?: string; canal?: string; tipo?: string } | null;
 }
 
 export interface StatsReais {

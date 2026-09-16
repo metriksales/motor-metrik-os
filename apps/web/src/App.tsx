@@ -8,6 +8,8 @@ import { useAgents } from "./lib/agents";
 import { usePendencias, useTituloAoVivo } from "./lib/live";
 import { cx, Toggle } from "./ui";
 import Inicio from "./views/Inicio";
+import Conversas from "./views/Conversas";
+import Followup from "./views/Followup";
 import Agentes from "./views/Agentes";
 import AoVivo from "./views/AoVivo";
 import AgentDetail from "./views/AgentDetail";
@@ -50,8 +52,9 @@ export default function App() {
 
   // celular: as 3 telas que o cliente usa toda hora ficam na barra de baixo;
   // o resto (Módulos/Conexões/Admin) entra no "Mais". Sempre há como voltar.
-  const NAV_MOBILE = NAV.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
-  const NAV_MAIS = NAV.filter((n) => !["inicio", "agentes", "aovivo"].includes(n.id));
+  // celular = os MOMENTOS do dia a dia (relance · conversas · follow); o resto no "Mais"
+  const NAV_MOBILE = NAV.filter((n) => ["inicio", "conversas", "followup"].includes(n.id));
+  const NAV_MAIS = NAV.filter((n) => !["inicio", "conversas", "followup"].includes(n.id));
 
   const nav = NAV.find((n) => n.id === view)!;
   const agent = agentId ? byId(agentId) : null;
@@ -268,6 +271,8 @@ export default function App() {
               ) : (
                 <>
                   {view === "inicio" && <Inicio go={go} onOpen={openAgent} />}
+                  {view === "conversas" && <Conversas />}
+                  {view === "followup" && <Followup />}
                   {view === "agentes" && <Agentes onOpen={openAgent} go={go} />}
                   {view === "aovivo" && <AoVivo onOpen={openAgent} />}
                   {view === "modulos" && <Modulos go={go} onOpen={openAgent} />}

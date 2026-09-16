@@ -47,6 +47,26 @@ export const agents = pgTable(
   (t) => [index("agents_org").on(t.orgId)]
 );
 
+/** ASSUMIR — pausa por CONTATO: o humano assumiu ESTA conversa; a IA cala só
+ *  ali e segue atendendo o resto. O webhook lê antes de responder. */
+export const contactStates = pgTable(
+  "contact_states",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id").notNull(),
+    agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+    contato: text("contato").notNull(),
+    /** "humano" = assumido (IA de fora); linha ausente = IA no comando */
+    estado: text("estado").notNull().default("humano"),
+    assumidoPor: text("assumido_por"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("contact_states_agent_contato").on(t.agentId, t.contato),
+    index("contact_states_org").on(t.orgId),
+  ]
+);
+
 /** config viva versionada (o AgentSpec de @motor/core) */
 export const agentSpecs = pgTable(
   "agent_specs",

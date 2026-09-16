@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs } from "@motor/db";
+import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -504,6 +504,59 @@ export async function getAgentEstado(ctx: Ctx, agentId: string) {
     .from(agents)
     .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
   return { estado: row?.state ?? "idle" };
+}
+
+// ═══ ASSUMIR A CONVERSA — pausa por CONTATO (o botão de emergência do cliente) ═══
+
+/** o humano assume ESTE contato: a IA cala só ali, segue atendendo o resto. */
+export async function assumirContato(ctx: Ctx, input: { agentId: string; contato: string }) {
+  if (ctx.role === "viewer") throw new Error("sem permissão pra assumir");
+  const [ag] = await db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
+  if (!ag) throw new Error("agente não encontrado neste tenant");
+  const [row] = await db
+    .insert(contactStates)
+    .values({ orgId: ctx.orgId, agentId: input.agentId, contato: input.contato, estado: "humano", assumidoPor: ctx.actor })
+    .onConflictDoUpdate({
+      target: [contactStates.agentId, contactStates.contato],
+      set: { estado: "humano", assumidoPor: ctx.actor, updatedAt: sql`now()` },
+    })
+    .returning();
+  await audit(ctx, "contato.assumir", input.agentId, { contato: input.contato });
+  return { id: row.id, estado: row.estado };
+}
+
+/** devolve o contato pra IA — apaga a linha; ausência = IA no comando. */
+export async function devolverContato(ctx: Ctx, input: { agentId: string; contato: string }) {
+  if (ctx.role === "viewer") throw new Error("sem permissão pra devolver");
+  await db
+    .delete(contactStates)
+    .where(and(eq(contactStates.orgId, ctx.orgId), eq(contactStates.agentId, input.agentId), eq(contactStates.contato, input.contato)));
+  await audit(ctx, "contato.devolver", input.agentId, { contato: input.contato });
+  return { estado: "ia" as const };
+}
+
+/** o webhook lê ANTES de responder: "humano" = assumido, a IA não fala. */
+export async function getContatoEstado(ctx: Ctx, agentId: string, contato: string) {
+  const [row] = await db
+    .select({ estado: contactStates.estado })
+    .from(contactStates)
+    .where(and(eq(contactStates.orgId, ctx.orgId), eq(contactStates.agentId, agentId), eq(contactStates.contato, contato)));
+  return { estado: (row?.estado ?? "ia") as "ia" | "humano" };
+}
+
+/** quem está com humano agora (pro front marcar as conversas assumidas). */
+export function listAssumidos(ctx: Ctx, agentId?: string) {
+  const cond = agentId
+    ? and(eq(contactStates.orgId, ctx.orgId), eq(contactStates.agentId, agentId))
+    : eq(contactStates.orgId, ctx.orgId);
+  return db
+    .select({ agentId: contactStates.agentId, contato: contactStates.contato, assumidoPor: contactStates.assumidoPor, updatedAt: contactStates.updatedAt })
+    .from(contactStates)
+    .where(cond)
+    .orderBy(desc(contactStates.updatedAt));
 }
 
 /** usuários/membros do tenant (Admin) — quem tem login nesta organização. */

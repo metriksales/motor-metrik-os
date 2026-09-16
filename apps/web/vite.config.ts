@@ -90,6 +90,12 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
               return send(200, await control.listMembers(ctx));
             case "setEstado":
               return send(200, await control.setAgentEstado(ctx, { agentId: body.agentId, estado: body.estado }));
+            case "assumirContato":
+              return send(200, await control.assumirContato(ctx, { agentId: body.agentId, contato: body.contato }));
+            case "devolverContato":
+              return send(200, await control.devolverContato(ctx, { agentId: body.agentId, contato: body.contato }));
+            case "assumidos":
+              return send(200, await control.listAssumidos(ctx, url.searchParams.get("agentId") ?? undefined));
             default:
               return send(400, { error: `ação '${action}' não suportada no dev middleware` });
           }

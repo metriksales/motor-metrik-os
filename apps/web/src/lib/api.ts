@@ -45,6 +45,12 @@ export const api = {
   listMembers: (getToken?: GetToken) => control("members", { getToken }),
   setEstado: (agentId: string, estado: "ativo" | "pausado", getToken?: GetToken) =>
     control("setEstado", { body: { agentId, estado }, getToken }),
+  assumirContato: (agentId: string, contato: string, getToken?: GetToken) =>
+    control("assumirContato", { body: { agentId, contato }, getToken }),
+  devolverContato: (agentId: string, contato: string, getToken?: GetToken) =>
+    control("devolverContato", { body: { agentId, contato }, getToken }),
+  listAssumidos: (agentId?: string, getToken?: GetToken) =>
+    control("assumidos", { getToken, query: agentId ? { agentId } : undefined }),
   listLogs: (agentId?: string, getToken?: GetToken) =>
     control("logs", { getToken, query: agentId ? { agentId } : undefined }),
   stats: (getToken?: GetToken) => control("stats", { getToken }),

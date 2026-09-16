@@ -49,6 +49,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.listMembers(ctx));
       case "setEstado":
         return res.json(await control.setAgentEstado(ctx, { agentId: body.agentId, estado: body.estado }));
+      case "assumirContato":
+        return res.json(await control.assumirContato(ctx, { agentId: body.agentId, contato: body.contato }));
+      case "devolverContato":
+        return res.json(await control.devolverContato(ctx, { agentId: body.agentId, contato: body.contato }));
+      case "assumidos":
+        return res.json(await control.listAssumidos(ctx, req.query.agentId ? String(req.query.agentId) : undefined));
       case "publicar":
         return res.json(await control.publicar(ctx, body));
       case "releases":

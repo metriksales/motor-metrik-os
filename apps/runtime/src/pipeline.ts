@@ -63,6 +63,7 @@ export async function runEvent(
         did: r.did,
         erro: r.error,
         at: agora(),
+        meta: { tipo: evt.tipo, canal: evt.canal, contactId: evt.contactId },
       });
     } catch (e) {
       const erro = e instanceof Error ? e.message : String(e);
@@ -76,6 +77,7 @@ export async function runEvent(
         did: [],
         erro,
         at: agora(),
+        meta: { tipo: evt.tipo, canal: evt.canal, contactId: evt.contactId },
       });
     }
     ran.push(engine.id);

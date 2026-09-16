@@ -2,10 +2,13 @@
 // disse pro lead dele. É o vício de observação: "vê a conversa que a Bia teve
 // com a Dona Cléia de madrugada". Leitura pura, zero botão de ação.
 // A conversa vem do campo `did` do log (a Bia espelha turnoLead/respostaIA).
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Check, CheckCheck, Wrench, Mic, ArrowRight } from "lucide-react";
+import { X, Check, CheckCheck, Wrench, Mic, ArrowRight, Headphones, Undo2, Loader2 } from "lucide-react";
 import type { LogReal } from "../lib/live";
 import { reais, tempoRelativo } from "../lib/live";
+import { api } from "../lib/api";
+import { useMotorAuth } from "../lib/auth";
 import { SELO_META, type Conferencia } from "../data";
 
 type Conversa = { contato?: string; lead?: string; ia?: string; tools?: string[]; voz?: boolean };
@@ -129,6 +132,7 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
           </div>
         )}
 
+        {/* espaço pro rodapé fixo do Assumir não cobrir o fim da conversa */}
         {/* SEGUIU A REGRA? — a conferência determinística desta execução */}
         {aberta.conf && (() => {
           const c = aberta.conf!;
@@ -165,6 +169,87 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
           );
         })()}
       </div>
+
+      <AssumirFooter aberta={aberta} />
     </>
+  );
+}
+
+/**
+ * ASSUMIR A CONVERSA — o botão de emergência do cliente ("falou besteira").
+ * A IA cala SÓ pra este contato (contact_states no Neon; o webhook honra antes
+ * de responder) e fica de fora até o "Devolver". Só aparece quando dá pra agir
+ * de verdade: log real com contactId do canal (agente nativo do OS), ou demo.
+ */
+function AssumirFooter({ aberta }: { aberta: ConversaAberta }) {
+  const auth = useMotorAuth();
+  const real = aberta.tipo === "real" ? aberta.log : null;
+  const contactId = real
+    ? real.meta?.contactId ?? (real.did as { contactId?: string } | null)?.contactId ?? null
+    : "demo";
+  const agentId = real ? real.agentId : "demo";
+  const [estado, setEstado] = useState<"ia" | "salvando" | "humano">("ia");
+  const [erro, setErro] = useState<string | null>(null);
+
+  // sem chave do contato = não dá pra agir de verdade → sem botão (nada de teatro)
+  if (!contactId || !agentId) return null;
+
+  const assumir = async () => {
+    setErro(null);
+    if (aberta.tipo === "demo") { setEstado("humano"); return; }
+    try {
+      setEstado("salvando");
+      await api.assumirContato(agentId, contactId, auth.getToken);
+      setEstado("humano");
+    } catch (e) {
+      setEstado("ia");
+      setErro(e instanceof Error ? e.message : "não consegui assumir");
+    }
+  };
+  const devolver = async () => {
+    setErro(null);
+    if (aberta.tipo === "demo") { setEstado("ia"); return; }
+    try {
+      setEstado("salvando");
+      await api.devolverContato(agentId, contactId, auth.getToken);
+      setEstado("ia");
+    } catch (e) {
+      setEstado("humano");
+      setErro(e instanceof Error ? e.message : "não consegui devolver");
+    }
+  };
+
+  return (
+    <div className="flex-none border-t border-[var(--line)] px-5 py-4 space-y-2" style={{ background: "var(--surface)" }}>
+      {estado === "humano" ? (
+        <>
+          <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5" style={{ border: "1px solid #ecd9ad", background: "#fdf8ec" }}>
+            <Headphones size={16} style={{ color: "#8a5a0b" }} className="flex-none" />
+            <p className="text-[12px] leading-snug" style={{ color: "#6b5a33" }}>
+              <b>Você está no comando.</b> A IA está de fora <b>deste contato</b> — e segue atendendo o resto.
+            </p>
+          </div>
+          <button onClick={() => void devolver()} className="btn w-full !justify-center">
+            <Undo2 size={15} /> Devolver pra IA
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => void assumir()}
+            disabled={estado === "salvando"}
+            className="w-full flex items-center justify-center gap-2.5 rounded-xl font-medium text-[14px] transition-all"
+            style={{ height: 48, background: "var(--deep)", color: "#fff", opacity: estado === "salvando" ? 0.7 : 1 }}
+          >
+            {estado === "salvando" ? <Loader2 size={17} className="animate-spin" /> : <Headphones size={17} />}
+            Assumir a conversa
+          </button>
+          <p className="text-[10.5px] text-[var(--txt-4)] text-center leading-snug">
+            a IA para na hora, <b className="text-[var(--txt-3)]">só pra este contato</b> — e fica de fora até você devolver
+          </p>
+        </>
+      )}
+      {erro && <p className="text-[11px] text-center" style={{ color: "var(--rose)" }}>{erro}</p>}
+    </div>
   );
 }
