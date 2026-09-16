@@ -229,9 +229,29 @@ function AoVivoTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: st
   const followOn = agent.work?.kind === "followups";
   const naFila = agent.work?.followups?.filter((f) => f.status !== "feito").length ?? 0;
 
+  // o RELANCE no celular: o dia em números, 5 segundos, sem rolar
+  // (no desktop esses números já moram no topo do agente)
+  const hoje0 = new Date(); hoje0.setHours(0, 0, 0, 0);
+  const meusHoje = agent.real ? (logs ?? []).filter((l) => l.agentId === agent.id && new Date(l.at) >= hoje0) : [];
+  const reunioesHoje = agent.real ? meusHoje.filter((l) => (l.valorCentavos ?? 0) > 0).length : agent.live.filter((r) => /reuni/i.test(r.acao)).length;
+  const valorHoje = meusHoje.reduce((s, l) => s + (l.valorCentavos ?? 0), 0);
+
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
       <div className="space-y-4 min-w-0">
+        <div className="grid grid-cols-3 gap-2 md:hidden">
+          {[
+            { v: String(execsHoje), l: "atendimentos", cor: undefined },
+            { v: String(reunioesHoje), l: reunioesHoje === 1 ? "reunião" : "reuniões", cor: undefined },
+            { v: valorHoje > 0 ? reais(valorHoje) : "—", l: "gerado hoje", cor: valorHoje > 0 ? "var(--emerald)" : undefined },
+          ].map((t) => (
+            <div key={t.l} className="card p-3">
+              <div className="num text-[18px] leading-none" style={t.cor ? { color: t.cor } : undefined}>{t.v}</div>
+              <div className="text-[9.5px] text-[var(--txt-3)] mt-1">{t.l}</div>
+            </div>
+          ))}
+        </div>
+
         {auth.demo && agent.tipo === "resposta" && (
           <div className="card p-4 flex items-center gap-3.5" style={{ borderColor: "#fbbf2440", background: "linear-gradient(160deg, rgba(251,191,36,.08), var(--surface))" }}>
             <span className="grid place-items-center rounded-full flex-none font-semibold text-[15px]" style={{ width: 40, height: 40, background: "var(--deep)", color: "#fff" }}>P</span>
