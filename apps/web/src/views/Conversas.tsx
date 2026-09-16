@@ -145,7 +145,7 @@ export default function Conversas({ agent }: { agent: Agent }) {
                       <span className="flex items-center gap-2">
                         <b className="text-[13.5px] font-semibold truncate">{f.contato}</b>
                         {f.comVoce && (
-                          <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full flex-none" style={{ color: "#8a5a0b", background: "#fdf8ec", border: "1px solid #ecd9ad" }}>
+                          <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full flex-none" style={{ color: "#fbbf24", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)" }}>
                             <Headphones size={9} /> com você
                           </span>
                         )}

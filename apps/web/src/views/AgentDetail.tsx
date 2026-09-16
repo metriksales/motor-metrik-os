@@ -188,7 +188,7 @@ function AoVivoTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: st
           <div className="card p-4 flex items-center gap-3.5" style={{ borderColor: "#fbbf2440", background: "linear-gradient(160deg, rgba(251,191,36,.08), var(--surface))" }}>
             <span className="grid place-items-center rounded-full flex-none font-semibold text-[15px]" style={{ width: 40, height: 40, background: "var(--deep)", color: "#fff" }}>P</span>
             <div className="min-w-0 flex-1">
-              <div className="mono-label !text-[9px]" style={{ color: "#b8860b" }}>Esperando você · 1</div>
+              <div className="mono-label !text-[9px]" style={{ color: "#fbbf24" }}>Esperando você · 1</div>
               <div className="text-[13.5px] font-medium mt-0.5">Dr. Paulo pediu um humano <span className="text-[var(--txt-3)] font-normal text-[12px]">· há 8 min · a IA está segurando com educação — abra a conversa abaixo</span></div>
             </div>
           </div>
@@ -297,7 +297,7 @@ function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (see
             className="inline-flex items-center gap-2 text-[12px] px-3.5 py-2 rounded-[9px]"
             style={
               l.estado === "nucleo"
-                ? { background: "rgba(62,207,142,.12)", border: "1px solid var(--violet-2)", color: "var(--txt)", fontWeight: 600 }
+                ? { background: "rgba(224,164,74,.13)", border: "1px solid rgba(224,164,74,.4)", color: "var(--txt)", fontWeight: 600 }
                 : l.estado === "on"
                   ? { background: "var(--surface)", border: "1px solid var(--line)", color: "var(--txt-2)" }
                   : { background: "var(--surface-2)", border: "1px dashed var(--line-hi)", color: "var(--txt-4)" }

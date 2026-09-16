@@ -58,13 +58,13 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-4">
                 <span className="live-dot" />
-                <span className="mono-label" style={{ color: "#1f7a57" }}>{ativos} de {agents.length} agentes trabalhando</span>
+                <span className="mono-label" style={{ color: "var(--emerald)" }}>{ativos} de {agents.length} agentes trabalhando</span>
               </div>
               <h1 className="font-display font-bold tracking-tight leading-[1.02] text-[34px] md:text-[47px]">
                 Sua operação está <span className="grad-text">trabalhando sozinha</span>.
               </h1>
               {stats && fora.length > 0 ? (
-                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed" style={{ color: "#31463b" }}>
+                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed" style={{ color: "var(--txt-2)" }}>
                   <span className="font-medium" style={{ color: "var(--txt)" }}>Enquanto você esteve fora</span>{" "}
                   <span style={{ color: "var(--txt-3)" }}>(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
                   {fora.length === 1 ? "atendimento" : "atendimentos"}
@@ -72,7 +72,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                   {foraValor > 0 && <> · <span style={{ color: "var(--emerald)" }}>+{reais(foraValor)}</span></>}
                 </p>
               ) : (
-                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed max-w-xl" style={{ color: "#31463b" }}>
+                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed max-w-xl" style={{ color: "var(--txt-2)" }}>
                   Uma frota de robôs atende, qualifica, agenda, recupera e rastreia — cada um blindado.
                   Você só observa e, quando quiser, pede uma melhoria.
                 </p>
@@ -88,7 +88,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               <div className="mono-label mb-2.5">A frota</div>
               <div className="flex gap-2">
                 {agents.map((a) => (
-                  <button key={a.id} onClick={() => onOpen(a.id)} title={a.name} className="rounded-lg p-1.5 border card-hover" style={{ borderColor: a.state === "ativo" ? `${a.color}30` : "var(--line)", background: a.state === "ativo" ? `${a.color}12` : "rgba(255,255,255,.6)" }}>
+                  <button key={a.id} onClick={() => onOpen(a.id)} title={a.name} className="rounded-lg p-1.5 border card-hover" style={{ borderColor: a.state === "ativo" ? `${a.color}30` : "var(--line)", background: a.state === "ativo" ? `${a.color}12` : "var(--surface)" }}>
                     <Robot state={a.state} color={a.color} size={40} />
                   </button>
                 ))}
@@ -112,7 +112,10 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
             ))
           : kpis.map((s, i) => (
               <Reveal key={s.label} delay={0.04 * i}>
-                <div className="card card-hover p-4">
+                <div
+                  className={cx("card card-hover p-4", s.value.startsWith("R$") && "money-glow")}
+                  style={s.value.startsWith("R$") ? { borderColor: "rgba(52,211,153,.35)" } : undefined}
+                >
                   <div className="text-[12.5px] text-[var(--txt-3)] mb-2">{s.label}</div>
                   <div className="flex items-end justify-between">
                     <div className="num text-[26px] leading-none">{s.value}</div>

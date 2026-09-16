@@ -3,52 +3,12 @@
 @tailwind utilities;
 
 /* ============================================================
-   MOTOR · METRIK OS — design tokens (linha "Bridge")
-   claro · verde menta (Supabase) · Poppins · cantos suaves
+   MOTOR · METRIK OS — design tokens (aprovado: "Casa do Motor")
+   noite focada · ÂMBAR + azul Metrik · Poppins · dopamina honesta
    ============================================================ */
 :root {
-  /* Claro/paper com acento verde menta. Verde ESCURO pra texto/ícone
-     (legível no claro); menta viva pros fills/botões/gradiente. */
-  --bg: #f7faf8;
-  --bg-2: #eef8f3;
-  --surface: #ffffff;
-  --surface-2: #f2f8f5;
-  --surface-hi: #e8f4ee;
-  --line: #dbe4de;
-  --line-hi: #c3d3ca;
-
-  --txt: #0b1a12;
-  --txt-2: #33463b;
-  --txt-3: #63736a;
-  --txt-4: #94a29a;
-
-  /* verde da casa. --deep = verde profundo (nav ativo / logos). */
-  --deep: #163f2c;
-  --lime: #a8e8cc;
-  --wash: #eef8f3;
-
-  /* --violet = accent PRIMÁRIO — mantém o NOME (centenas de usos); vira verde
-     escuro pra contraste em texto/ícone. --violet-2 = menta viva (fills).
-     --cyan/--fuchsia (o antigo "azul Metrik") entram na família verde. */
-  --violet: #1f7a57;
-  --violet-2: #3ecf8e;
-  --indigo: #2b9e78;
-  --fuchsia: #1f7a57;
-  --cyan: #1f7a57;
-  --emerald: #12a150;
-  --amber: #c07d12;
-  --rose: #d64550;
-
-  --grad: linear-gradient(135deg, #3ecf8e 0%, #1f9d6b 100%);
-  --grad-soft: linear-gradient(135deg, rgba(62, 207, 142, 0.16), rgba(31, 122, 87, 0.1));
-
-  --radius: 8px;
-  --shadow: 0 1px 2px rgba(18, 57, 30, 0.045), 0 14px 32px -20px rgba(18, 57, 30, 0.18);
-  --glow-violet: 0 0 0 1px rgba(62, 207, 142, 0.35), 0 16px 44px -18px rgba(62, 207, 142, 0.4);
-}
-
-/* variante DARK (toggle) — mesma família verde, fundo ardósia */
-html[data-theme="dark"] {
+  /* Escuro ardósia com âmbar protagonista e azul de apoio (as cores de antes,
+     no layout novo). --violet mantém o NOME (centenas de usos) = âmbar. */
   --bg: #0c0f15;
   --bg-2: #10141c;
   --surface: rgba(255, 255, 255, 0.026);
@@ -62,18 +22,54 @@ html[data-theme="dark"] {
   --txt-3: #838a99;
   --txt-4: #5b6272;
 
-  --deep: #0f3826;
-  --violet: #3ecf8e;
-  --violet-2: #7ee0b0;
-  --indigo: #2b9e78;
-  --fuchsia: #3ecf8e;
-  --cyan: #3ecf8e;
+  /* --deep = chão sólido de ênfase (botões Assumir, logos) — âmbar profundo */
+  --deep: #33270e;
+  --lime: #edc074;
+  --wash: rgba(224, 164, 74, 0.08);
+
+  --violet: #e0a44a;
+  --violet-2: #edc074;
+  --indigo: #4f86c8;
+  --fuchsia: #58aae4;
+  --cyan: #58aae4;
   --emerald: #34d399;
   --amber: #fbbf24;
   --rose: #fb7185;
 
-  --grad: linear-gradient(135deg, #3ecf8e 0%, #1f9d6b 100%);
+  --grad: linear-gradient(135deg, #e0a44a 0%, #58aae4 100%);
+  --grad-soft: linear-gradient(135deg, rgba(224, 164, 74, 0.14), rgba(88, 170, 228, 0.12));
+
+  --radius: 12px;
   --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.82);
+  --glow-violet: 0 0 0 1px rgba(224, 164, 74, 0.3), 0 20px 60px -22px rgba(224, 164, 74, 0.45);
+}
+
+/* variante CLARA (toggle) — mesma família âmbar/azul em papel quente */
+html[data-theme="light"] {
+  --bg: #faf8f4;
+  --bg-2: #f3efe6;
+  --surface: #ffffff;
+  --surface-2: #f7f3ea;
+  --surface-hi: #f0e9db;
+  --line: #e5ddcc;
+  --line-hi: #d2c6ab;
+
+  --txt: #171310;
+  --txt-2: #4a4232;
+  --txt-3: #77705f;
+  --txt-4: #a29a87;
+
+  --deep: #33270e;
+  --violet: #9a6b17;
+  --violet-2: #e0a44a;
+  --indigo: #3d6d9e;
+  --fuchsia: #2e6ea6;
+  --cyan: #2e6ea6;
+  --emerald: #12a150;
+  --amber: #c07d12;
+  --rose: #d64550;
+
+  --shadow: 0 1px 2px rgba(51, 39, 14, 0.05), 0 14px 32px -20px rgba(51, 39, 14, 0.18);
 }
 
 * {
@@ -97,8 +93,8 @@ body {
 }
 
 ::selection {
-  background: rgba(62, 207, 142, 0.3);
-  color: #06301f;
+  background: rgba(224, 164, 74, 0.32);
+  color: #fff;
 }
 
 /* scrollbars */
@@ -146,7 +142,7 @@ body {
 
 /* ---------- surfaces ---------- */
 .glass {
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  background: var(--surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--line);
@@ -163,8 +159,11 @@ body {
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  border-color: var(--line-hi);
-  box-shadow: 0 2px 4px rgba(18, 57, 30, 0.05), 0 22px 44px -22px rgba(18, 57, 30, 0.28);
+  border-color: rgba(224, 164, 74, 0.45);
+  box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.6);
+}
+html[data-theme="light"] .card-hover:hover {
+  box-shadow: 0 2px 4px rgba(51, 39, 14, 0.05), 0 22px 44px -22px rgba(51, 39, 14, 0.28);
 }
 
 /* gradient border wrapper */
@@ -181,13 +180,13 @@ body {
 
 /* ---------- text gradient ---------- */
 .grad-text {
-  background: linear-gradient(120deg, #1f9d6b, #12643b);
+  background: linear-gradient(100deg, #edc074, #e0a44a 40%, #58aae4);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
-html[data-theme="dark"] .grad-text {
-  background: linear-gradient(120deg, #3ecf8e, #1f9d6b);
+html[data-theme="light"] .grad-text {
+  background: linear-gradient(100deg, #9a6b17, #2e6ea6);
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -202,15 +201,15 @@ html[data-theme="dark"] .grad-text {
 
 /* ---------- backgrounds ---------- */
 .grid-bg {
-  background-image: linear-gradient(rgba(18, 57, 30, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(18, 57, 30, 0.05) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
   background-size: 46px 46px;
   -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 78%);
   mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 78%);
 }
-html[data-theme="dark"] .grid-bg {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+html[data-theme="light"] .grid-bg {
+  background-image: linear-gradient(rgba(51, 39, 14, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 39, 14, 0.05) 1px, transparent 1px);
 }
 .aurora {
   position: absolute;
@@ -218,16 +217,13 @@ html[data-theme="dark"] .grid-bg {
   height: 62vh;
   pointer-events: none;
   filter: blur(80px);
-  opacity: 0.6;
-  background: radial-gradient(38% 60% at 18% 12%, rgba(62, 207, 142, 0.32) 0%, transparent 70%),
-    radial-gradient(36% 55% at 78% 6%, rgba(168, 232, 204, 0.4) 0%, transparent 70%),
-    radial-gradient(40% 58% at 92% 34%, rgba(62, 207, 142, 0.2) 0%, transparent 70%);
+  opacity: 0.42;
+  background: radial-gradient(40% 60% at 22% 18%, rgba(224, 164, 74, 0.42) 0%, transparent 70%),
+    radial-gradient(36% 55% at 72% 8%, rgba(88, 170, 228, 0.3) 0%, transparent 70%),
+    radial-gradient(40% 58% at 92% 34%, rgba(88, 170, 228, 0.18) 0%, transparent 70%);
 }
-html[data-theme="dark"] .aurora {
-  opacity: 0.34;
-  background: radial-gradient(38% 60% at 20% 16%, rgba(62, 207, 142, 0.4) 0%, transparent 70%),
-    radial-gradient(36% 55% at 74% 8%, rgba(31, 122, 87, 0.3) 0%, transparent 70%),
-    radial-gradient(40% 58% at 90% 36%, rgba(62, 207, 142, 0.2) 0%, transparent 70%);
+html[data-theme="light"] .aurora {
+  opacity: 0.3;
 }
 
 /* ---------- pills / chips / dots ---------- */
@@ -377,13 +373,13 @@ html[data-theme="light"] .wa-bubble .wa-meta {
 .btn-primary {
   border: 1px solid transparent;
   background: var(--grad);
-  color: #06301f;
-  font-weight: 600;
-  box-shadow: 0 10px 26px -14px rgba(31, 157, 107, 0.7);
+  color: #0c0f15;
+  font-weight: 700;
+  box-shadow: 0 12px 30px -12px rgba(224, 164, 74, 0.75);
 }
 .btn-primary:hover {
-  filter: brightness(1.04);
-  box-shadow: 0 12px 30px -12px rgba(31, 157, 107, 0.85);
+  filter: brightness(1.07);
+  box-shadow: 0 14px 34px -10px rgba(224, 164, 74, 0.85);
 }
 .btn-ghost {
   background: transparent;
@@ -406,6 +402,7 @@ html[data-theme="light"] .wa-bubble .wa-meta {
   align-items: center;
   gap: 11px;
   padding: 9px 11px;
+  border: 1px solid transparent;
   border-radius: 12px;
   color: var(--txt-3);
   font-size: 13.5px;
@@ -419,13 +416,10 @@ html[data-theme="light"] .wa-bubble .wa-meta {
   color: var(--txt);
 }
 .nav-item.active {
-  background: var(--deep);
-  color: #fff;
-  font-weight: 600;
-}
-html[data-theme="dark"] .nav-item.active {
-  background: var(--surface-hi);
+  background: rgba(224, 164, 74, 0.13);
+  border: 1px solid rgba(224, 164, 74, 0.3);
   color: var(--txt);
+  font-weight: 600;
 }
 .nav-item.active::before {
   content: "";
@@ -436,10 +430,7 @@ html[data-theme="dark"] .nav-item.active {
   width: 3px;
   height: 18px;
   border-radius: 99px;
-  background: var(--violet-2);
-}
-html[data-theme="dark"] .nav-item.active::before {
-  background: var(--grad);
+  background: linear-gradient(180deg, #e0a44a, #58aae4);
 }
 
 /* misc */
@@ -589,155 +580,25 @@ html[data-theme="dark"] .nav-item.active::before {
 }
 
 /* ============================================================
-   ANDROIDE — avatar realista com estado (SVG + glitch RGB)
-   ativo = respira/olha/glitch · idle = cinza · pausado = dorme
-   ============================================================ */
-.andr {
-  overflow: visible;
-  display: block;
-}
-.andr .halo {
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.andr .eye-core {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.andr .scanline {
-  opacity: 0;
-}
-
-/* ATIVO */
-.andr--ativo {
-  animation: andr-breathe 4.6s ease-in-out infinite;
-}
-.andr--ativo .halo {
-  opacity: 0.5;
-  animation: andr-halo 4.6s ease-in-out infinite;
-}
-.andr--ativo .eye-core {
-  filter: drop-shadow(0 0 3px var(--arc));
-  animation: andr-eye 4.4s ease-in-out infinite;
-}
-.andr--ativo .eyes {
-  animation: andr-look 6s ease-in-out infinite;
-}
-.andr--ativo.track .eyes {
-  animation: none;
-  transition: transform 0.12s ease-out;
-}
-.andr--ativo .face {
-  animation: andr-glitch 3.6s infinite;
-}
-.andr--ativo .scanline {
-  animation: andr-scan 3.8s linear infinite;
-}
-
-/* IDLE */
-.andr--idle {
-  filter: grayscale(1) brightness(0.62);
-}
-.andr--idle .eye-core {
-  fill-opacity: 0.3;
-}
-.andr--idle .eye-cl {
-  opacity: 0;
-}
-
-/* PAUSADO */
-.andr--pausado {
-  filter: saturate(0.72) brightness(0.82);
-}
-.andr--pausado .eye-core {
-  transform: scaleY(0.1);
-}
-.andr--pausado .eye-cl {
-  opacity: 0;
-}
-.andr--pausado .halo {
-  opacity: 0.16;
-}
-
-@keyframes andr-breathe {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-1.2px) scale(1.012); }
-}
-@keyframes andr-halo {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.62; }
-}
-@keyframes andr-eye {
-  0%, 88%, 100% { transform: scaleY(1); }
-  92%, 95% { transform: scaleY(0.1); }
-}
-@keyframes andr-look {
-  0%, 20% { transform: translateX(0); }
-  33%, 45% { transform: translateX(2.4px); }
-  60%, 72% { transform: translateX(-2.4px); }
-  88%, 100% { transform: translateX(0); }
-}
-@keyframes andr-scan {
-  0% { transform: translateY(0); opacity: 0; }
-  8% { opacity: 0.5; }
-  88% { opacity: 0.5; }
-  100% { transform: translateY(78px); opacity: 0; }
-}
-@keyframes andr-glitch {
-  0%, 90%, 100% { filter: none; transform: translateX(0); }
-  91% { filter: drop-shadow(-2px 0 0 rgba(255, 42, 92, 0.6)) drop-shadow(2px 0 0 rgba(40, 224, 255, 0.6)); transform: translateX(-1px); }
-  93% { filter: drop-shadow(2px 0 0 rgba(255, 42, 92, 0.55)) drop-shadow(-2px 0 0 rgba(40, 224, 255, 0.55)); transform: translateX(1.4px); }
-  95% { filter: none; transform: translateX(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .andr--ativo,
-  .andr--ativo .halo,
-  .andr--ativo .eye-core,
-  .andr--ativo .eyes,
-  .andr--ativo .face,
-  .andr--ativo .scanline {
-    animation: none !important;
-  }
-  .andr--ativo .face {
-    filter: none !important;
-  }
-}
-
-/* falando — a boca do androide mexe */
-.andr.speaking .mouth {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: andr-talk 0.42s ease-in-out infinite;
-}
-@keyframes andr-talk {
-  0%, 100% { transform: scaleY(0.5); }
-  50% { transform: scaleY(2.2); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .andr.speaking .mouth { animation: none !important; }
-}
-
-/* ============================================================
-   LINHA BRIDGE — cantos crisp + encaixe firme (não arredondado demais)
+   ENCAIXE "Casa do Motor" — cantos firmes mas acolhedores
    sobrescreve as utilities do tailwind (mesma especificidade, vem depois)
    ============================================================ */
-.rounded-3xl { border-radius: 12px; }
-.rounded-2xl { border-radius: 10px; }
-.rounded-xl  { border-radius: 8px; }
-.rounded-lg  { border-radius: 6px; }
-.rounded-\[10px\], .rounded-\[11px\], .rounded-\[12px\], .rounded-\[13px\], .rounded-\[14px\] { border-radius: 8px; }
-.\!rounded-2xl { border-radius: 10px !important; }
-.\!rounded-xl  { border-radius: 8px !important; }
-.\!rounded-lg  { border-radius: 6px !important; }
+.rounded-3xl { border-radius: 16px; }
+.rounded-2xl { border-radius: 14px; }
+.rounded-xl  { border-radius: 11px; }
+.rounded-lg  { border-radius: 8px; }
+.rounded-\[10px\], .rounded-\[11px\], .rounded-\[12px\], .rounded-\[13px\], .rounded-\[14px\] { border-radius: 11px; }
+.\!rounded-2xl { border-radius: 14px !important; }
+.\!rounded-xl  { border-radius: 11px !important; }
+.\!rounded-lg  { border-radius: 8px !important; }
 
-.btn { border-radius: 8px; }
-.btn-sm { border-radius: 7px; }
-.chip { border-radius: 7px; }
-.nav-item { border-radius: 8px; }
+.btn { border-radius: 11px; }
+.btn-sm { border-radius: 9px; }
+.chip { border-radius: 9px; }
+.nav-item { border-radius: 11px; }
 
-/* card com a barrinha verde que entra no hover (assinatura Bridge) */
-.card { border-radius: 9px; }
+/* card com a barrinha âmbar→azul que entra no hover */
+.card { border-radius: 14px; }
 .card-hover { overflow: hidden; }
 .card-hover::before {
   content: "";
@@ -752,12 +613,81 @@ html[data-theme="dark"] .nav-item.active::before {
 }
 .card-hover:hover::before { transform: scaleX(1); }
 
-/* hero — banner com peso (gradiente menta edge-to-edge, tipo Bridge) */
-.hero-banner {
-  border: 1px solid #c8e3d5;
-  background: linear-gradient(112deg, #dbf5e7 0%, #ecf9f2 58%, #f8fcfa 100%);
+/* ============================================================
+   MASCOTE NOVO ("Casa do Motor") — vivo quando trabalha
+   flutua · pisca · olha · antena pulsa · dorme quando pausado
+   ============================================================ */
+.masc { overflow: visible; display: block; }
+.masc--ativo { animation: masc-bob 3.8s ease-in-out infinite; }
+.masc--ativo .masc-olhos { animation: masc-look 6.5s ease-in-out infinite; }
+.masc--ativo .masc-olho {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: masc-blink 5s infinite;
 }
-html[data-theme="dark"] .hero-banner {
-  border-color: var(--line);
-  background: linear-gradient(112deg, rgba(62, 207, 142, 0.09), rgba(16, 20, 28, 0.5) 58%, var(--surface));
+.masc--ativo .masc-antena { animation: masc-antena 1.9s ease-in-out infinite; }
+.masc--ativo.track .masc-olhos {
+  animation: none;
+  transition: transform 0.12s ease-out;
+}
+.masc.falando .masc-boca {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: masc-fala 0.42s ease-in-out infinite;
+}
+.masc--idle { filter: grayscale(0.65) brightness(0.72); opacity: 0.7; }
+.masc--pausado { filter: saturate(0.7) brightness(0.85); }
+.masc--pausado .masc-zzz { animation: masc-zzz 3s ease-in-out infinite; }
+
+@keyframes masc-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes masc-blink {
+  0%, 91%, 100% { transform: scaleY(1); }
+  94%, 96% { transform: scaleY(0.08); }
+}
+@keyframes masc-look {
+  0%, 22% { transform: translateX(0); }
+  34%, 46% { transform: translateX(2.4px); }
+  60%, 74% { transform: translateX(-2.4px); }
+  88%, 100% { transform: translateX(0); }
+}
+@keyframes masc-antena {
+  0%, 100% { opacity: 0.4; filter: none; }
+  50% { opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
+}
+@keyframes masc-zzz {
+  0% { opacity: 0; transform: translate(0, 0); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(6px, -10px); }
+}
+@keyframes masc-fala {
+  0%, 100% { transform: scaleY(0.6); }
+  50% { transform: scaleY(1.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .masc--ativo, .masc--ativo .masc-olhos, .masc--ativo .masc-olho, .masc--ativo .masc-antena, .masc--pausado .masc-zzz, .masc.falando .masc-boca {
+    animation: none !important;
+  }
+}
+
+/* dopamina honesta: o card/badge de dinheiro respira de leve */
+.money-glow { animation: money-glow 3s ease-in-out infinite; }
+@keyframes money-glow {
+  0%, 100% { box-shadow: 0 0 12px -4px rgba(52, 211, 153, 0.55); }
+  50% { box-shadow: 0 0 20px -3px rgba(52, 211, 153, 0.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .money-glow { animation: none !important; }
+}
+
+/* hero — banner com peso (noite + âmbar/azul, aprovado na Casa do Motor) */
+.hero-banner {
+  border: 1px solid rgba(224, 164, 74, 0.22);
+  background: linear-gradient(112deg, rgba(224, 164, 74, 0.1), rgba(16, 20, 28, 0.55) 55%, var(--bg-2));
+}
+html[data-theme="light"] .hero-banner {
+  border-color: #e8d9b8;
+  background: linear-gradient(112deg, #f8ecd8 0%, #f6f1e6 58%, #faf8f4 100%);
 }

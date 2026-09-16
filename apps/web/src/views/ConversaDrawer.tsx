@@ -223,9 +223,9 @@ function AssumirFooter({ aberta }: { aberta: ConversaAberta }) {
     <div className="flex-none border-t border-[var(--line)] px-5 py-4 space-y-2" style={{ background: "var(--surface)" }}>
       {estado === "humano" ? (
         <>
-          <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5" style={{ border: "1px solid #ecd9ad", background: "#fdf8ec" }}>
-            <Headphones size={16} style={{ color: "#8a5a0b" }} className="flex-none" />
-            <p className="text-[12px] leading-snug" style={{ color: "#6b5a33" }}>
+          <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5" style={{ border: "1px solid rgba(251,191,36,.3)", background: "rgba(251,191,36,.08)" }}>
+            <Headphones size={16} style={{ color: "#fbbf24" }} className="flex-none" />
+            <p className="text-[12px] leading-snug" style={{ color: "#f2cf86" }}>
               <b>Você está no comando.</b> A IA está de fora <b>deste contato</b> — e segue atendendo o resto.
             </p>
           </div>

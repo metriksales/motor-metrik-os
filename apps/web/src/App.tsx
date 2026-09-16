@@ -20,7 +20,7 @@ import { useMotorAuth } from "./lib/auth";
 export default function App() {
   const [view, setView] = useState<ViewId>("inicio");
   const [agentId, setAgentId] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"dark" | "light">("light");
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [palette, setPalette] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [wa, setWa] = useState(true);
@@ -151,8 +151,8 @@ export default function App() {
         <header className="flex-none flex items-center justify-between gap-3 px-4 md:px-7 h-[62px] border-b border-[var(--line)] glass">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* celular: logo = voltar pro Início (âncora de "casa" sempre visível) */}
-            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #1f9d6b" }} aria-label="Início">
-              <Gauge size={17} style={{ color: "#06301f" }} strokeWidth={2.2} />
+            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #e0a44a" }} aria-label="Início">
+              <Gauge size={17} style={{ color: "#0c0f15" }} strokeWidth={2.2} />
             </button>
             <div className="min-w-0">
               <h1 className="font-display font-semibold text-[16px] tracking-tight leading-none truncate">{agent ? agent.name : nav.label}</h1>
