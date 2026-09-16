@@ -84,19 +84,6 @@ export default function Conversas({ agent }: { agent: Agent }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="mono-label mb-1">As conversas deste robô</div>
-          <p className="text-[13px] text-[var(--txt-2)] max-w-xl">
-            Toque numa conversa pra ler por dentro — e, se precisar, <b className="text-[var(--txt)]">assumir na hora</b> (a IA cala só naquele contato).
-          </p>
-        </div>
-        <Pill color={real ? "var(--emerald)" : undefined}>
-          {real ? <Database size={11} /> : <span className="live-dot" style={{ width: 6, height: 6 }} />}
-          {real ? "dado real ✓" : "demo"}
-        </Pill>
-      </div>
-
       {semNada ? (
         <Reveal>
           <div className="card p-8 text-center">
@@ -110,6 +97,13 @@ export default function Conversas({ agent }: { agent: Agent }) {
       ) : (
         <Reveal>
           <div className="card">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--line)]">
+              <span className="mono-label !text-[9px]">Conversas — toque pra ler por dentro</span>
+              <Pill color={real ? "var(--emerald)" : undefined}>
+                {real ? <Database size={11} /> : <span className="live-dot" style={{ width: 6, height: 6 }} />}
+                {real ? "dado real ✓" : "demo"}
+              </Pill>
+            </div>
             <ul>
               {(real
                 ? fios.map((f) => ({

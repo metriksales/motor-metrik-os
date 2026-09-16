@@ -16,10 +16,15 @@ import MapaAcao from "./MapaAcao";
 import MudancasTab from "./MudancasTab";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
-import { tempoRelativo, useLive } from "../lib/live";
+import { tempoRelativo, useLive, reais } from "../lib/live";
 
 // 3 LUGARES (redesign aprovado no canvas "Agente por Dentro"): VER · ENTENDER · MELHORAR.
 type Sub = "aovivo" | "comofunciona" | "melhorar";
+const HINT: Record<Sub, string> = {
+  aovivo: "três lugares: ver · entender · melhorar — nada escondido",
+  comofunciona: "lido do cérebro dele · atualiza sozinho",
+  melhorar: "a ÚNICA porta de mudança — tudo passa pelo ensaio",
+};
 /** aceita deep-links antigos (estrutura/trabalho/logs…) e mapeia pros 3 lugares */
 function normalizeSub(s?: string): Sub {
   if (s === "melhorar") return "melhorar";
@@ -53,6 +58,14 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
   const [state, setState] = useState<AgentState>(agent.state);
   const [pausaMsg, setPausaMsg] = useState<string | null>(null);
   const sm = STATE_META[state];
+
+  // os números do dia no topo (canvas): atendimentos · reuniões · R$ — real quando há lastro
+  const { logs, stats } = useLive();
+  const hoje0 = new Date(); hoje0.setHours(0, 0, 0, 0);
+  const meusHoje = agent.real ? (logs ?? []).filter((l) => l.agentId === agent.id && new Date(l.at) >= hoje0) : [];
+  const atendHoje = agent.real ? (stats?.porAgente?.[agent.id]?.execucoes ?? meusHoje.length) : agent.metrics.execucoes;
+  const reunioesHoje = agent.real ? meusHoje.filter((l) => (l.valorCentavos ?? 0) > 0).length : agent.live.filter((r) => /reuni/i.test(r.acao)).length;
+  const valorHoje = meusHoje.reduce((s, l) => s + (l.valorCentavos ?? 0), 0);
 
   // PAUSE REAL: persiste o estado no banco (o runtime lê antes de responder).
   // Agente demo segue só visual; agente real para/volta de verdade.
@@ -112,12 +125,27 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-4 flex-none">
-                <button onClick={() => void alternarEstado()} className="flex items-center gap-2.5" title={state === "pausado" ? "ligar — a IA volta a responder" : "pausar — a IA para de responder os leads"}>
+              <div className="flex items-center gap-5 flex-none">
+                <div className="hidden md:flex items-center gap-6 text-right">
+                  <div>
+                    <div className="num text-[21px] leading-none">{atendHoje}</div>
+                    <div className="text-[10px] text-[var(--txt-3)] mt-1">atendimentos hoje</div>
+                  </div>
+                  <div>
+                    <div className="num text-[21px] leading-none">{reunioesHoje}</div>
+                    <div className="text-[10px] text-[var(--txt-3)] mt-1">{reunioesHoje === 1 ? "reunião" : "reuniões"}</div>
+                  </div>
+                  {valorHoje > 0 && (
+                    <div>
+                      <div className="num text-[21px] leading-none" style={{ color: "var(--emerald)" }}>{reais(valorHoje)}</div>
+                      <div className="text-[10px] text-[var(--txt-3)] mt-1">gerado hoje</div>
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => void alternarEstado()} className="flex items-center gap-2.5 md:pl-5 md:border-l md:border-[var(--line)]" title={state === "pausado" ? "ligar — a IA volta a responder" : "pausar — a IA para de responder os leads"}>
                   <span className="text-[12.5px] text-[var(--txt-3)]">{state === "pausado" ? "pausado" : "ligado"}</span>
                   <Toggle on={state !== "pausado"} />
                 </button>
-                <button className="btn btn-primary btn-sm" onClick={() => setSub("melhorar")}><Wand2 size={14} /> Pedir melhoria</button>
               </div>
             </div>
           </div>
@@ -135,16 +163,36 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
         </div>
       )}
 
-      <div className="flex gap-1.5 flex-wrap">
-        {subs.map((s) => (
-          <button key={s.id} onClick={() => setSub(s.id)} className={cx("chip !py-2", sub === s.id && "!border-[var(--line-hi)] !bg-[var(--surface-hi)] !text-[var(--txt)]")}>
-            <s.icon size={14} /> {s.label}
-            {s.badge != null && (
-              <span className="grid place-items-center text-[10px] font-mono rounded-full" style={{ minWidth: 16, height: 16, background: "#e0a44a22", border: "1px solid #e0a44a45", color: "#edc074" }}>{s.badge}</span>
-            )}
-            {s.id === "aovivo" && alerta && <span className="dot" style={{ background: "#fb7185" }} />}
-          </button>
-        ))}
+      {/* a barra dos 3 LUGARES (canvas): botões grandes, ativo = casa escura âmbar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {subs.map((s) => {
+          const ativo = sub === s.id;
+          return (
+            <button
+              key={s.id}
+              onClick={() => setSub(s.id)}
+              className="inline-flex items-center gap-2 rounded-[11px] transition-all"
+              style={{
+                height: 44,
+                padding: "0 20px",
+                fontSize: 13.5,
+                fontWeight: ativo ? 600 : 500,
+                background: ativo ? "var(--deep)" : "var(--surface)",
+                border: ativo ? "1px solid rgba(224,164,74,.5)" : "1px solid var(--line)",
+                color: ativo ? "#fff" : "var(--txt-2)",
+                boxShadow: ativo ? "0 12px 28px -18px rgba(224,164,74,.6)" : "none",
+              }}
+            >
+              <s.icon size={16} style={ativo ? undefined : { color: "var(--txt-3)" }} />
+              {s.label}
+              {s.badge != null && (
+                <span className="grid place-items-center text-[10px] font-mono rounded-full" style={{ minWidth: 17, height: 17, background: ativo ? "rgba(255,255,255,.14)" : "#e0a44a22", border: ativo ? "1px solid rgba(255,255,255,.25)" : "1px solid #e0a44a45", color: ativo ? "#fff" : "#edc074" }}>{s.badge}</span>
+              )}
+              {s.id === "aovivo" && alerta && <span className="dot" style={{ background: "#fb7185" }} />}
+            </button>
+          );
+        })}
+        <span className="ml-auto text-[11px] text-[var(--txt-4)] hidden lg:block">{HINT[sub]}</span>
       </div>
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
@@ -283,29 +331,42 @@ function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (see
       ? [{ label: "O que faz", estado: "nucleo" }]
       : [
           { label: "Como conversa", estado: "nucleo" },
-          { label: "Como recupera (follow-up)", estado: followOn ? "on" : "off" },
+          { label: "Como recupera", estado: followOn ? "on" : "off" },
           { label: "Como marca reunião", estado: agendaOn ? "on" : "off" },
           { label: "Como fecha contrato", estado: contratoOn ? "on" : "off" },
         ];
 
   return (
     <div className="space-y-4">
+      {/* as LENTES (canvas): núcleo aceso em âmbar · módulo ligado · desligado À VISTA */}
       <div className="flex gap-2 flex-wrap">
         {lentes.map((l) => (
           <span
             key={l.label}
-            className="inline-flex items-center gap-2 text-[12px] px-3.5 py-2 rounded-[9px]"
-            style={
-              l.estado === "nucleo"
-                ? { background: "rgba(224,164,74,.13)", border: "1px solid rgba(224,164,74,.4)", color: "var(--txt)", fontWeight: 600 }
+            className="inline-flex items-center gap-2 rounded-[9px] text-[12.5px]"
+            style={{
+              height: 38,
+              padding: "0 16px",
+              ...(l.estado === "nucleo"
+                ? { background: "rgba(224,164,74,.13)", border: "1px solid rgba(224,164,74,.55)", color: "var(--txt)", fontWeight: 600 }
                 : l.estado === "on"
-                  ? { background: "var(--surface)", border: "1px solid var(--line)", color: "var(--txt-2)" }
-                  : { background: "var(--surface-2)", border: "1px dashed var(--line-hi)", color: "var(--txt-4)" }
-            }
+                  ? { background: "var(--surface)", border: "1px solid var(--line)", color: "var(--txt-2)", fontWeight: 500 }
+                  : { background: "var(--surface-2)", border: "1px dashed var(--line-hi)", color: "var(--txt-4)", fontWeight: 500 }),
+            }}
           >
+            {l.estado === "off" && <Lock size={12} className="flex-none" />}
             {l.label}
-            <span className="mono-label !text-[8px]" style={{ letterSpacing: ".08em" }}>
-              {l.estado === "nucleo" ? "núcleo" : l.estado === "on" ? "módulo · ligado" : "desligado"}
+            <span
+              className="text-[9px] font-semibold rounded-[5px] px-1.5 py-0.5"
+              style={
+                l.estado === "nucleo"
+                  ? { color: "#edc074", background: "rgba(224,164,74,.18)" }
+                  : l.estado === "on"
+                    ? { color: "var(--emerald)", background: "rgba(52,211,153,.12)" }
+                    : { color: "var(--txt-4)" }
+              }
+            >
+              {l.estado === "nucleo" ? "núcleo" : l.estado === "on" ? "módulo · ligado" : "desligado · dá pra ligar"}
             </span>
           </span>
         ))}
@@ -921,30 +982,29 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
   const hist = histReal ?? [];
   const emPreparo = hist.filter((h) => ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado)).length;
 
+  // pendência da vitrine: a pergunta que ela não soube — 1 clique já semeia o campo
+  const pendencia = auth.demo && agent.tipo === "resposta" ? "Vocês parcelam em quantas vezes?" : null;
+
   return (
-    <div className="space-y-4">
-      {veioDoDiario ? (
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+      <div className="space-y-4 min-w-0">
+      {veioDoDiario && (
         <div className="card p-4 flex items-start gap-3" style={{ borderColor: "#58aae440", background: "linear-gradient(160deg, rgba(88,170,228,.07), var(--surface))" }}>
           <ScrollText size={17} style={{ color: "#58aae4" }} className="flex-none mt-0.5" />
           <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Veio do Diário.</b> O caso já está escrito no campo abaixo — só complete o <b className="text-[var(--txt)]">“Deveria:”</b> com o que a IA deveria ter feito, e rode o ensaio. Corrigir de verdade acontece aqui, com prova antes de ir pro ar.</p>
-        </div>
-      ) : (
-        <div className="card p-4 flex items-start gap-3">
-          <Link2 size={17} style={{ color: "#e0a44a" }} className="flex-none mt-0.5" />
-          <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Uma fonte só.</b> Você pode pedir aqui, ligar no Turbinar ou mexer pelo Claude Code — tudo cai no mesmo agente e aparece no histórico abaixo. Nada duplica, nada se perde.</p>
         </div>
       )}
 
       {/* ── PEDIR: campo livre (chip preenche o campo; áudio vira texto) ── */}
       {envio.fase === "idle" || envio.fase === "clarificar" || envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "erro" ? (
         <div className="card p-5">
-          <div className="mono-label mb-3">Peça uma mudança — escreva do seu jeito</div>
+          <div className="mono-label mb-3">Peça do seu jeito — escreva ou fale</div>
           <div className="flex flex-wrap gap-2 mb-3">
             {CHAT_EXEMPLOS.map((c) => (
               <button key={c} onClick={() => setTexto(c)} className="chip">{c}</button>
             ))}
           </div>
-          <div className="flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 focus-within:border-[var(--line-hi)] transition-colors" style={gravando ? { borderColor: "#fb718560" } : undefined}>
+          <div className="melhorar-campo flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 transition-colors" style={gravando ? { borderColor: "#fb718560" } : undefined}>
             <textarea
               rows={2}
               value={texto}
@@ -1103,7 +1163,7 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
                 <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid rgba(52,211,153,.34)" }}><Check size={17} style={{ color: "#34d399" }} /></div>
                 <div>
                   <div className="text-[14px] font-medium text-[var(--txt)]">No ar! A mudança já está valendo pra sua IA.</div>
-                  <div className="text-[12px] text-[var(--txt-3)] mt-0.5">Ela virou uma nova versão registrada — veja na aba <b>Mudanças</b> e no histórico abaixo.</div>
+                  <div className="text-[12px] text-[var(--txt-3)] mt-0.5">Ela virou uma nova versão registrada — está no <b>histórico</b> ao lado.</div>
                 </div>
               </>
             )}
@@ -1111,31 +1171,49 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
         </Reveal>
       )}
 
-      <div className="card p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="mono-label">Histórico — tudo que mudou</div>
-          {histReal && <span className="pill" style={{ color: "var(--emerald)" }}>dado real ✓</span>}
+      </div>
+
+      {/* rail (canvas): a pendência que puxa o cliente a ensinar + o histórico único */}
+      <div className="space-y-4">
+        {pendencia && (
+          <div className="card p-4" style={{ borderColor: "rgba(251,191,36,.35)", background: "linear-gradient(160deg, rgba(251,191,36,.07), var(--surface))" }}>
+            <div className="mono-label !text-[9px] mb-2.5" style={{ color: "#fbbf24" }}>Ela não soube responder · 1</div>
+            <div className="rounded-[9px] p-3 mb-3" style={{ background: "var(--surface-2)", border: "1px solid rgba(251,191,36,.3)" }}>
+              <div className="text-[12.5px] leading-snug">“{pendencia}”</div>
+              <div className="text-[10.5px] text-[var(--txt-4)] mt-1">ontem, 19:40 · com Carlos Mendes — ela pediu um tempo pra confirmar</div>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => setTexto(`Quando perguntarem “${pendencia}”, responde: `)}>
+              <Wand2 size={13} /> Ensinar em 30 segundos
+            </button>
+            <p className="text-[10.5px] mt-2.5 leading-relaxed" style={{ color: "#f2cf86" }}>você responde uma vez → ela nunca mais fica sem essa resposta.</p>
+          </div>
+        )}
+
+        <div className="card p-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="mono-label !text-[9px]">Histórico — tudo que mudou</div>
+            {histReal && <span className="pill" style={{ color: "var(--emerald)" }}>dado real ✓</span>}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <span className="pill" style={{ color: "#34d399", borderColor: "#34d39940", background: "#34d39914" }}>{hist.filter((h) => h.estado === "no ar").length} no ar</span>
+            <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>{emPreparo} em preparo</span>
+            <span className="pill">{hist.filter((h) => h.estado === "ignorado").length} não precisou</span>
+          </div>
+          {hist.length === 0 && <p className="text-[11.5px] text-[var(--txt-3)]">A primeira mudança que você pedir aparece aqui.</p>}
+          <ul>
+            {hist.slice(0, 6).map((h, i) => {
+              const o = ORIG[h.origem] ?? ORIG.chat;
+              const ec = h.estado === "no ar" ? "#34d399" : ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado) ? "#fbbf24" : "#83879a";
+              return (
+                <li key={i} className="py-2 border-b border-[var(--line)] last:border-0">
+                  <div className="text-[11.5px] leading-snug"><b style={{ color: o.color }}>{o.label}</b>{h.quando ? <span className="text-[var(--txt-4)]"> · {h.quando}</span> : null}: <span className="text-[var(--txt-2)]">{h.oque}</span></div>
+                  <span className="pill mt-1.5" style={{ color: ec, borderColor: `${ec}40`, background: `${ec}14` }}>{h.estado}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[10px] text-[var(--txt-4)] mt-2.5 leading-relaxed">qualquer porta — aqui, um módulo, ou o Claude Code — cai neste mesmo histórico. Nada duplica, nada se perde.</p>
         </div>
-        <p className="text-[12px] text-[var(--txt-3)] mb-4">De qualquer porta: aqui, no Turbinar, ou pelo Claude Code. Nada duplica, nada se perde.</p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="pill" style={{ color: "#34d399", borderColor: "#34d39940", background: "#34d39914" }}>{hist.filter((h) => h.estado === "no ar").length} no ar</span>
-          <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>{emPreparo} em preparo</span>
-          <span className="pill">{hist.filter((h) => h.estado === "ignorado").length} não precisou</span>
-        </div>
-        <ul className="space-y-1">
-          {hist.map((h, i) => {
-            const o = ORIG[h.origem] ?? ORIG.chat;
-            const ec = h.estado === "no ar" ? "#34d399" : ["rascunho", "recebido", "testado", "aprovado"].includes(h.estado) ? "#fbbf24" : "#83879a";
-            return (
-              <li key={i} className="flex items-center gap-3 py-2.5 border-b border-[var(--line)] last:border-0">
-                <span className="pill flex-none justify-center" style={{ color: o.color, borderColor: `${o.color}40`, background: `${o.color}14`, minWidth: 96 }}>{o.label}</span>
-                <span className="text-[13px] text-[var(--txt)] flex-1 min-w-0 truncate">{h.oque}</span>
-                <span className="tick flex-none hidden sm:block">{h.quando}</span>
-                <span className="pill flex-none" style={{ color: ec, borderColor: `${ec}40`, background: `${ec}14` }}>{h.estado}</span>
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </div>
   );

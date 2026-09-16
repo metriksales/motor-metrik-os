@@ -5,7 +5,7 @@
 // O conteúdo é lido do cérebro do agente — mudou o cérebro, muda aqui sozinho.
 import { type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, UserRound, CheckCheck } from "lucide-react";
+import { Sparkles, UserRound, CheckCheck, ShieldCheck } from "lucide-react";
 import { type Agent, type Mudanca, type Ramo, type Regra } from "../data";
 import { Reveal } from "../ui";
 
@@ -29,13 +29,13 @@ export default function MapaTab({ agent }: { agent: Agent }) {
       <Reveal>
         <div className="card p-5 md:p-7">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="mono-label">O processo dele hoje</div>
-            <span className="text-[11px] text-[var(--txt-4)] flex-none">lido do cérebro do agente · atualiza sozinho</span>
+            <div className="mono-label">Como conversa — o caminho de todo lead</div>
+            <span className="text-[11px] text-[var(--txt-4)] flex-none">a fala é literal: é o que chega pro seu cliente</span>
           </div>
           {mudancas.length > 0 && (
             <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#e0a44a" }}>
               <Sparkles size={13} />
-              {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ abaixo · detalhes na aba Mudanças
+              {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ abaixo · a prova está em “O que mudou”, ao lado
             </div>
           )}
           {agent.expectativa && (
@@ -56,7 +56,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
               )}
             </Passo>
 
-            <Passo n={3} titulo={`Cai num dos ${mapa.ramos.length} caminhos`} cor="#58aae4" ultimo={!mapa.aposRamos}>
+            <Passo n={3} titulo={`Cai num dos ${mapa.ramos.length} caminhos`} cor="#58aae4" ultimo>
               <div className="space-y-4 mt-2">
                 {(() => {
                   // calor: o caminho mais rodado do dia fica visualmente óbvio
@@ -67,13 +67,14 @@ export default function MapaTab({ agent }: { agent: Agent }) {
                 })()}
               </div>
             </Passo>
-
-            {mapa.aposRamos && (
-              <Passo n={4} titulo="Fim de linha" cor="#58aae4" ultimo>
-                <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{mapa.aposRamos}</p>
-              </Passo>
-            )}
           </ol>
+
+          {mapa.aposRamos && (
+            <div className="mt-5 flex items-start gap-2.5 rounded-[9px] px-3.5 py-2.5" style={{ background: "rgba(52,211,153,.05)", border: "1px solid rgba(52,211,153,.25)" }}>
+              <ShieldCheck size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+              <p className="text-[12px] text-[var(--txt-2)] leading-relaxed m-0">{mapa.aposRamos}</p>
+            </div>
+          )}
         </div>
       </Reveal>
 

@@ -672,6 +672,12 @@ html[data-theme="light"] .wa-bubble .wa-meta {
   }
 }
 
+/* o campo do Melhorar acende em âmbar quando você escreve (canvas) */
+.melhorar-campo:focus-within {
+  border-color: rgba(224, 164, 74, 0.6);
+  box-shadow: 0 0 0 3px rgba(224, 164, 74, 0.12);
+}
+
 /* dopamina honesta: o card/badge de dinheiro respira de leve */
 .money-glow { animation: money-glow 3s ease-in-out infinite; }
 @keyframes money-glow {
