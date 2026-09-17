@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Radio, Zap, Wand2, Check, X, Loader2, ShieldCheck, Lock, Plus,
@@ -18,16 +18,18 @@ import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo, useLive, reais } from "../lib/live";
 
-// 3 LUGARES (redesign aprovado no canvas "Agente por Dentro"): VER · ENTENDER · MELHORAR.
-type Sub = "aovivo" | "comofunciona" | "melhorar";
+// 3 LUGARES + TESTAR (canvas "Cérebro do Robô"): VER · ENTENDER · MELHORAR · PROVAR.
+type Sub = "aovivo" | "comofunciona" | "melhorar" | "testar";
 const HINT: Record<Sub, string> = {
-  aovivo: "três lugares: ver · entender · melhorar — nada escondido",
+  aovivo: "quatro lugares: ver · entender · melhorar · testar — nada escondido",
   comofunciona: "lido do cérebro dele · atualiza sozinho",
   melhorar: "a ÚNICA porta de mudança — tudo passa pelo ensaio",
+  testar: "você é o lead — a mesma IA do ar, sem tocar no CRM",
 };
-/** aceita deep-links antigos (estrutura/trabalho/logs…) e mapeia pros 3 lugares */
+/** aceita deep-links antigos (estrutura/trabalho/logs…) e mapeia pros lugares */
 function normalizeSub(s?: string): Sub {
   if (s === "melhorar") return "melhorar";
+  if (s === "testar") return "testar";
   if (s === "estrutura" || s === "comofunciona" || s === "mudancas") return "comofunciona";
   return "aovivo";
 }
@@ -39,6 +41,9 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
   // o caso já vai ESCRITO pro Melhorar — a única porta de mudança.
   const [melhorarSeed, setMelhorarSeed] = useState<string | null>(null);
   const irMelhorar = (seed?: string) => { setMelhorarSeed(seed ?? null); setSub("melhorar"); };
+  // "testar esta info" (Memória) chega no chat com a pergunta já escrita
+  const [testarSeed, setTestarSeed] = useState<string | null>(null);
+  const irTestar = (seed?: string) => { setTestarSeed(seed ?? null); setSub("testar"); };
 
   // Badge de Mudanças conta o LEDGER real (ChangeSets) quando o agente é real.
   const [nReal, setNReal] = useState(0);
@@ -89,6 +94,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
     { id: "aovivo", label: "Ao vivo", icon: Radio },
     { id: "comofunciona", label: "Como funciona", icon: BookOpen, badge: nMud > 0 ? nMud : undefined },
     { id: "melhorar", label: "Melhorar", icon: Wand2 },
+    { id: "testar", label: "Testar", icon: MessageCircle },
   ];
 
   return (
@@ -197,8 +203,9 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
 
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
         {sub === "aovivo" && <AoVivoTab agent={agent} onMelhorar={irMelhorar} irModulos={() => setSub("comofunciona")} />}
-        {sub === "comofunciona" && <ComoFuncionaTab agent={agent} onMelhorar={irMelhorar} />}
+        {sub === "comofunciona" && <ComoFuncionaTab agent={agent} onMelhorar={irMelhorar} irTestar={irTestar} />}
         {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} />}
+        {sub === "testar" && <TestarTab agent={agent} onMelhorar={irMelhorar} seed={testarSeed} />}
       </motion.div>
     </div>
   );
@@ -341,7 +348,7 @@ function AoVivoTab({ agent, onMelhorar, irModulos }: { agent: Agent; onMelhorar:
 }
 
 /* ═══════════ LUGAR 2 · COMO FUNCIONA — "como ele decide?" ═══════════ */
-function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (seed?: string) => void }) {
+function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar: (seed?: string) => void; irTestar: (seed?: string) => void }) {
   // ligar módulo = modal "Como vai funcionar" (canvas): escolhas prontas, prévia, Ativar
   const [modal, setModal] = useState<Upgrade | null>(null);
   const naFila = agent.work?.kind === "followups" ? (agent.work.followups?.filter((f) => f.status !== "feito").length ?? 0) : 0;
@@ -398,7 +405,7 @@ function ComoFuncionaTab({ agent, onMelhorar }: { agent: Agent; onMelhorar: (see
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
         <div className="space-y-4 min-w-0">
           {agent.mapa ? <MapaTab agent={agent} /> : agent.fluxo ? <MapaAcao agent={agent} onMelhorar={() => onMelhorar()} /> : null}
-          {agent.work?.kind === "conhecimento" && <WorkTab agent={agent} onMelhorar={() => onMelhorar()} />}
+          {agent.tipo === "resposta" && <MemoriaRobo agent={agent} onMelhorar={onMelhorar} irTestar={irTestar} />}
         </div>
 
         <div className="space-y-4">
@@ -934,12 +941,26 @@ const ORIG: Record<string, { label: string; color: string }> = {
 };
 
 type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string };
+/** o DESTINO da informação (canvas Cérebro do Robô): 🧾 fato · ⚙️ regra · 📚 doc */
+type Destino = "fato" | "regra" | "doc";
+const DESTINO_META: Record<Destino, { emoji: string; label: string; cor: string; desc: string }> = {
+  fato: { emoji: "🧾", label: "Lista · fato exato", cor: "#34d399", desc: "ela passa a responder sempre igual — entra no cérebro depois do ensaio rápido." },
+  regra: { emoji: "⚙️", label: "Motor · comportamento", cor: "#e0a44a", desc: "muda o jeito dela agir — o guardião testa no ensaio antes de valer." },
+  doc: { emoji: "📚", label: "Biblioteca · documento", cor: "#58aae4", desc: "conteúdo longo — fica guardado; a busca inteligente entra na próxima atualização da Metrik." },
+};
+/** palpite de destino (sem cérebro é heurística — o cliente SEMPRE confirma) */
+function destinoDe(t: string): Destino {
+  if (/\.pdf|\.docx?|documento|p[áa]gina|em anexo|cont[eú]udo longo/i.test(t)) return "doc";
+  if (/r\$|\d+ ?(reais|%)|custa|pre[çc]o|hor[áa]rio|\b\d{1,2}h\b|link|site|endere[çc]o|telefone|pix|parcel|prazo de/i.test(t)) return "fato";
+  return "regra";
+}
 type EnvioState = {
-  fase: "idle" | "clarificar" | "confirmar" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "erro";
+  fase: "idle" | "clarificar" | "confirmar" | "registrando" | "ensaiando" | "pronto" | "publicando" | "publicado" | "guardado" | "erro";
   cs?: any;
   evals?: any;
   ensaio?: { modo: "real" | "sem-cerebro"; situacoes: EnsaioSit[] };
   pedido?: string;
+  destino?: Destino;
   erro?: string;
 };
 
@@ -1095,6 +1116,312 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
   );
 }
 
+/* ══ TESTAR (canvas Cérebro do Robô): conversa tipo WhatsApp com a MESMA IA
+   do ar. Sandbox DE VERDADE: o backend roda o cérebro SEM tools — não existe
+   caminho pra tocar CRM, estado ou WhatsApp. Demo = roteiro de vitrine. ══ */
+type MsgTeste = { de: "voce" | "ia"; texto: string; fonte?: string | null; aviso?: boolean };
+const WA = { fundo: "#0b141a", topo: "#1f2c34", campo: "#2a3942", bolhaVoce: "#005c4b", bolhaIa: "#202c33", txt: "#e9edef", meta: "#8696a0" };
+const DEMO_TESTE: { re: RegExp; resp: string; fonte: string }[] = [
+  { re: /start|pre[cç]o|quanto|custa|valor|plano/i, resp: "O Start sai por R$ 497! É o plano pra quem quer começar com a IA atendendo já na primeira semana. Quer que eu te mostre o que vem nele?", fonte: "🧾 Lista · Preços — o fato que você pôs hoje" },
+  { re: /desconto|vista/i, resp: "Boa pergunta! Deixa eu confirmar essa condição com o time e já te falo, tá bom?", fonte: "⚙️ regra de desconto ainda no ensaio — por isso segurou" },
+  { re: /cancelar|fidelidade/i, resp: "Pode cancelar quando quiser — não tem fidelidade. Só pedimos aviso com 30 dias, tá bom?", fonte: "📚 contrato.pdf · Biblioteca" },
+];
+
+function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (seed?: string) => void; seed?: string | null }) {
+  const auth = useMotorAuth();
+  const [msgs, setMsgs] = useState<MsgTeste[]>([]);
+  const [input, setInput] = useState(seed ?? "");
+  const [rodando, setRodando] = useState(false);
+  const [modo, setModo] = useState<"ar" | "ensaio">("ar");
+  const [feedback, setFeedback] = useState<Record<number, "sim" | "nao">>({});
+  const [emPreparo, setEmPreparo] = useState<string | null>(null);
+  const fimRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { if (seed) setInput(seed); }, [seed]);
+  useEffect(() => { fimRef.current?.scrollIntoView({ block: "end" }); }, [msgs]);
+
+  // existe mudança em preparo? (é o que o "com o ensaio" aplica por cima)
+  useEffect(() => {
+    if (!agent.real) return;
+    let vivo = true;
+    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
+      .then((rows) => {
+        if (!vivo || !Array.isArray(rows)) return;
+        const cs = rows.find((r) => ["draft", "evaluated", "approved"].includes(String(r.status)));
+        setEmPreparo(cs ? String(cs.intent ?? "mudança em preparo") : null);
+      })
+      .catch(() => {});
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id]);
+
+  const enviarTeste = async (textoDireto?: string) => {
+    const t = (textoDireto ?? input).trim();
+    if (!t || rodando) return;
+    const novo: MsgTeste[] = [...msgs, { de: "voce", texto: t }];
+    setMsgs(novo);
+    setInput("");
+    if (!agent.real) {
+      const demo = DEMO_TESTE.find((d) => d.re.test(t));
+      setMsgs([
+        ...novo,
+        demo
+          ? { de: "ia", texto: demo.resp, fonte: demo.fonte }
+          : { de: "ia", texto: "Na sua conta de verdade, quem responde aqui é o cérebro do ar — isto é a demonstração.", aviso: true },
+      ]);
+      return;
+    }
+    try {
+      setRodando(true);
+      const historico = novo.filter((m) => !m.aviso).map((m) => ({ role: m.de === "voce" ? ("user" as const) : ("assistant" as const), content: m.texto }));
+      const r: any = await api.testar(agent.id, historico, modo, auth.getToken);
+      if (r?.modo === "sem-cerebro") {
+        setMsgs([...novo, { de: "ia", texto: "Ainda não consigo conversar de verdade aqui: o teste usa o cérebro (chave OpenAI), e ele não está ligado neste ambiente. Quando a Metrik ligar, esta conversa vira a IA real do ar.", aviso: true }]);
+      } else {
+        const fonte = r?.fonte
+          ? `usou: ${r.fonte}${r.base === "semente" ? " · cérebro semente" : ""}`
+          : r?.base === "semente"
+            ? "cérebro semente da vertical (ainda sem versão publicada)"
+            : null;
+        setMsgs([...novo, { de: "ia", texto: String(r?.texto ?? "…"), fonte }]);
+      }
+    } catch (e) {
+      setMsgs([...novo, { de: "ia", texto: e instanceof Error ? e.message : "o teste falhou — tenta de novo", aviso: true }]);
+    } finally {
+      setRodando(false);
+    }
+  };
+
+  const naoEIsso = (i: number) => {
+    setFeedback((s) => ({ ...s, [i]: "nao" }));
+    const pergunta = [...msgs.slice(0, i)].reverse().find((m) => m.de === "voce")?.texto ?? "";
+    onMelhorar(`No teste, perguntei: "${pergunta}" e ela respondeu: "${msgs[i].texto}" — não é isso. Deveria: `);
+  };
+
+  const sugestoes = agent.real
+    ? ["quanto custa?", "que horas vocês atendem?", "quero falar com uma pessoa"]
+    : ["quanto custa o plano start?", "e à vista, tem desconto?", "posso cancelar quando?"];
+  const nPerg = msgs.filter((m) => m.de === "voce").length;
+  const nSim = Object.values(feedback).filter((v) => v === "sim").length;
+  const nNao = Object.values(feedback).filter((v) => v === "nao").length;
+
+  return (
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
+      {/* o telefone — a conversa */}
+      <div className="rounded-2xl overflow-hidden border border-[var(--line)] min-w-0" style={{ background: WA.fundo }}>
+        <div className="flex items-center gap-3 px-4 py-2.5" style={{ background: WA.topo }}>
+          <div className="rounded-full p-1 flex-none" style={{ background: "var(--deep)", border: "1px solid rgba(224,164,74,.5)" }}>
+            <Robot state="ativo" color={agent.color} size={28} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold" style={{ color: WA.txt }}>{agent.name} · conversa de teste</div>
+            <div className="text-[10.5px]" style={{ color: WA.meta }}>você é o lead — pergunta qualquer coisa</div>
+          </div>
+          <div className="flex rounded-[9px] overflow-hidden flex-none" style={{ border: "1px solid rgba(255,255,255,.14)" }}>
+            <button onClick={() => setModo("ar")} className="text-[10px] font-semibold px-2.5 py-1.5" style={modo === "ar" ? { background: "#34d399", color: "#0c0f15" } : { color: WA.meta }}>no ar ✓</button>
+            <button
+              onClick={() => (emPreparo || !agent.real) && setModo("ensaio")}
+              title={emPreparo ? `aplica por cima: ${emPreparo}` : "sem mudança em ensaio agora"}
+              className="text-[10px] font-semibold px-2.5 py-1.5"
+              style={modo === "ensaio" ? { background: "#fbbf24", color: "#0c0f15" } : { color: WA.meta, opacity: emPreparo || !agent.real ? 1 : 0.4 }}
+            >
+              com o ensaio
+            </button>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 space-y-2.5 overflow-y-auto" style={{ minHeight: 340, maxHeight: 460 }}>
+          {msgs.length === 0 && (
+            <div className="text-center text-[11.5px] py-10" style={{ color: WA.meta }}>
+              Escreve como um lead escreveria — ou toca numa sugestão ao lado.
+              <br />
+              <span className="text-[10px]">nada daqui vai pro seu CRM nem gasta seu WhatsApp.</span>
+            </div>
+          )}
+          {msgs.map((m, i) =>
+            m.de === "voce" ? (
+              <div key={i} className="ml-auto max-w-[70%] rounded-[10px] px-3 py-1.5" style={{ background: WA.bolhaVoce, borderTopRightRadius: 3 }}>
+                <div className="text-[13px] leading-relaxed" style={{ color: WA.txt }}>{m.texto}</div>
+              </div>
+            ) : (
+              <div key={i} className="max-w-[76%]">
+                <div className="rounded-[10px] px-3 py-1.5" style={{ background: m.aviso ? "rgba(251,191,36,.12)" : WA.bolhaIa, borderTopLeftRadius: 3, border: m.aviso ? "1px solid rgba(251,191,36,.35)" : undefined }}>
+                  <div className="text-[13px] leading-relaxed" style={{ color: m.aviso ? "#fbbf24" : WA.txt }}>{m.texto}</div>
+                </div>
+                {!m.aviso && (
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    {m.fonte && (
+                      <span className="text-[9.5px] font-semibold rounded-full px-2.5 py-1" style={{ color: "#34d399", background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.3)" }}>{m.fonte}</span>
+                    )}
+                    {feedback[i] === "sim" ? (
+                      <span className="text-[10px] font-bold rounded-[7px] px-2.5 py-1" style={{ background: "#34d399", color: "#0c0f15" }}>✓ é isso</span>
+                    ) : feedback[i] === "nao" ? (
+                      <span className="text-[10px] font-semibold rounded-[7px] px-2.5 py-1" style={{ color: "#fb7185", border: "1px solid rgba(251,113,133,.4)" }}>corrigindo no Melhorar…</span>
+                    ) : (
+                      <>
+                        <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))} className="text-[10px] font-bold rounded-[7px] px-2.5 py-1" style={{ background: "#34d399", color: "#0c0f15" }}>✓ é isso</button>
+                        <button onClick={() => naoEIsso(i)} className="text-[10px] font-semibold rounded-[7px] px-2.5 py-1" style={{ color: "#fb7185", border: "1px solid rgba(251,113,133,.4)" }}>✗ não é isso — corrigir</button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ),
+          )}
+          {rodando && <div className="text-[11px]" style={{ color: WA.meta }}>digitando…</div>}
+          <div ref={fimRef} />
+        </div>
+
+        <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: WA.topo }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void enviarTeste(); } }}
+            placeholder="escreve como um lead escreveria…"
+            className="flex-1 rounded-full px-4 py-2.5 text-[12.5px] outline-none min-w-0"
+            style={{ background: WA.campo, color: WA.txt }}
+          />
+          <button onClick={() => void enviarTeste()} disabled={!input.trim() || rodando} className="grid place-items-center rounded-full flex-none" style={{ width: 40, height: 40, background: "var(--grad)" }}>
+            {rodando ? <Loader2 size={16} className="animate-spin" style={{ color: "#0c0f15" }} /> : <ArrowUp size={17} style={{ color: "#0c0f15" }} />}
+          </button>
+        </div>
+      </div>
+
+      {/* rail: a IA orienta o teste + placar honesto */}
+      <div className="space-y-4">
+        <div className="card p-4" style={{ borderColor: "rgba(224,164,74,.35)", background: "linear-gradient(150deg, rgba(224,164,74,.07), var(--surface))" }}>
+          <div className="mono-label !text-[9px] mb-2.5" style={{ color: "#edc074" }}>Ela sugere o que testar</div>
+          <div className="space-y-1.5">
+            {sugestoes.map((s) => (
+              <button key={s} onClick={() => void enviarTeste(s)} className="block w-full text-left text-[12px] rounded-[9px] px-3 py-2 transition-colors hover:border-[rgba(224,164,74,.4)]" style={{ background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+                “{s}”
+              </button>
+            ))}
+            {emPreparo && (
+              <button onClick={() => setModo("ensaio")} className="block w-full text-left text-[11.5px] rounded-[9px] px-3 py-2" style={{ background: "rgba(251,191,36,.06)", border: "1px solid rgba(251,191,36,.3)", color: "#fbbf24" }}>
+                testa a mudança em ensaio: “{emPreparo.slice(0, 60)}”
+              </button>
+            )}
+          </div>
+          <p className="text-[10px] text-[var(--txt-4)] mt-2.5 leading-relaxed m-0">toca numa sugestão → ela entra na conversa como lead.</p>
+        </div>
+
+        <div className="card p-4">
+          <div className="mono-label !text-[9px] mb-2.5">Este teste</div>
+          <div className="flex gap-5">
+            <div><div className="num text-[20px] leading-none">{nPerg}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">perguntas</div></div>
+            <div><div className="num text-[20px] leading-none" style={{ color: "#34d399" }}>{nSim}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">é isso ✓</div></div>
+            <div><div className="num text-[20px] leading-none" style={{ color: "#fb7185" }}>{nNao}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">corrigindo</div></div>
+          </div>
+          <p className="text-[10.5px] text-[var(--txt-3)] mt-3 leading-relaxed m-0">o “✗ não é isso” abre o Melhorar com a conversa já colada — corrige e testa de novo aqui.</p>
+        </div>
+
+        <div className="card p-3.5 flex items-start gap-2.5" style={{ borderColor: "#34d39930" }}>
+          <ShieldCheck size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+          <p className="text-[11px] text-[var(--txt-2)] leading-relaxed m-0"><b className="text-[var(--txt)]">{agent.real ? "É o cérebro de verdade" : "Demonstração"}</b> — {agent.real ? "o mesmo do ar, rodando sem ferramentas: não mexe no CRM, no estado nem no seu WhatsApp." : "na sua conta, este chat conversa com o cérebro real do ar."}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ MEMÓRIA (canvas): tudo que o robô sabe — e ONDE vive. 3 casas:
+   🧾 Listas (fatos exatos) · 📚 Biblioteca (docs — próxima fatia, honesto)
+   · ⚙️ Motor (comportamento). Real = ledger do Neon; demo = vitrine. ══ */
+function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar: (s?: string) => void; irTestar: (s?: string) => void }) {
+  const auth = useMotorAuth();
+  const [cs, setCs] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (!agent.real) return;
+    let vivo = true;
+    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
+      .then((rows) => { if (vivo && Array.isArray(rows)) setCs(rows); })
+      .catch(() => {});
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id]);
+
+  const tipoDe = (r: any): string => String((r?.patch as any)?.tipo ?? "regra");
+  const estadoDe = (r: any) => (String(r.status) === "published" ? "no ar" : ["draft", "evaluated", "approved"].includes(String(r.status)) ? "no ensaio…" : null);
+  const fatos = agent.real
+    ? (cs ?? []).filter((r) => tipoDe(r) === "fato" && estadoDe(r)).map((r) => ({ titulo: String(r.intent ?? "").replace(/^fato:\s*/i, ""), estado: estadoDe(r)! }))
+    : (agent.work?.conhecimento ?? []).map((c) => ({ titulo: c.titulo, estado: "no ar" as string, cat: c.cat }));
+  const docs = agent.real
+    ? (cs ?? []).filter((r) => tipoDe(r) === "doc").map((r) => ({ titulo: String(r.intent ?? "documento").slice(0, 60), estado: "guardado" }))
+    : [{ titulo: "contrato.pdf · 12 páginas", estado: "no ar", uso: "usada 14× esta semana" }, { titulo: "catalogo-servicos.pdf", estado: "no ar", uso: "usada 5× esta semana" }];
+  const regras = agent.real
+    ? (cs ?? []).filter((r) => tipoDe(r) === "regra" && estadoDe(r)).map((r) => ({ titulo: String(r.intent ?? ""), estado: estadoDe(r)! }))
+    : (agent.mapa?.ramos?.[0]?.regras ?? []).slice(0, 4).map((rg) => ({ titulo: `Se ${rg.se}`, estado: "no ar" as string }));
+
+  const estCor = (e: string) => (e === "no ar" ? "#34d399" : e === "guardado" ? "#58aae4" : "#fbbf24");
+  const Item = ({ titulo, estado }: { titulo: string; estado: string }) => (
+    <div className="flex items-center gap-2 py-1.5 border-b border-[var(--line)] last:border-0 text-[12px]">
+      <span className="flex-1 min-w-0 truncate">{titulo}</span>
+      <span className="text-[9.5px] font-semibold flex-none" style={{ color: estCor(estado) }}>{estado === "no ar" ? "no ar ✓" : estado}</span>
+      <button onClick={() => irTestar(titulo)} className="text-[10px] font-semibold flex-none" style={{ color: "var(--violet-2)" }}>testar</button>
+    </div>
+  );
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+        <div className="font-display font-semibold text-[16px] tracking-tight">Tudo que {agent.name} <span className="grad-text">sabe</span> — e onde vive</div>
+        <div className="flex items-center gap-4">
+          <span className="text-[10.5px] text-[var(--txt-4)]"><b style={{ color: "#34d399" }}>{fatos.length}</b> fatos · <b style={{ color: "#58aae4" }}>{docs.length}</b> docs · <b style={{ color: "#edc074" }}>{regras.length}</b> regras</span>
+          <button className="btn btn-primary btn-sm" onClick={() => onMelhorar()}>+ Ensinar</button>
+        </div>
+      </div>
+      <p className="text-[11px] text-[var(--txt-4)] mb-4">cada informação mostra onde vive e se está no ar — o “testar” abre a conversa de teste.</p>
+
+      <div className="grid md:grid-cols-3 gap-3">
+        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(52,211,153,.3)", background: "var(--surface)" }}>
+          <div className="flex items-center gap-2 mb-0.5"><span className="text-[15px]">🧾</span><b className="text-[13px]">Listas — fatos exatos</b></div>
+          <div className="text-[10px] text-[var(--txt-4)] mb-2.5">preço, horário, link: responde sempre igual</div>
+          {fatos.length === 0 ? (
+            <p className="text-[11px] text-[var(--txt-3)] m-0">Ainda sem fatos seus. Ensina o primeiro no Melhorar — ele entra como Fato e vale no ar.</p>
+          ) : (
+            fatos.slice(0, 6).map((f, i) => <Item key={i} titulo={f.titulo} estado={f.estado} />)
+          )}
+        </div>
+
+        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(88,170,228,.3)", background: "var(--surface)" }}>
+          <div className="flex items-center gap-2 mb-0.5"><span className="text-[15px]">📚</span><b className="text-[13px]">Biblioteca — busca inteligente</b></div>
+          <div className="text-[10px] text-[var(--txt-4)] mb-2.5">documentos longos: ela acha o trecho pelo significado</div>
+          {agent.real ? (
+            <>
+              {docs.map((d, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5 border-b border-[var(--line)] last:border-0 text-[12px]">
+                  <span className="flex-1 min-w-0 truncate">{d.titulo}</span>
+                  <span className="text-[9.5px] font-semibold flex-none" style={{ color: "#58aae4" }}>guardado</span>
+                </div>
+              ))}
+              <p className="text-[10px] text-[var(--txt-4)] mt-2 m-0">a busca inteligente entra na próxima atualização da Metrik — o que você mandar fica guardado aqui.</p>
+            </>
+          ) : (
+            (docs as any[]).map((d, i) => (
+              <div key={i} className="py-1.5 border-b border-[var(--line)] last:border-0">
+                <div className="flex items-center gap-2 text-[12px]"><span className="flex-1 truncate">{d.titulo}</span><span className="text-[9.5px] font-semibold" style={{ color: "#34d399" }}>no ar ✓</span></div>
+                {d.uso && <div className="text-[10px] text-[var(--txt-4)] mt-0.5">{d.uso}</div>}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(224,164,74,.35)", background: "var(--surface)" }}>
+          <div className="flex items-center gap-2 mb-0.5"><span className="text-[15px]">⚙️</span><b className="text-[13px]">Motor — como ela age</b></div>
+          <div className="text-[10px] text-[var(--txt-4)] mb-2.5">comportamento: só entra passando pelo ensaio</div>
+          {regras.length === 0 ? (
+            <p className="text-[11px] text-[var(--txt-3)] m-0">As regras que você pedir aparecem aqui, com a prova do guardião.</p>
+          ) : (
+            regras.slice(0, 5).map((r, i) => <Item key={i} titulo={r.titulo} estado={r.estado} />)
+          )}
+          <button onClick={() => onMelhorar()} className="text-[10.5px] font-semibold mt-2" style={{ color: "var(--violet-2)" }}>mexer no comportamento → Melhorar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: string | null }) {
   const auth = useMotorAuth();
   const [gravando, setGravando] = useState(false);
@@ -1128,23 +1455,38 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
       setEnvio({ fase: "clarificar", pedido: t });
       return;
     }
-    setEnvio({ fase: "confirmar", pedido: t });
+    setEnvio({ fase: "confirmar", pedido: t, destino: destinoDe(t) });
   };
 
-  // passo 2 → "É isso" → registra + ensaia (passo 3)
+  // passo 2 → "É isso" → registra + ensaia (passo 3), conforme o DESTINO:
+  //  fato → vira regra "Fato: …" (o runtime já lê) via a MESMA esteira do ensaio;
+  //  regra → a esteira de sempre; doc → registra pra Metrik (Biblioteca é a próxima fatia).
   const rodarEnsaio = async () => {
-    const t = envio.pedido ?? texto.trim();
-    if (!t) return;
+    const bruto = envio.pedido ?? texto.trim();
+    if (!bruto) return;
+    const destino: Destino = envio.destino ?? "regra";
     if (!agent.real) {
-      setEnvio({ fase: "erro", pedido: t, erro: "modo demo — com o agente real, o pedido entra no histórico único, passa no guardião e você vê o ensaio antes/agora" });
+      setEnvio({ fase: "erro", pedido: bruto, destino, erro: "modo demo — com o agente real, o pedido entra no histórico único, passa no guardião e você vê o ensaio antes/agora" });
       return;
     }
+    if (destino === "doc") {
+      try {
+        setEnvio({ fase: "registrando", pedido: bruto, destino });
+        await api.propor({ agentId: agent.id, origin: "hub_chat", intent: bruto, patch: { pedido: bruto, tipo: "doc" } }, auth.getToken);
+        setEnvio({ fase: "guardado", pedido: bruto, destino });
+        setTexto("");
+      } catch (e) {
+        setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao registrar" });
+      }
+      return;
+    }
+    const t = destino === "fato" && !/^fato:/i.test(bruto) ? `Fato: ${bruto}` : bruto;
     try {
-      setEnvio({ fase: "registrando", pedido: t });
-      const cs: any = await api.propor({ agentId: agent.id, origin: "hub_chat", intent: t, patch: { pedido: t } }, auth.getToken);
-      setEnvio({ fase: "ensaiando", cs, pedido: t });
+      setEnvio({ fase: "registrando", pedido: bruto, destino });
+      const cs: any = await api.propor({ agentId: agent.id, origin: "hub_chat", intent: t, patch: { pedido: t, tipo: destino } }, auth.getToken);
+      setEnvio({ fase: "ensaiando", cs, pedido: bruto, destino });
       const r: any = await api.avaliar(cs.id, auth.getToken);
-      setEnvio({ fase: "pronto", cs, evals: r.evals, ensaio: r.ensaio, pedido: t });
+      setEnvio({ fase: "pronto", cs, evals: r.evals, ensaio: r.ensaio, pedido: bruto, destino });
       setTexto("");
     } catch (e) {
       setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao registrar" });
@@ -1278,10 +1620,22 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
         <StepBadge n={2} cor="#58aae4" ativo={envio.fase === "confirmar" || envio.fase === "clarificar"} />
         {envio.fase === "confirmar" ? (
           <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "#58aae440" }}>
-            <div className="text-[12px] font-semibold mb-2" style={{ color: "#58aae4" }}>Ela confirma o que entendeu</div>
-            <p className="text-[14px] leading-relaxed m-0">Você quer que ela passe a fazer: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
+            <div className="text-[12px] font-semibold mb-2" style={{ color: "#58aae4" }}>Ela confirma o que entendeu — e PRA ONDE vai</div>
+            <p className="text-[14px] leading-relaxed m-0">Você quer que ela {envio.destino === "fato" ? "guarde o fato" : envio.destino === "doc" ? "guarde o documento/conteúdo" : "passe a fazer"}: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
+            <div className="flex gap-1.5 mt-3.5 flex-wrap">
+              {(["fato", "regra", "doc"] as Destino[]).map((d) => {
+                const m = DESTINO_META[d];
+                const sel = (envio.destino ?? "regra") === d;
+                return (
+                  <button key={d} onClick={() => setEnvio((s) => ({ ...s, destino: d }))} className="text-[11px] rounded-lg px-2.5 py-1.5 transition-colors" style={sel ? { background: `${m.cor}1f`, border: `1px solid ${m.cor}66`, color: m.cor, fontWeight: 700 } : { border: "1px solid var(--line)", color: "var(--txt-3)" }}>
+                    {m.emoji} {m.label}{sel ? " ✓" : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10.5px] text-[var(--txt-4)] mt-2 m-0">{DESTINO_META[envio.destino ?? "regra"].desc}</p>
             <div className="flex items-center gap-2.5 mt-4 flex-wrap">
-              <button className="btn btn-primary" onClick={() => void rodarEnsaio()}>É isso — roda o ensaio</button>
+              <button className="btn btn-primary" onClick={() => void rodarEnsaio()}>{envio.destino === "doc" ? "É isso — guardar" : "É isso — roda o ensaio"}</button>
               <button className="btn" onClick={() => setEnvio({ fase: "idle" })}>Não — escrevo de novo</button>
               <span className="inline-flex items-center gap-1.5 text-[10.5px] text-[var(--txt-4)] ml-auto"><Lock size={11} /> o núcleo continua blindado</span>
             </div>
@@ -1307,7 +1661,7 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
 
       {/* ── PASSO 3 · a prova (ensaio) e o publicar ── */}
       <div className="flex gap-3.5">
-        <StepBadge n={3} cor="#34d399" ativo={envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "erro"} />
+        <StepBadge n={3} cor="#34d399" ativo={envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "guardado" || envio.fase === "erro"} />
         <div className="flex-1 min-w-0 space-y-4">
           {(envio.fase === "registrando" || envio.fase === "ensaiando") && (
             <div className="card p-5 flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
@@ -1318,7 +1672,14 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
           {envio.fase === "erro" && (
             <div className="card p-4 text-[12.5px]" style={{ borderColor: "#fb718540", background: "rgba(251,113,133,.06)", color: "#fb7185" }}>{envio.erro}</div>
           )}
-          {!(envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "erro") && (
+          {envio.fase === "guardado" && (
+            <div className="card p-5" style={{ borderColor: "rgba(88,170,228,.4)", background: "linear-gradient(160deg, rgba(88,170,228,.06), var(--surface))" }}>
+              <div className="flex items-center gap-2.5 text-[14px] font-medium"><BookOpen size={17} style={{ color: "#58aae4" }} /> Guardado pra Biblioteca.</div>
+              <p className="text-[12px] text-[var(--txt-3)] mt-1.5 leading-relaxed">A busca inteligente em documentos entra na próxima atualização da Metrik — seu conteúdo já está no histórico e aparece em “Tudo que ela sabe”.</p>
+              <button onClick={() => setEnvio({ fase: "idle" })} className="btn btn-sm mt-3">Beleza</button>
+            </div>
+          )}
+          {!(envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "guardado" || envio.fase === "erro") && (
             <div className="card p-4" style={{ opacity: 0.45 }}>
               <div className="text-[12.5px] text-[var(--txt-3)]">Vê a prova — antes ✗ / agora ✓ — e publica</div>
             </div>

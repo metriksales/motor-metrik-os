@@ -86,6 +86,8 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
               return send(200, await control.avaliarMudanca(ctx, body.changeSetId));
             case "publicarMudanca":
               return send(200, await control.publicarMudanca(ctx, body.changeSetId));
+            case "testar":
+              return send(200, await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo }));
             case "members":
               return send(200, await control.listMembers(ctx));
             case "setEstado":

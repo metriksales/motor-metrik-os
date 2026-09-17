@@ -168,3 +168,36 @@ export const auditLog = pgTable("audit_log", {
   data: jsonb("data"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * Piloto de leitura de grupos internos. Somente captura: não responde no
+ * WhatsApp e não cria demanda até uma segunda fase explicitamente aprovada.
+ * O JID completo do remetente não é persistido; guardamos HMAC + últimos 4.
+ */
+export const groupReaderEvents = pgTable(
+  "group_reader_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    messageId: text("message_id").notNull(),
+    groupJid: text("group_jid").notNull(),
+    groupName: text("group_name"),
+    senderHash: text("sender_hash"),
+    senderLast4: text("sender_last4"),
+    senderName: text("sender_name"),
+    messageType: text("message_type").notNull().default("unknown"),
+    messageText: text("message_text").notNull(),
+    fromMe: boolean("from_me").notNull().default(false),
+    sentByApi: boolean("sent_by_api").notNull().default(false),
+    eventName: text("event_name").notNull().default("messages"),
+    source: text("source").notNull().default("uazapi"),
+    status: text("status").notNull().default("captured"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }),
+    receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+  },
+  (t) => [
+    uniqueIndex("group_reader_events_group_message_unique").on(t.groupJid, t.messageId),
+    index("group_reader_events_received_at_idx").on(t.receivedAt),
+    index("group_reader_events_group_received_idx").on(t.groupJid, t.receivedAt),
+  ],
+);

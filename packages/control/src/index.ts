@@ -458,6 +458,74 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
 }
 
 /**
+ * testarConversa — a CONVERSA DE TESTE (aba Testar): o cliente fala como se
+ * fosse um lead com o MESMO cérebro do ar. SANDBOX POR CONSTRUÇÃO: o LlmPort
+ * roda SEM tools e sem CrmPort — não existe caminho pra tocar o CRM, o estado
+ * ou o WhatsApp. Nada entra no flight recorder (não é atendimento) — só audit.
+ *  • modo "ar": a spec publicada (ou a semente da vertical, sinalizado).
+ *  • modo "ensaio": aplica por cima o último pedido em preparo (draft/
+ *    evaluated/approved) — o cliente prova a mudança ANTES de publicar.
+ *  • sem OPENAI_API_KEY: { modo: "sem-cerebro" } — honesto, sem teatro.
+ * A proveniência ("usou: X") é o próprio cérebro dizendo qual regra/fato usou,
+ * numa linha [fonte: …] que a gente extrai da resposta.
+ */
+export async function testarConversa(
+  ctx: Ctx,
+  input: { agentId: string; historico: { role: "user" | "assistant"; content: string }[]; modo?: "ar" | "ensaio" },
+) {
+  const [ag] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
+  if (!ag) throw new Error("agente não encontrado neste tenant");
+
+  const kit = kitParaAgente(ag.name ?? "");
+  const publicada = await loadPublishedSpec(ctx, input.agentId);
+  let spec = publicada ?? kit.spec;
+  const base: "publicada" | "semente" = publicada ? "publicada" : "semente";
+
+  // "com o ensaio": o último pedido em preparo entra por cima, como no avaliar
+  let ensaioAplicado: string | null = null;
+  if (input.modo === "ensaio") {
+    const [cs] = await db
+      .select()
+      .from(changeSets)
+      .where(and(eq(changeSets.agentId, input.agentId), eq(changeSets.orgId, ctx.orgId), sql`${changeSets.status} in ('draft','evaluated','approved')`))
+      .orderBy(desc(changeSets.createdAt))
+      .limit(1);
+    if (cs) {
+      const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+      if (pedido) {
+        spec = compilarSpec(spec, pedido);
+        ensaioAplicado = cs.intent ?? pedido;
+      }
+    }
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    await audit(ctx, "agente.testar", input.agentId, { modo: "sem-cerebro" });
+    return { modo: "sem-cerebro" as const, base, ensaioAplicado };
+  }
+
+  const brain = makeBrain({ apiKey, reasoningEffort: "low" });
+  const system =
+    systemDe(spec) +
+    "\n\nDepois da sua resposta, escreva UMA última linha isolada no formato [fonte: <qual regra, fato ou parte da oferta você usou, em até 6 palavras — ou \"conversa geral\">].";
+  const historico = input.historico.slice(-12); // conversa de teste é curta; corta cauda
+  const turn = await brain.responder({ system, historico }); // SEM tools: sandbox
+  let texto = (turn.texto ?? "").trim();
+  let fonte: string | null = null;
+  const m = texto.match(/\[fonte:\s*([^\]]+)\]\s*$/i);
+  if (m) {
+    fonte = m[1].trim();
+    texto = texto.slice(0, m.index).trim();
+  }
+  await audit(ctx, "agente.testar", input.agentId, { modo: input.modo ?? "ar", msgs: historico.length, base });
+  return { modo: "real" as const, texto: texto || "…", fonte, base, ensaioAplicado };
+}
+
+/**
  * publicarMudanca — o "PRO AR" self-service do cliente: pega o pedido do
  * ChangeSet, COMPILA na spec nova (compilarSpec) e PUBLICA de verdade (nova
  * versão + release imutável, o runtime passa a ler). Fecha o ciclo que era
