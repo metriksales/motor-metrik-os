@@ -429,20 +429,44 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
   const evals = await runEvals(kit.evals, runner, 0.75);
 
   // ── ENSAIO: antes vs agora (só com cérebro real; senão, honesto) ──
+  // As situações são DERIVADAS DO PEDIDO (o ensaio prova a SUA mudança, não um
+  // kit genérico) + 1 do kit como guarda-chuva. Se a geração falhar, cai no kit.
   let ensaio: { modo: "real" | "sem-cerebro"; situacoes: { nome: string; pergunta: string; antes: string; agora: string }[] };
   if (temCerebro) {
     const brain = makeBrain({ apiKey, reasoningEffort: "low" });
     const sysAntes = systemDe(specAtual);
     const sysAgora = systemDe(specNovo);
-    const sits = situacoesDoKit(kit, 3);
-    const situacoes = [];
-    for (const s of sits) {
-      const [antes, agora] = await Promise.all([
-        brain.responder({ system: sysAntes, historico: [{ role: "user", content: s.pergunta }] }),
-        brain.responder({ system: sysAgora, historico: [{ role: "user", content: s.pergunta }] }),
-      ]);
-      situacoes.push({ nome: s.nome, pergunta: s.pergunta, antes: antes.texto ?? "—", agora: agora.texto ?? "—" });
+    let doPedido: { nome: string; pergunta: string }[] = [];
+    try {
+      const gen = await brain.responder({
+        system:
+          "Você gera mensagens de teste para um simulador de atendimento no WhatsApp. Responda APENAS com as mensagens pedidas, uma por linha, sem numeração, sem aspas e sem comentários.",
+        historico: [
+          {
+            role: "user",
+            content: `A dona do negócio pediu esta mudança na IA de atendimento: "${pedido}". Escreva 2 mensagens curtas e naturais que um lead mandaria no WhatsApp e que fariam essa mudança aparecer na resposta da IA.`,
+          },
+        ],
+      });
+      doPedido = (gen.texto ?? "")
+        .split("\n")
+        .map((s) => s.replace(/^[\s\-\d.)"“”]+|["“”\s]+$/g, ""))
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => ({ nome: "do seu pedido", pergunta: p }));
+    } catch {
+      /* sem gerador → só o kit */
     }
+    const todas = [...doPedido, ...situacoesDoKit(kit, doPedido.length > 0 ? 1 : 3)];
+    const situacoes = await Promise.all(
+      todas.map(async (s) => {
+        const [antes, agora] = await Promise.all([
+          brain.responder({ system: sysAntes, historico: [{ role: "user", content: s.pergunta }] }),
+          brain.responder({ system: sysAgora, historico: [{ role: "user", content: s.pergunta }] }),
+        ]);
+        return { nome: s.nome, pergunta: s.pergunta, antes: antes.texto ?? "—", agora: agora.texto ?? "—" };
+      }),
+    );
     ensaio = { modo: "real", situacoes };
   } else {
     ensaio = { modo: "sem-cerebro", situacoes: [] };
@@ -455,6 +479,33 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
     .returning();
   await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado, suite: kit.id, ensaio: ensaio.modo });
   return { changeSet: updated, evals, ensaio };
+}
+
+/**
+ * specRodando — "o que está rodando AGORA", direto do motor: a spec publicada
+ * (ou a semente da vertical, sinalizado), a versão e o "no ar desde". É a
+ * FONTE da tela Como funciona pra agente real — nada de vitrine vestida.
+ */
+export async function specRodando(ctx: Ctx, agentId: string) {
+  const [ag] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
+  if (!ag) throw new Error("agente não encontrado neste tenant");
+  const kit = kitParaAgente(ag.name ?? "");
+  const publicada = await loadPublishedSpec(ctx, agentId);
+  const [rel] = await db
+    .select()
+    .from(releases)
+    .where(and(eq(releases.agentId, agentId), eq(releases.orgId, ctx.orgId)))
+    .orderBy(desc(releases.promotedAt))
+    .limit(1);
+  return {
+    base: publicada ? ("publicada" as const) : ("semente" as const),
+    versao: (ag as any).currentSpecVersion ?? rel?.specVersion ?? 0,
+    desde: rel?.promotedAt ?? null,
+    spec: publicada ?? kit.spec,
+  };
 }
 
 /**

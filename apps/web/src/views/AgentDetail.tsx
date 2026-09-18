@@ -6,7 +6,7 @@ import {
   Link2, ArrowRight, CalendarClock, Repeat, FileSignature, BookOpen, ListChecks, Plug, Clock, Mic, ScrollText, Sparkles, MessageCircle,
 } from "lucide-react";
 import { type Agent, type AgentState, type Insight, type Upgrade, type Selo, STATE_META, SELO_META, conferir } from "../data";
-import { Reveal, Pill, Toggle, cx } from "../ui";
+import { Reveal, Pill, Toggle, Skeleton, cx } from "../ui";
 import { Robot } from "../Robot";
 import WorkTab from "./WorkTab";
 import Conversas from "./Conversas";
@@ -204,7 +204,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
         {sub === "aovivo" && <AoVivoTab agent={agent} onMelhorar={irMelhorar} irModulos={() => setSub("comofunciona")} />}
         {sub === "comofunciona" && <ComoFuncionaTab agent={agent} onMelhorar={irMelhorar} irTestar={irTestar} />}
-        {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} />}
+        {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} irTestar={irTestar} irComoFunciona={() => setSub("comofunciona")} />}
         {sub === "testar" && <TestarTab agent={agent} onMelhorar={irMelhorar} seed={testarSeed} />}
       </motion.div>
     </div>
@@ -404,7 +404,14 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
         <div className="space-y-4 min-w-0">
-          {agent.mapa ? <MapaTab agent={agent} /> : agent.fluxo ? <MapaAcao agent={agent} onMelhorar={() => onMelhorar()} /> : null}
+          {/* agente REAL lê o MOTOR (nada de vitrine vestida); demo mostra o mapa da maquete */}
+          {agent.real ? (
+            <RodandoAgora agent={agent} onMelhorar={onMelhorar} irTestar={irTestar} />
+          ) : agent.mapa ? (
+            <MapaTab agent={agent} />
+          ) : agent.fluxo ? (
+            <MapaAcao agent={agent} onMelhorar={() => onMelhorar()} />
+          ) : null}
           {agent.tipo === "resposta" && <MemoriaRobo agent={agent} onMelhorar={onMelhorar} irTestar={irTestar} />}
         </div>
 
@@ -417,7 +424,7 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
             </div>
           </div>
 
-          {(agent.mapa?.mudancas?.length ?? 0) > 0 && (
+          {!agent.real && (agent.mapa?.mudancas?.length ?? 0) > 0 && (
             <div className="card p-4">
               <div className="mono-label !text-[9px] mb-2.5">O que mudou nele</div>
               {agent.mapa!.mudancas!.slice(0, 2).map((m, i) => (
@@ -1325,6 +1332,101 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
   );
 }
 
+/* ══ RODANDO AGORA — a spec que o MOTOR está lendo NESTE instante (action
+   "rodando"): versão, desde quando, quem ela é e as regras valendo, com a
+   origem de cada uma (🔒 núcleo · ✦ sua via Melhorar · 🧾 fato seu).
+   Substitui a vitrine vestida no agente real — aqui é o dado do motor. ══ */
+function RodandoAgora({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar: (s?: string) => void; irTestar: (s?: string) => void }) {
+  const auth = useMotorAuth();
+  const [rod, setRod] = useState<any | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [suas, setSuas] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let vivo = true;
+    (api.rodando(agent.id, auth.getToken) as Promise<any>)
+      .then((r) => { if (vivo) setRod(r); })
+      .catch((e) => { if (vivo) setErro(e instanceof Error ? e.message : "não consegui ler o motor"); });
+    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
+      .then((rows) => {
+        if (!vivo || !Array.isArray(rows)) return;
+        setSuas(new Set(rows.filter((r) => String(r.status) === "published").map((r) => String(r.intent ?? "").trim().toLowerCase())));
+      })
+      .catch(() => {});
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.id]);
+
+  if (erro) {
+    return <div className="card p-5 text-[12.5px]" style={{ color: "#fb7185" }}>Não consegui ler o motor agora: {erro}</div>;
+  }
+  if (!rod) {
+    return (
+      <div className="card p-5">
+        <div className="mono-label mb-3">O que está rodando agora</div>
+        <Skeleton style={{ width: "60%", height: 12 }} />
+        <Skeleton className="mt-3" style={{ width: "90%", height: 12 }} />
+        <Skeleton className="mt-2" style={{ width: "80%", height: 12 }} />
+      </div>
+    );
+  }
+
+  const c = rod.spec?.cerebro ?? {};
+  const regras: string[] = Array.isArray(c.regras) ? c.regras : [];
+  const ehSua = (r: string) => suas.has(r.trim().toLowerCase());
+  const ehFato = (r: string) => /^fato:/i.test(r.trim());
+  const semente = rod.base === "semente";
+
+  return (
+    <div className="card p-5 md:p-6">
+      <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+        <div className="font-display font-semibold text-[16px] tracking-tight">O que está rodando <span className="grad-text">agora</span></div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {semente ? (
+            <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>cérebro-semente da vertical</span>
+          ) : (
+            <span className="pill" style={{ color: "var(--emerald)", borderColor: "#34d39940", background: "#34d39914" }}>
+              versão {rod.versao}{rod.desde ? ` · no ar há ${tempoRelativo(rod.desde)}` : ""}
+            </span>
+          )}
+          <span className="text-[10px] text-[var(--txt-4)]">lido do motor · dado real ✓</span>
+        </div>
+      </div>
+      {semente && (
+        <p className="text-[11.5px] mb-3" style={{ color: "#f2cf86" }}>
+          Ainda não existe uma versão SUA publicada — ela responde com a base da vertical. A primeira mudança que você publicar no Melhorar vira a versão 1 e aparece aqui.
+        </p>
+      )}
+
+      {c.identidade && <p className="text-[14px] text-[var(--txt)] leading-relaxed mb-3 max-w-2xl">{c.identidade}</p>}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {c.oferta && <span className="pill">oferta: {String(c.oferta).slice(0, 70)}{String(c.oferta).length > 70 ? "…" : ""}</span>}
+        {c.tom && <span className="pill">tom: {c.tom}</span>}
+      </div>
+
+      <div className="mono-label !text-[9px] mb-2">As regras valendo agora · {regras.length}</div>
+      <div>
+        {regras.map((r, i) => {
+          const fato = ehFato(r);
+          const sua = fato || ehSua(r);
+          const badge = fato ? { t: "🧾 fato seu", c: "#34d399" } : sua ? { t: "✦ sua", c: "#edc074" } : { t: "🔒 núcleo", c: "#838a99" };
+          return (
+            <div key={i} className="flex items-start gap-2.5 py-2 border-b border-[var(--line)] last:border-0">
+              <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none mt-0.5" style={{ color: badge.c, background: `${badge.c}14`, border: `1px solid ${badge.c}35` }}>{badge.t}</span>
+              <span className="text-[12.5px] text-[var(--txt-2)] leading-relaxed flex-1 min-w-0">{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
+              <button onClick={() => irTestar(fato ? r.replace(/^fato:\s*/i, "") : r)} className="text-[10px] font-semibold flex-none mt-0.5" style={{ color: "var(--violet-2)" }}>testar</button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-3 mt-3.5">
+        <button className="btn btn-primary btn-sm" onClick={() => onMelhorar()}>Mudar algo — Melhorar</button>
+        <span className="text-[10px] text-[var(--txt-4)]">publicou no Melhorar → a regra nova acende NESTA lista na hora.</span>
+      </div>
+    </div>
+  );
+}
+
 /* ══ MEMÓRIA (canvas): tudo que o robô sabe — e ONDE vive. 3 casas:
    🧾 Listas (fatos exatos) · 📚 Biblioteca (docs — próxima fatia, honesto)
    · ⚙️ Motor (comportamento). Real = ledger do Neon; demo = vitrine. ══ */
@@ -1422,7 +1524,32 @@ function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar
   );
 }
 
-function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: string | null }) {
+/* o ensaio demora ~30s de verdade — narra o que está acontecendo, com relógio */
+function EnsaioProgresso() {
+  const [s, setS] = useState(0);
+  useEffect(() => {
+    const i = window.setInterval(() => setS((x) => x + 1), 1000);
+    return () => window.clearInterval(i);
+  }, []);
+  const msg =
+    s < 6
+      ? "o guardião está rodando as travas do núcleo…"
+      : s < 14
+        ? "criando situações de lead a partir do SEU pedido…"
+        : "a IA está respondendo cada situação — antes e depois da sua mudança…";
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
+        <Loader2 size={15} className="animate-spin flex-none" style={{ color: "#e0a44a" }} />
+        <span className="flex-1">{msg}</span>
+        <span className="tick flex-none">{s}s</span>
+      </div>
+      <p className="text-[10.5px] text-[var(--txt-4)] mt-2 m-0">leva uns 30 segundos — é a IA testando DE VERDADE, não teatro.</p>
+    </div>
+  );
+}
+
+function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent: Agent; initialTexto?: string | null; irTestar: (s?: string) => void; irComoFunciona: () => void }) {
   const auth = useMotorAuth();
   const [gravando, setGravando] = useState(false);
   const [verHist, setVerHist] = useState(false);
@@ -1663,12 +1790,12 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
       <div className="flex gap-3.5">
         <StepBadge n={3} cor="#34d399" ativo={envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "guardado" || envio.fase === "erro"} />
         <div className="flex-1 min-w-0 space-y-4">
-          {(envio.fase === "registrando" || envio.fase === "ensaiando") && (
+          {envio.fase === "registrando" && (
             <div className="card p-5 flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
-              <Loader2 size={15} className="animate-spin" style={{ color: "#e0a44a" }} />
-              {envio.fase === "registrando" ? "anotando o pedido…" : "ensaio rodando — ela respondendo antes e depois…"}
+              <Loader2 size={15} className="animate-spin" style={{ color: "#e0a44a" }} /> anotando o pedido…
             </div>
           )}
+          {envio.fase === "ensaiando" && <EnsaioProgresso />}
           {envio.fase === "erro" && (
             <div className="card p-4 text-[12.5px]" style={{ borderColor: "#fb718540", background: "rgba(251,113,133,.06)", color: "#fb7185" }}>{envio.erro}</div>
           )}
@@ -1720,8 +1847,11 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
                 <div className="space-y-4">
                   {envio.ensaio.situacoes.map((s, i) => (
                     <div key={i} className="rounded-xl border border-[var(--line)] overflow-hidden">
-                      <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)]">
-                        <span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}
+                      <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)] flex items-center gap-2 flex-wrap">
+                        <span><span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}</span>
+                        {s.nome === "do seu pedido" && (
+                          <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none" style={{ color: "#edc074", background: "rgba(224,164,74,.14)", border: "1px solid rgba(224,164,74,.4)" }}>do SEU pedido</span>
+                        )}
                       </div>
                       <div className="grid md:grid-cols-2">
                         <div className="p-4 border-t md:border-t-0 md:border-r border-[var(--line)]">
@@ -1787,9 +1917,13 @@ function MelhorarTab({ agent, initialTexto }: { agent: Agent; initialTexto?: str
             ) : (
               <>
                 <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid rgba(52,211,153,.34)" }}><Check size={17} style={{ color: "#34d399" }} /></div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-medium text-[var(--txt)]">No ar! A mudança já está valendo pra sua IA.</div>
-                  <div className="text-[12px] text-[var(--txt-3)] mt-0.5">Ela virou uma nova versão registrada — está no <b>histórico</b> ao lado.</div>
+                  <div className="text-[12px] text-[var(--txt-3)] mt-0.5">Virou uma nova versão — prova na prática:</div>
+                  <div className="flex gap-2 mt-2.5 flex-wrap">
+                    <button className="btn btn-primary btn-sm" onClick={() => irTestar(envio.pedido)}><MessageCircle size={13} /> Testar isto agora</button>
+                    <button className="btn btn-sm" onClick={irComoFunciona}>Ver rodando no Como funciona →</button>
+                  </div>
                 </div>
               </>
             )}
