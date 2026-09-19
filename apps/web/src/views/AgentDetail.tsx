@@ -14,66 +14,34 @@ import Followup from "./Followup";
 import MapaTab from "./MapaTab";
 import MapaAcao from "./MapaAcao";
 import MudancasTab from "./MudancasTab";
+import Estudio from "./Estudio";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo, useLive, reais } from "../lib/live";
 
-// 3 LUGARES + TESTAR (canvas "Cérebro do Robô"): VER · ENTENDER · MELHORAR · PROVAR.
-type Sub = "aovivo" | "comofunciona" | "melhorar" | "testar";
-const HINT: Record<Sub, string> = {
-  aovivo: "quatro lugares: ver · entender · melhorar · testar — nada escondido",
-  comofunciona: "lido do cérebro dele · atualiza sozinho",
-  melhorar: "a ÚNICA porta de mudança — tudo passa pelo ensaio",
-  testar: "você é o lead — a mesma IA do ar, sem tocar no CRM",
-};
-/** aceita deep-links antigos (estrutura/trabalho/logs…) e mapeia pros lugares */
-function normalizeSub(s?: string): Sub {
-  if (s === "melhorar") return "melhorar";
-  if (s === "testar") return "testar";
-  if (s === "estrutura" || s === "comofunciona" || s === "mudancas") return "comofunciona";
-  return "aovivo";
+// A REFUNDAÇÃO (canvas Estúdio da IA aprovado): o agente vive no ESTÚDIO —
+// módulos + diff + teste numa tela só. "Ao vivo" (conversas/assumir) é a
+// segunda tela. As abas antigas morreram; deep-links velhos caem no Estúdio.
+type Tela = "estudio" | "aovivo";
+function normalizeTela(s?: string): Tela {
+  return s === "aovivo" ? "aovivo" : "estudio";
 }
 
 export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agent; onBack: () => void; initialSub?: string }) {
   const auth = useMotorAuth();
-  const [sub, setSub] = useState<Sub>(normalizeSub(initialSub));
-  // quando o cliente clica "Melhorar isto" num erro do Diário (ou num insight),
-  // o caso já vai ESCRITO pro Melhorar — a única porta de mudança.
-  const [melhorarSeed, setMelhorarSeed] = useState<string | null>(null);
-  const irMelhorar = (seed?: string) => { setMelhorarSeed(seed ?? null); setSub("melhorar"); };
-  // "testar esta info" (Memória) chega no chat com a pergunta já escrita
-  const [testarSeed, setTestarSeed] = useState<string | null>(null);
-  const irTestar = (seed?: string) => { setTestarSeed(seed ?? null); setSub("testar"); };
+  const [tela, setTela] = useState<Tela>(normalizeTela(initialSub));
+  // qualquer "corrigir/melhorar isto" das telas cai no composer do Estúdio já escrito
+  const [seed, setSeed] = useState<{ tipo: "pedido" | "pergunta"; texto: string; n: number } | null>(null);
+  const irEstudio = (texto?: string) => {
+    if (texto) setSeed({ tipo: "pedido", texto, n: Date.now() });
+    setTela("estudio");
+  };
 
-  // Badge de Mudanças conta o LEDGER real (ChangeSets) quando o agente é real.
-  const [nReal, setNReal] = useState(0);
-  useEffect(() => {
-    if (!agent.real) return;
-    let vivo = true;
-    (api.listChangeSets(agent.id, auth.getToken) as Promise<any[]>)
-      .then((rows) => {
-        if (vivo && Array.isArray(rows)) setNReal(rows.length);
-      })
-      .catch(() => {});
-    return () => {
-      vivo = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent.id, sub]);
   const [state, setState] = useState<AgentState>(agent.state);
   const [pausaMsg, setPausaMsg] = useState<string | null>(null);
   const sm = STATE_META[state];
 
-  // os números do dia no topo (canvas): atendimentos · reuniões · R$ — real quando há lastro
-  const { logs, stats } = useLive();
-  const hoje0 = new Date(); hoje0.setHours(0, 0, 0, 0);
-  const meusHoje = agent.real ? (logs ?? []).filter((l) => l.agentId === agent.id && new Date(l.at) >= hoje0) : [];
-  const atendHoje = agent.real ? (stats?.porAgente?.[agent.id]?.execucoes ?? meusHoje.length) : agent.metrics.execucoes;
-  const reunioesHoje = agent.real ? meusHoje.filter((l) => (l.valorCentavos ?? 0) > 0).length : agent.live.filter((r) => /reuni/i.test(r.acao)).length;
-  const valorHoje = meusHoje.reduce((s, l) => s + (l.valorCentavos ?? 0), 0);
-
   // PAUSE REAL: persiste o estado no banco (o runtime lê antes de responder).
-  // Agente demo segue só visual; agente real para/volta de verdade.
   const alternarEstado = async () => {
     const novo: AgentState = state === "pausado" ? "ativo" : "pausado";
     setState(novo);
@@ -87,76 +55,10 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
       setPausaMsg(e instanceof Error ? e.message : "não consegui mudar o estado");
     }
   };
-  const alerta = (agent.fluxo ?? []).some((p) => p.status === "falha") || (agent.insights ?? []).some((i) => i.tipo === "critico");
-  // 3 LUGARES: Ao vivo (ver) · Como funciona (entender) · Melhorar (a porta única).
-  const nMud = nReal > 0 ? nReal : (agent.mapa?.mudancas?.length ?? 0);
-  const subs: { id: Sub; label: string; icon: any; badge?: number }[] = [
-    { id: "aovivo", label: "Ao vivo", icon: Radio },
-    { id: "comofunciona", label: "Como funciona", icon: BookOpen, badge: nMud > 0 ? nMud : undefined },
-    { id: "melhorar", label: "Melhorar", icon: Wand2 },
-    { id: "testar", label: "Testar", icon: MessageCircle },
-  ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <button onClick={onBack} className="btn btn-ghost btn-sm !px-2"><ArrowLeft size={15} /> Agentes</button>
-
-      <Reveal>
-        <div className="grad-border overflow-hidden">
-          <div className="relative p-5 md:p-6">
-            <div className="aurora !opacity-30" />
-            <div className="relative flex flex-col md:flex-row md:items-center gap-5 justify-between">
-              <div className="flex items-center gap-4 min-w-0">
-                <div className="rounded-2xl p-1.5 flex-none" style={{ background: `${agent.color}0f`, border: `1px solid ${agent.color}2e`, boxShadow: `0 24px 55px -26px ${agent.color}` }}>
-                  <Robot state={state} color={agent.color} size={90} track />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="font-display text-[22px] font-semibold tracking-tight">{agent.name}</h2>
-                    <span className="pill" style={{ color: sm.color, borderColor: `${sm.color}40`, background: `${sm.color}14` }}>
-                      {state === "ativo" ? <span className="live-dot" style={{ width: 6, height: 6, background: sm.color }} /> : <span className="dot" style={{ background: sm.color }} />}
-                      {sm.label}
-                    </span>
-                    {agent.tipo && (
-                      <span className="pill" style={{ color: agent.tipo === "acao" ? "#edc074" : "#58aae4", borderColor: (agent.tipo === "acao" ? "#edc074" : "#58aae4") + "40", background: (agent.tipo === "acao" ? "#edc074" : "#58aae4") + "14" }}>
-                        {agent.tipo === "acao" ? "Ação" : "Resposta"}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[13.5px] text-[var(--txt-2)] mt-1">{agent.papel}</p>
-                  {state === "ativo" && (
-                    <div className="flex items-center gap-2 text-[12.5px] text-[var(--txt-3)] mt-2">
-                      <Radio size={13} style={{ color: agent.color }} /> {agent.agora}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-5 flex-none">
-                <div className="hidden md:flex items-center gap-6 text-right">
-                  <div>
-                    <div className="num text-[21px] leading-none">{atendHoje}</div>
-                    <div className="text-[10px] text-[var(--txt-3)] mt-1">atendimentos hoje</div>
-                  </div>
-                  <div>
-                    <div className="num text-[21px] leading-none">{reunioesHoje}</div>
-                    <div className="text-[10px] text-[var(--txt-3)] mt-1">{reunioesHoje === 1 ? "reunião" : "reuniões"}</div>
-                  </div>
-                  {valorHoje > 0 && (
-                    <div>
-                      <div className="num text-[21px] leading-none" style={{ color: "var(--emerald)" }}>{reais(valorHoje)}</div>
-                      <div className="text-[10px] text-[var(--txt-3)] mt-1">gerado hoje</div>
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => void alternarEstado()} className="flex items-center gap-2.5 md:pl-5 md:border-l md:border-[var(--line)]" title={state === "pausado" ? "ligar — a IA volta a responder" : "pausar — a IA para de responder os leads"}>
-                  <span className="text-[12.5px] text-[var(--txt-3)]">{state === "pausado" ? "pausado" : "ligado"}</span>
-                  <Toggle on={state !== "pausado"} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Reveal>
 
       {(pausaMsg || state === "pausado") && (
         <div className="rounded-xl px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{
@@ -165,48 +67,36 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
           color: state === "pausado" ? "#fbbf24" : "#34d399",
         }}>
           {state === "pausado" ? <Clock size={14} /> : <Check size={14} />}
-          {pausaMsg ?? "Este agente está pausado — a IA não está respondendo os leads. Ligue no botão acima quando quiser retomar."}
+          {pausaMsg ?? "Este agente está pausado — a IA não está respondendo os leads."}
         </div>
       )}
 
-      {/* a barra dos 3 LUGARES (canvas): botões grandes, ativo = casa escura âmbar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {subs.map((s) => {
-          const ativo = sub === s.id;
-          return (
-            <button
-              key={s.id}
-              onClick={() => setSub(s.id)}
-              className="inline-flex items-center gap-2 rounded-[11px] transition-all"
-              style={{
-                height: 44,
-                padding: "0 20px",
-                fontSize: 13.5,
-                fontWeight: ativo ? 600 : 500,
-                background: ativo ? "var(--deep)" : "var(--surface)",
-                border: ativo ? "1px solid rgba(224,164,74,.5)" : "1px solid var(--line)",
-                color: ativo ? "#fff" : "var(--txt-2)",
-                boxShadow: ativo ? "0 12px 28px -18px rgba(224,164,74,.6)" : "none",
-              }}
-            >
-              <s.icon size={16} style={ativo ? undefined : { color: "var(--txt-3)" }} />
-              {s.label}
-              {s.badge != null && (
-                <span className="grid place-items-center text-[10px] font-mono rounded-full" style={{ minWidth: 17, height: 17, background: ativo ? "rgba(255,255,255,.14)" : "#e0a44a22", border: ativo ? "1px solid rgba(255,255,255,.25)" : "1px solid #e0a44a45", color: ativo ? "#fff" : "#edc074" }}>{s.badge}</span>
-              )}
-              {s.id === "aovivo" && alerta && <span className="dot" style={{ background: "#fb7185" }} />}
-            </button>
-          );
-        })}
-        <span className="ml-auto text-[11px] text-[var(--txt-4)] hidden lg:block">{HINT[sub]}</span>
-      </div>
-
-      <motion.div key={sub} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        {sub === "aovivo" && <AoVivoTab agent={agent} onMelhorar={irMelhorar} irModulos={() => setSub("comofunciona")} />}
-        {sub === "comofunciona" && <ComoFuncionaTab agent={agent} onMelhorar={irMelhorar} irTestar={irTestar} />}
-        {sub === "melhorar" && <MelhorarTab agent={agent} initialTexto={melhorarSeed} irTestar={irTestar} irComoFunciona={() => setSub("comofunciona")} />}
-        {sub === "testar" && <TestarTab agent={agent} onMelhorar={irMelhorar} seed={testarSeed} />}
-      </motion.div>
+      {tela === "estudio" ? (
+        <motion.div key="estudio" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+          <Estudio agent={agent} estado={state} onToggle={() => void alternarEstado()} onAoVivo={() => setTela("aovivo")} seed={seed} />
+        </motion.div>
+      ) : (
+        <motion.div key="aovivo" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="rounded-xl p-1 flex-none" style={{ background: `${agent.color}0f`, border: `1px solid ${agent.color}2e` }}>
+              <Robot state={state} color={agent.color} size={40} />
+            </div>
+            <h2 className="font-display text-[19px] font-semibold tracking-tight">{agent.name}</h2>
+            <span className="pill" style={{ color: sm.color, borderColor: `${sm.color}40`, background: `${sm.color}14` }}>
+              {state === "ativo" ? <span className="live-dot" style={{ width: 6, height: 6, background: sm.color }} /> : <span className="dot" style={{ background: sm.color }} />}
+              {sm.label}
+            </span>
+            <div className="ml-auto flex items-center gap-3">
+              <button className="btn btn-sm" onClick={() => setTela("estudio")}><Wand2 size={14} /> Estúdio</button>
+              <button onClick={() => void alternarEstado()} className="flex items-center gap-2" title={state === "pausado" ? "ligar" : "pausar"}>
+                <span className="text-[12px] text-[var(--txt-3)]">{state === "pausado" ? "pausado" : "ligado"}</span>
+                <Toggle on={state !== "pausado"} />
+              </button>
+            </div>
+          </div>
+          <AoVivoTab agent={agent} onMelhorar={irEstudio} irModulos={() => setTela("estudio")} />
+        </motion.div>
+      )}
     </div>
   );
 }

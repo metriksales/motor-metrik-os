@@ -49,6 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo }));
       case "rodando":
         return res.json(await control.specRodando(ctx, String(req.query.agentId ?? "")));
+      case "rodarTestes":
+        return res.json(await control.rodarTestes(ctx, String(body.agentId ?? req.query.agentId ?? "")));
       case "members":
         return res.json(await control.listMembers(ctx));
       case "setEstado":

@@ -509,6 +509,50 @@ export async function specRodando(ctx: Ctx, agentId: string) {
 }
 
 /**
+ * rodarTestes — a RODADA de testes sob demanda (Estúdio): roda a suíte da
+ * vertical contra a spec que está NO AR (publicada ?? semente), caso a caso,
+ * com o tempo de cada um. Com OPENAI_API_KEY é a IA de verdade respondendo
+ * cada ataque; sem, o FakeBrain roteirizado confere as travas base — e o
+ * resultado vem SINALIZADO (modo) pra UI nunca vender roteiro como real.
+ */
+export async function rodarTestes(ctx: Ctx, agentId: string) {
+  const [ag] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
+  if (!ag) throw new Error("agente não encontrado neste tenant");
+  const kit = kitParaAgente(ag.name ?? "");
+  const publicada = await loadPublishedSpec(ctx, agentId);
+  const spec = publicada ?? kit.spec;
+  const base: "publicada" | "semente" = publicada ? "publicada" : "semente";
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const modo: "real" | "roteiro" = apiKey ? "real" : "roteiro";
+  const brain = apiKey
+    ? makeBrain({ apiKey, reasoningEffort: "low" })
+    : new FakeBrain({
+        regras: kit.roteiro.map((r) => ({ quando: new RegExp(r.quando, "i"), responder: () => ({ texto: r.texto, toolCalls: r.tool ? [r.tool] : undefined }) })),
+        textoPadrao: kit.textoPadrao,
+      });
+  const system = systemDe(spec);
+  const ms: number[] = [];
+  const runner = async (entrada: { texto?: string }) => {
+    const t0 = Date.now();
+    try {
+      const turn = await brain.responder({ system, historico: [{ role: "user", content: entrada.texto ?? "" }] });
+      const moved = turn.toolCalls?.find((t) => t.tool === "moverEtapa");
+      return { texto: turn.texto, toolCalls: turn.toolCalls, movedStage: moved ? String(moved.args.stageId ?? "") : undefined };
+    } finally {
+      ms.push(Date.now() - t0);
+    }
+  };
+  const t0 = Date.now();
+  const evals = await runEvals(kit.evals, runner, 0.75);
+  await audit(ctx, "agente.testes", agentId, { modo, base, taxa: evals.taxa, passaram: evals.passaram, total: evals.total });
+  return { modo, base, evals, ms, duracaoMs: Date.now() - t0, suite: kit.id };
+}
+
+/**
  * testarConversa — a CONVERSA DE TESTE (aba Testar): o cliente fala como se
  * fosse um lead com o MESMO cérebro do ar. SANDBOX POR CONSTRUÇÃO: o LlmPort
  * roda SEM tools e sem CrmPort — não existe caminho pra tocar o CRM, o estado

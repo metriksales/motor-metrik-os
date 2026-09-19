@@ -45,6 +45,7 @@ export const api = {
   testar: (agentId: string, historico: { role: "user" | "assistant"; content: string }[], modo?: "ar" | "ensaio", getToken?: GetToken) =>
     control("testar", { body: { agentId, historico, modo }, getToken }),
   rodando: (agentId: string, getToken?: GetToken) => control("rodando", { query: { agentId }, getToken }),
+  rodarTestes: (agentId: string, getToken?: GetToken) => control("rodarTestes", { body: { agentId }, getToken }),
   listMembers: (getToken?: GetToken) => control("members", { getToken }),
   setEstado: (agentId: string, estado: "ativo" | "pausado", getToken?: GetToken) =>
     control("setEstado", { body: { agentId, estado }, getToken }),

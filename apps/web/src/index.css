@@ -672,6 +672,104 @@ html[data-theme="light"] .wa-bubble .wa-meta {
   }
 }
 
+/* ============================================================
+   ESTÚDIO DA IA — a língua do agente por dentro (canvas aprovado):
+   neutro quase-preto + hairlines, âmbar único, Inter + mono, DIFF
+   como assinatura. Escopado em .est pra conviver com a Casa do Motor.
+   ============================================================ */
+.est {
+  --e-bg: #08090d;
+  --e-surface: #0e1116;
+  --e-line: #1e232c;
+  --e-line-soft: #171b22;
+  --e-txt: #e9ecf1;
+  --e-txt2: #d6dae1;
+  --e-mut: #8b93a1;
+  --e-dim: #7d8694;
+  --e-amber: #e8b04b;
+  --e-green: #3fb950;
+  --e-red: #f85149;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  color: var(--e-txt);
+  background: var(--e-bg);
+}
+.est .emo { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
+.est-faixa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.est-faixa > b {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--e-amber);
+}
+.est-faixa::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--e-line);
+  order: 1;
+}
+.est-faixa > span { order: 2; font-size: 10px; color: var(--e-dim); }
+.est-card { border: 1px solid var(--e-line); border-radius: 9px; }
+.est-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #08090d;
+  background: var(--e-amber);
+  border-radius: 7px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.est-btn:hover { filter: brightness(1.07); }
+.est-ghost { font-size: 11px; color: var(--e-mut); padding: 6px 10px; cursor: pointer; }
+/* o DIFF humano (anatomia AI Diff/21st): gutter próprio + linha inteira tingida */
+.est-diff-del, .est-diff-add { display: flex; font-size: 11.5px; line-height: 1.6; }
+.est-diff-del { background: rgba(248, 81, 73, 0.07); }
+.est-diff-add { background: rgba(63, 185, 80, 0.07); }
+.est-diff-del > i, .est-diff-add > i {
+  width: 28px;
+  text-align: center;
+  flex: none;
+  font-style: normal;
+  padding: 5px 0;
+}
+.est-diff-del > i { color: var(--e-red); background: rgba(248, 81, 73, 0.1); }
+.est-diff-add > i { color: var(--e-green); background: rgba(63, 185, 80, 0.1); }
+.est-diff-del > s { color: #f0a3a3; padding: 5px 12px; text-decoration: none; }
+.est-diff-add > s { color: #b9ecc1; padding: 5px 12px; text-decoration: none; }
+/* a nova entra deslizando; a rejeitada colapsa (AI Diff) */
+.est-diff-add { animation: est-wipe 0.35s ease-out; }
+@keyframes est-wipe {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+/* pílula segmentada de feedback (Feedback Bar/21st) */
+.est-feed { display: inline-flex; border: 1px solid #26303a; border-radius: 99px; overflow: hidden; }
+.est-feed > button { font-size: 10px; padding: 3px 11px; cursor: pointer; background: none; border: 0; color: var(--e-mut); }
+.est-feed > button:first-child { font-weight: 600; color: var(--e-green); background: rgba(63, 185, 80, 0.12); }
+.est-feed > button + button { border-left: 1px solid #26303a; }
+/* o filete do card em revisão (Border Beam, versão estática) */
+.est-beam { height: 2px; background: linear-gradient(90deg, transparent, #e8b04b 40%, #58aae4 60%, transparent); }
+@keyframes est-girar { to { transform: rotate(360deg); } }
+.est-spin {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #2b2415;
+  border-top-color: var(--e-amber);
+  border-radius: 99px;
+  animation: est-girar 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .est-diff-add, .est-spin { animation: none !important; }
+}
+
 /* o campo do Melhorar acende em âmbar quando você escreve (canvas) */
 .melhorar-campo:focus-within {
   border-color: rgba(224, 164, 74, 0.6);
