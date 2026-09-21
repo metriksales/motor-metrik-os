@@ -696,8 +696,8 @@ html[data-theme="light"] .btn-primary {
   gap: 10px;
 }
 .est-faixa > b {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--e-amber);
 }
@@ -708,37 +708,42 @@ html[data-theme="light"] .btn-primary {
   background: var(--e-line);
   order: 1;
 }
-.est-faixa > span { order: 2; font-size: 10px; color: var(--e-dim); }
+.est-faixa > span { order: 2; font-size: 11.5px; color: var(--e-dim); }
 .est-card { border: 1px solid var(--e-line); border-radius: 9px; }
+/* linha viva: acende no hover (o app responde à mão) */
+.est-row { transition: background 0.15s ease; }
+.est-row:hover { background: rgba(255, 255, 255, 0.035); }
+/* entrada em cascata — usar com animation-delay inline */
+.est-entra { animation: est-wipe 0.35s ease-out both; }
 .est-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 7px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #08090d;
   background: var(--e-amber);
-  border-radius: 7px;
-  padding: 6px 14px;
+  border-radius: 8px;
+  padding: 8px 18px;
   cursor: pointer;
 }
 .est-btn:hover { filter: brightness(1.07); }
-.est-ghost { font-size: 11px; color: var(--e-mut); padding: 6px 10px; cursor: pointer; }
+.est-ghost { font-size: 12.5px; color: var(--e-mut); padding: 7px 12px; cursor: pointer; }
 /* o DIFF humano (anatomia AI Diff/21st): gutter próprio + linha inteira tingida */
-.est-diff-del, .est-diff-add { display: flex; font-size: 11.5px; line-height: 1.6; }
+.est-diff-del, .est-diff-add { display: flex; font-size: 13.5px; line-height: 1.65; }
 .est-diff-del { background: rgba(248, 81, 73, 0.07); }
 .est-diff-add { background: rgba(63, 185, 80, 0.07); }
 .est-diff-del > i, .est-diff-add > i {
-  width: 28px;
+  width: 32px;
   text-align: center;
   flex: none;
   font-style: normal;
-  padding: 5px 0;
+  padding: 7px 0;
 }
 .est-diff-del > i { color: var(--e-red); background: rgba(248, 81, 73, 0.1); }
 .est-diff-add > i { color: var(--e-green); background: rgba(63, 185, 80, 0.1); }
-.est-diff-del > s { color: #f0a3a3; padding: 5px 12px; text-decoration: none; }
-.est-diff-add > s { color: #b9ecc1; padding: 5px 12px; text-decoration: none; }
+.est-diff-del > s { color: #f0a3a3; padding: 7px 14px; text-decoration: none; }
+.est-diff-add > s { color: #b9ecc1; padding: 7px 14px; text-decoration: none; }
 /* a nova entra deslizando; a rejeitada colapsa (AI Diff) */
 .est-diff-add { animation: est-wipe 0.35s ease-out; }
 @keyframes est-wipe {
@@ -747,11 +752,20 @@ html[data-theme="light"] .btn-primary {
 }
 /* pílula segmentada de feedback (Feedback Bar/21st) */
 .est-feed { display: inline-flex; border: 1px solid #26303a; border-radius: 99px; overflow: hidden; }
-.est-feed > button { font-size: 10px; padding: 3px 11px; cursor: pointer; background: none; border: 0; color: var(--e-mut); }
+.est-feed > button { font-size: 11.5px; padding: 4px 13px; cursor: pointer; background: none; border: 0; color: var(--e-mut); }
 .est-feed > button:first-child { font-weight: 600; color: var(--e-green); background: rgba(63, 185, 80, 0.12); }
 .est-feed > button + button { border-left: 1px solid #26303a; }
-/* o filete do card em revisão (Border Beam, versão estática) */
-.est-beam { height: 2px; background: linear-gradient(90deg, transparent, #e8b04b 40%, #58aae4 60%, transparent); }
+/* o filete do card em revisão (Border Beam) — agora VIVO: a luz corre */
+.est-beam {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #e8b04b 40%, #58aae4 60%, transparent);
+  background-size: 200% 100%;
+  animation: est-beam-corre 2.6s linear infinite;
+}
+@keyframes est-beam-corre {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
 @keyframes est-girar { to { transform: rotate(360deg); } }
 .est-spin {
   display: inline-block;
@@ -763,7 +777,7 @@ html[data-theme="light"] .btn-primary {
   animation: est-girar 1s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .est-diff-add, .est-spin { animation: none !important; }
+  .est-diff-add, .est-spin, .est-beam, .est-entra { animation: none !important; }
 }
 
 /* o campo do Melhorar acende em âmbar quando você escreve (canvas) */
