@@ -144,6 +144,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   // a experiência Claude: chat de edições à esquerda + ARTEFATO à direita.
   // O artefato é renderizado do spec do motor — custa ZERO token desenhar.
   const [aba, setAba] = useState<"artefato" | "testar" | "exec" | "historico">("artefato");
+  // qual PEÇA do cérebro está aberta no artefato (o mapa fica à direita)
+  const [peca, setPeca] = useState<string>("conversa");
   const [trocas, setTrocas] = useState<{ pedido: string; status: "no ar" | "guardada" }[]>([]);
   const [modal, setModal] = useState<Upgrade | null>(null);
 
@@ -559,110 +561,224 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             })}
           </div>
 
-          {/* ── ABA ARTEFATO — um DOCUMENTO, com cabeçalho próprio (cara de artifact) ── */}
-          {aba === "artefato" && (
-            <div className="flex-1 overflow-y-auto scroll-thin est-entra">
-              <div className="px-6 py-6">
-                <div className="max-w-[900px] rounded-xl overflow-hidden" style={{ border: "1px solid var(--e-line)", background: "#08090d", boxShadow: "0 20px 50px -30px rgba(0,0,0,.7)" }}>
-                  {/* cabeçalho do documento */}
-                  <div className="flex items-center gap-3 px-6 py-3 flex-wrap" style={{ borderBottom: "1px solid var(--e-line)", background: "var(--e-surface)" }}>
-                    <FileText size={16} style={{ color: "var(--e-amber)" }} className="flex-none" />
-                    <span className="text-[15.5px] font-semibold">Como a {agent.name} funciona — Conversa</span>
-                    <span className="emo text-[11.5px] rounded px-2 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.35)", background: "rgba(63,185,80,.08)" }}>
-                      {agent.real ? (rod ? (rod.base === "semente" ? "cérebro-semente" : `versão ${rod.versao}`) : "lendo…") : "demo"} · lido do motor ✓
-                    </span>
-                    <button onClick={() => setAba("testar")} className="est-ghost ml-auto flex items-center gap-1.5"><FlaskConical size={13} /> Testar isto</button>
-                  </div>
+          {/* ── ABA ARTEFATO — documento à ESQUERDA + mapa do CÉREBRO à direita ── */}
+          {aba === "artefato" && (() => {
+            type Peca = { id: string; nome: string; glifo: string; cor: string; estado: "nucleo" | "no ar" | "off"; resumo: string; meta?: string; cond?: string; upg?: Upgrade };
+            const temFollow = agent.work?.kind === "followups";
+            const pecas: Peca[] = agent.real
+              ? [
+                  { id: "conversa", nome: "Conversa", glifo: "💬", cor: "var(--e-amber)", estado: "nucleo", resumo: "o núcleo — como ela fala com o lead", meta: `${regras.length} regras · ${fatos.length} fatos` },
+                  ...(temFollow ? [{ id: "followup", nome: "Follow-up", glifo: "⏱", cor: "var(--e-green)", estado: "no ar" as const, resumo: "busca de volta quem sumiu", meta: naFila != null ? `${naFila} na fila` : undefined, cond: "se some →" }] : []),
+                  ...(agent.upgrades ?? []).map((u): Peca => ({ id: `u:${u.name}`, nome: u.name, glifo: "✦", cor: "#7d8694", estado: "off", resumo: u.blurb ?? "disponível pra ligar", upg: u })),
+                ]
+              : [
+                  { id: "conversa", nome: "Conversa", glifo: "💬", cor: "var(--e-amber)", estado: "nucleo", resumo: "o núcleo — como ela fala", meta: "4 regras · 12 fatos" },
+                  { id: "agenda", nome: "Agendamento", glifo: "📅", cor: "#58aae4", estado: "no ar", resumo: "marca a reunião na agenda", meta: "5 marcadas hoje", cond: "se qualifica →" },
+                  { id: "followup", nome: "Follow-up", glifo: "⏱", cor: "var(--e-green)", estado: "no ar", resumo: "busca quem sumiu — 2 toques", meta: "3 na fila", cond: "se some →" },
+                  { id: "avisa", nome: "Avisa no WhatsApp", glifo: "📲", cor: "#7d8694", estado: "off", resumo: "chama um humano na hora", cond: "se trava →" },
+                  { id: "crm", nome: "Preenche o CRM", glifo: "📝", cor: "#7d8694", estado: "off", resumo: "anota origem e resumo no card" },
+                ];
+            const ativas = pecas.filter((p) => p.estado !== "off");
+            const desligadas = pecas.filter((p) => p.estado === "off");
+            const aberta = pecas.find((p) => p.id === peca) ?? pecas[0];
 
-                  <div className="px-8 py-6">
-                    {agent.real && rod ? (
-                      <>
-                        {/* O QUE ESTÁ PRA ENTRAR — primeiro, sempre: é a decisão dele */}
-                        {(emRev || (envio.fase === "pronto" && envio.evals)) && (
+            const NoCard = (p: Peca, sel: boolean) => (
+              <button key={p.id} onClick={() => setPeca(p.id)} className="w-full text-left rounded-[11px] p-3 transition-colors" style={sel ? { border: "1px solid rgba(232,176,75,.6)", background: "linear-gradient(180deg,rgba(232,176,75,.07),var(--e-surface))", boxShadow: "0 0 0 1px rgba(232,176,75,.25)" } : { border: `1px ${p.estado === "off" ? "dashed" : "solid"} var(--e-line)`, background: "var(--e-surface)", opacity: p.estado === "off" ? 0.9 : 1 }}>
+                <div className="flex items-center gap-2.5">
+                  <span className="grid place-items-center rounded-md flex-none" style={{ width: 26, height: 26, background: `${p.cor === "#7d8694" ? "#12161d" : p.cor + "22"}`, color: p.cor }}>{p.glifo}</span>
+                  <span className="text-[13.5px] font-semibold flex-1" style={{ color: p.estado === "off" ? "var(--e-txt2)" : "var(--e-txt)" }}>{p.nome}</span>
+                  {p.estado === "off" ? (
+                    <span className="emo text-[10.5px] font-semibold" style={{ color: "var(--e-amber)" }}>+ ligar</span>
+                  ) : p.estado === "nucleo" ? (
+                    <span className="emo text-[9.5px] font-bold rounded px-1.5 py-0.5" style={{ color: "#08090d", background: "var(--e-amber)" }}>NÚCLEO</span>
+                  ) : (
+                    <span className="emo text-[10px] font-bold rounded px-1.5 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.4)" }}>no ar</span>
+                  )}
+                </div>
+                <p className="text-[11.5px] mt-1.5 mb-0 pl-[35px] leading-snug" style={{ color: "var(--e-mut)" }}>{p.resumo}</p>
+                {p.meta && <div className="emo text-[10.5px] mt-1 pl-[35px]" style={{ color: "var(--e-dim)" }}>{p.meta}</div>}
+              </button>
+            );
+
+            return (
+              <div className="flex-1 min-h-0 flex est-entra">
+                {/* ═══ ESQUERDA · o documento da peça aberta ═══ */}
+                <div className="flex-1 min-w-0 overflow-y-auto scroll-thin">
+                  <div className="px-6 py-6">
+                    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--e-line)", background: "#08090d", boxShadow: "0 20px 50px -30px rgba(0,0,0,.7)" }}>
+                      <div className="flex items-center gap-3 px-6 py-3 flex-wrap" style={{ borderBottom: "1px solid var(--e-line)", background: "var(--e-surface)" }}>
+                        <span className="grid place-items-center rounded-md flex-none" style={{ width: 24, height: 24, background: aberta.cor === "#7d8694" ? "#12161d" : aberta.cor + "22", color: aberta.cor }}>{aberta.glifo}</span>
+                        <span className="text-[15.5px] font-semibold">{aberta.nome} — como a {agent.name} {aberta.id === "conversa" ? "fala" : "trabalha"}</span>
+                        {aberta.estado !== "off" ? (
+                          <span className="emo text-[11.5px] rounded px-2 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.35)", background: "rgba(63,185,80,.08)" }}>
+                            {agent.real ? (rod ? (rod.base === "semente" ? "cérebro-semente" : `versão ${rod.versao}`) : "lendo…") : "demo"} · lido do motor ✓
+                          </span>
+                        ) : (
+                          <span className="emo text-[11.5px] rounded px-2 py-0.5" style={{ color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)" }}>disponível — não está ligada</span>
+                        )}
+                        {aberta.estado !== "off" && <button onClick={() => setAba("testar")} className="est-ghost ml-auto flex items-center gap-1.5"><FlaskConical size={13} /> Testar isto</button>}
+                      </div>
+
+                      <div className="px-8 py-6">
+                        {/* PEÇA: CONVERSA (o núcleo — documento completo do motor) */}
+                        {aberta.id === "conversa" && (agent.real && rod ? (
                           <>
-                            <div className="est-faixa mb-2"><b>ESPERANDO VOCÊ</b><span>entra no artefato quando você publicar</span></div>
-                            <div className="rounded-[9px] overflow-hidden mb-7" style={{ border: "1px solid rgba(232,176,75,.45)", background: "var(--e-surface)" }}>
-                              <div className="est-beam" />
-                              <div className="px-4 py-3">
-                                <div className="emo">
-                                  <div className="est-diff-add"><i>+</i><s>{envio.fase === "pronto" ? envio.pedido : emRev?.intent}</s></div>
-                                </div>
-                                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                                  {envio.fase === "pronto" && envio.evals ? (
-                                    <>
-                                      <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}</span>
-                                      {envio.ensaio?.modo === "real" && (
-                                        <button onClick={() => void publicar()} disabled={!envio.evals.aprovado} className="est-btn" style={!envio.evals.aprovado ? { opacity: 0.5 } : undefined}>Publicar</button>
+                            {(emRev || (envio.fase === "pronto" && envio.evals)) && (
+                              <>
+                                <div className="est-faixa mb-2"><b>ESPERANDO VOCÊ</b><span>entra no artefato quando você publicar</span></div>
+                                <div className="rounded-[9px] overflow-hidden mb-7" style={{ border: "1px solid rgba(232,176,75,.45)", background: "var(--e-surface)" }}>
+                                  <div className="est-beam" />
+                                  <div className="px-4 py-3">
+                                    <div className="emo"><div className="est-diff-add"><i>+</i><s>{envio.fase === "pronto" ? envio.pedido : emRev?.intent}</s></div></div>
+                                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                                      {envio.fase === "pronto" && envio.evals ? (
+                                        <>
+                                          <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}</span>
+                                          {envio.ensaio?.modo === "real" && <button onClick={() => void publicar()} disabled={!envio.evals.aprovado} className="est-btn" style={!envio.evals.aprovado ? { opacity: 0.5 } : undefined}>Publicar</button>}
+                                        </>
+                                      ) : (
+                                        <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>termina esta pelo chat ao lado — ensaio → guardião → publicar</span>
                                       )}
-                                    </>
-                                  ) : (
-                                    <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>termina esta pelo chat ao lado — ensaio → guardião → publicar</span>
-                                  )}
-                                  <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-ghost ml-auto flex items-center gap-1.5">
-                                    {run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} Rodar os testes antes
-                                  </button>
-                                </div>
-                                {run.r?.evals && (
-                                  <div className="emo text-[12.5px] mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)", color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
-                                    {run.r.evals.aprovado ? "✓" : "✗"} {run.r.evals.passaram}/{run.r.evals.total} travas de pé{run.r.modo === "roteiro" ? " · conferido no roteiro (sem cérebro)" : ""} — detalhe na aba Testar
+                                      <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-ghost ml-auto flex items-center gap-1.5">
+                                        {run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} Rodar os testes antes
+                                      </button>
+                                    </div>
+                                    {run.r?.evals && (
+                                      <div className="emo text-[12.5px] mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)", color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
+                                        {run.r.evals.aprovado ? "✓" : "✗"} {run.r.evals.passaram}/{run.r.evals.total} travas de pé{run.r.modo === "roteiro" ? " · conferido no roteiro (sem cérebro)" : ""} — detalhe na aba Testar
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
+                                </div>
+                              </>
+                            )}
+
+                            <div className="est-faixa mb-2"><b>IDENTIDADE</b><span>quem ela é pro seu cliente</span></div>
+                            <p className="text-[15.5px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt)" }}>{c?.identidade ?? "—"}</p>
+
+                            {c?.oferta && (
+                              <>
+                                <div className="est-faixa mb-2"><b>OFERTA</b><span>o que ela vende</span></div>
+                                <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt2)" }}>{c.oferta}</p>
+                              </>
+                            )}
+
+                            <div className="est-faixa mb-2"><b>REGRAS</b><span>{regras.length} valendo · as SUAS estão marcadas</span></div>
+                            <div className="est-card overflow-hidden mb-6" style={{ background: "var(--e-surface)" }}>
+                              {regras.map((r, i) => {
+                                const fato = /^fato:/i.test(r);
+                                const sua = fato || suasIntents.has(r.trim().toLowerCase());
+                                const nova = publicadas.length > 0 && r.trim().toLowerCase() === String(publicadas[0].intent ?? "").trim().toLowerCase();
+                                const b = fato ? { t: "FATO", c: "#3fb950" } : sua ? { t: "SUA", c: "#e8b04b" } : { t: "NÚCLEO", c: "#7d8694" };
+                                return (
+                                  <div key={i} className="est-row flex items-start gap-3 px-4 py-2.5" style={{ borderBottom: i < regras.length - 1 ? "1px solid var(--e-line-soft)" : undefined, ...(sua ? { background: `${b.c}0e`, borderLeft: `3px solid ${b.c}` } : { borderLeft: "3px solid transparent" }) }}>
+                                    <span className="emo text-[10.5px] font-bold rounded px-1.5 mt-1 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
+                                    <span className="text-[14.5px] flex-1 leading-relaxed" style={{ color: sua ? "var(--e-txt)" : "var(--e-txt2)" }}>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
+                                    {nova && <span className="emo text-[11px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>✨ novo</span>}
+                                    <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); setAba("testar"); }} className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>testar</button>
+                                  </div>
+                                );
+                              })}
+                              {regras.length === 0 && <div className="px-4 py-4 text-[13.5px]" style={{ color: "var(--e-dim)" }}>ainda sem regras — pede a primeira pelo chat.</div>}
                             </div>
+
+                            {publicadas[0] && (
+                              <>
+                                <div className="est-faixa mb-2"><b>ENTROU POR ÚLTIMO</b><span>{publicadas[0].createdAt ? `há ${tempoRelativo(publicadas[0].createdAt)}` : ""}</span></div>
+                                <div className="rounded-[9px] overflow-hidden emo mb-2" style={{ border: "1px solid rgba(63,185,80,.35)" }}>
+                                  <div className="est-diff-add"><i>+</i><s>{publicadas[0].intent}</s></div>
+                                </div>
+                              </>
+                            )}
                           </>
-                        )}
+                        ) : (
+                          <div className="est-card p-5 text-[14.5px] leading-relaxed" style={{ color: "var(--e-mut)", background: "var(--e-surface)" }}>
+                            Bia, consultora comercial da Vega — 3 rotas (Implementação R$ 997 · Academy R$ 197 · humano), 4 regras, 12 fatos.
+                            <span style={{ color: "var(--e-dim)" }}> Na sua conta, este artefato é lido do motor de verdade e marca cada mudança sua.</span>
+                          </div>
+                        ))}
 
-                        <div className="est-faixa mb-2"><b>IDENTIDADE</b><span>quem ela é pro seu cliente</span></div>
-                        <p className="text-[15.5px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt)" }}>{c?.identidade ?? "—"}</p>
-
-                        {c?.oferta && (
+                        {/* PEÇA ATIVA que não é Conversa (ex.: Follow-up) */}
+                        {aberta.id !== "conversa" && aberta.estado !== "off" && (
                           <>
-                            <div className="est-faixa mb-2"><b>OFERTA</b><span>o que ela vende</span></div>
-                            <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt2)" }}>{c.oferta}</p>
+                            <div className="est-faixa mb-2"><b>O QUE ESTA PEÇA FAZ</b><span>parte do caminho do lead</span></div>
+                            <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt)" }}>{aberta.resumo}.</p>
+                            {aberta.meta && (
+                              <>
+                                <div className="est-faixa mb-2"><b>AGORA</b><span>estado ao vivo</span></div>
+                                <div className="est-card px-4 py-3 mb-6 text-[14px]" style={{ background: "var(--e-surface)", color: "var(--e-txt2)" }}>{aberta.meta}</div>
+                              </>
+                            )}
+                            <p className="text-[13px]" style={{ color: "var(--e-dim)" }}>Pra mudar como esta peça age, é só pedir no chat ao lado — ela passa pelo mesmo guardião antes de entrar.</p>
                           </>
                         )}
 
-                        <div className="est-faixa mb-2"><b>REGRAS</b><span>{regras.length} valendo · as SUAS estão marcadas</span></div>
-                        <div className="est-card overflow-hidden mb-6" style={{ background: "var(--e-surface)" }}>
-                          {regras.map((r, i) => {
-                            const fato = /^fato:/i.test(r);
-                            const sua = fato || suasIntents.has(r.trim().toLowerCase());
-                            const nova = publicadas.length > 0 && r.trim().toLowerCase() === String(publicadas[0].intent ?? "").trim().toLowerCase();
-                            const b = fato ? { t: "FATO", c: "#3fb950" } : sua ? { t: "SUA", c: "#e8b04b" } : { t: "NÚCLEO", c: "#7d8694" };
-                            return (
-                              <div key={i} className="est-row flex items-start gap-3 px-4 py-2.5" style={{ borderBottom: i < regras.length - 1 ? "1px solid var(--e-line-soft)" : undefined, ...(sua ? { background: `${b.c}0e`, borderLeft: `3px solid ${b.c}` } : { borderLeft: "3px solid transparent" }) }}>
-                                <span className="emo text-[10.5px] font-bold rounded px-1.5 mt-1 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
-                                <span className="text-[14.5px] flex-1 leading-relaxed" style={{ color: sua ? "var(--e-txt)" : "var(--e-txt2)" }}>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
-                                {nova && <span className="emo text-[11px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>✨ novo</span>}
-                                <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); setAba("testar"); }} className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>testar</button>
+                        {/* PEÇA DESLIGADA — o mini-artefato de "disponível pra ligar" */}
+                        {aberta.estado === "off" && (
+                          <>
+                            <div className="est-faixa mb-2"><b>O QUE ESTA PEÇA FAZ</b><span>ainda não está ligada</span></div>
+                            <p className="text-[15px] leading-relaxed mt-0 mb-5" style={{ color: "var(--e-txt)" }}>{aberta.resumo}.</p>
+                            {aberta.upg?.resultado && (
+                              <div className="rounded-[9px] px-4 py-3 mb-5" style={{ background: "rgba(232,176,75,.07)", border: "1px solid rgba(232,176,75,.3)" }}>
+                                <p className="text-[13.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>{aberta.upg.resultado}</p>
                               </div>
-                            );
-                          })}
-                          {regras.length === 0 && <div className="px-4 py-4 text-[13.5px]" style={{ color: "var(--e-dim)" }}>ainda sem regras — pede a primeira pelo chat.</div>}
+                            )}
+                            {aberta.upg ? (
+                              <button onClick={() => setModal(aberta.upg!)} className="est-btn">+ Ligar esta peça</button>
+                            ) : (
+                              <p className="text-[13px]" style={{ color: "var(--e-dim)" }}>Na sua conta, a Metrik liga esta peça e ela entra no caminho — com ensaio e guardião antes de valer.</p>
+                            )}
+                          </>
+                        )}
+
+                        <p className="text-[12px] mt-6 mb-0" style={{ color: "var(--e-dim)" }}>Isto não é print — é o cérebro dela agora. Você muda pelo chat; eu marco aqui o que mudou.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ═══ DIREITA · O CÉREBRO (as peças como o caminho do lead) ═══ */}
+                <div className="w-[312px] flex-none overflow-y-auto scroll-thin" style={{ borderLeft: "1px solid var(--e-line)", background: "#0a0c10" }}>
+                  <div className="px-4 py-5">
+                    <div className="text-[10.5px] font-bold mb-1" style={{ letterSpacing: ".12em", color: "var(--e-dim)" }}>O CÉREBRO DA {agent.name.toUpperCase()}</div>
+                    <div className="text-[12px] mb-4 leading-snug" style={{ color: "var(--e-mut)" }}>o caminho que todo lead percorre — clica numa peça pra abrir e mudar</div>
+
+                    {/* o percurso (peças ativas, com o trilho) */}
+                    <div className="relative">
+                      <div className="absolute" style={{ left: 21, top: 14, bottom: 14, width: 2, background: "var(--e-line)" }} />
+                      {ativas.map((p, i) => (
+                        <div key={p.id} className="relative pl-11 pb-2.5">
+                          {p.cond && <span className="absolute text-[10px] italic" style={{ left: 46, top: -8, color: "var(--e-dim)" }}>{p.cond}</span>}
+                          <span className="absolute grid place-items-center rounded-full text-[9px] font-bold" style={{ left: 13, top: 15, width: 18, height: 18, background: peca === p.id ? "var(--e-amber)" : p.cor, color: "#08090d", border: "3px solid #0a0c10" }}>{i + 1}</span>
+                          {NoCard(p, peca === p.id)}
                         </div>
+                      ))}
+                    </div>
 
-                        {/* a última publicada, marcada de verde */}
-                        {publicadas[0] && (
-                          <>
-                            <div className="est-faixa mb-2"><b>ENTROU POR ÚLTIMO</b><span>{publicadas[0].createdAt ? `há ${tempoRelativo(publicadas[0].createdAt)}` : ""}</span></div>
-                            <div className="rounded-[9px] overflow-hidden emo mb-2" style={{ border: "1px solid rgba(63,185,80,.35)" }}>
-                              <div className="est-diff-add"><i>+</i><s>{publicadas[0].intent}</s></div>
-                            </div>
-                          </>
-                        )}
+                    {/* as que dá pra ligar */}
+                    {desligadas.length > 0 && (
+                      <>
+                        <div className="est-faixa mt-5 mb-2.5"><b>PODE LIGAR</b><span>{desligadas.length}</span></div>
+                        <div className="space-y-2.5">
+                          {desligadas.map((p) => NoCard(p, peca === p.id))}
+                        </div>
                       </>
-                    ) : (
-                      <div className="est-card p-5 text-[14.5px] leading-relaxed" style={{ color: "var(--e-mut)", background: "var(--e-surface)" }}>
-                        Bia, consultora comercial da Vega — 3 rotas (Implementação R$ 997 · Academy R$ 197 · humano), 4 regras, 12 fatos.
-                        <span style={{ color: "var(--e-dim)" }}> Na sua conta, este artefato é lido do motor de verdade e marca cada mudança sua.</span>
+                    )}
+
+                    {/* mapa enxuto (só o núcleo): ensina a visão sem inventar peça */}
+                    {agent.real && pecas.length <= 1 && (
+                      <div className="rounded-[10px] px-3.5 py-3 mt-4" style={{ border: "1px dashed var(--e-line)", background: "var(--e-surface)" }}>
+                        <div className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--e-mut)" }}>as próximas peças</div>
+                        <p className="text-[11.5px] leading-relaxed m-0" style={{ color: "var(--e-dim)" }}>
+                          Follow-up, Agendamento e Avisos no WhatsApp entram aqui como peças do caminho — conforme a Metrik liga no seu motor.
+                        </p>
                       </div>
                     )}
-                    <p className="text-[12px] mt-4 mb-0" style={{ color: "var(--e-dim)" }}>Isto não é print — é o cérebro dela agora. Você muda pelo chat; eu marco aqui o que mudou.</p>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── ABA TESTAR ── */}
           {aba === "testar" && (
