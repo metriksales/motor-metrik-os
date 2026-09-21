@@ -4,7 +4,7 @@
 // progresso = log de terminal. Tudo lido do MOTOR (spec, ledger, evals,
 // chat-sandbox) — zero vitrine vestida em agente real.
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUp, Check, Clock, Loader2, Lock, Mic, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, Check, Clock, FileText, FlaskConical, Loader2, Lock, Mic, Radio, ScrollText, ShieldCheck, Sparkles, X } from "lucide-react";
 import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
 import { api } from "../lib/api";
@@ -140,8 +140,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   seed?: { tipo: "pedido" | "pergunta"; texto: string; n: number } | null;
 }) {
   const auth = useMotorAuth();
-  const { stats } = useLive();
-  const [secao, setSecao] = useState<Secao>("conversa");
+  const { logs, stats } = useLive();
+  // painel lateral: nada aberto por padrão — o cliente abre pelo botãozinho
+  const [painel, setPainel] = useState<"como" | "testar" | "logs" | null>(null);
   const [modal, setModal] = useState<Upgrade | null>(null);
 
   // ── o motor: spec rodando + ledger ──
@@ -218,8 +219,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   useEffect(() => { fimRef.current?.scrollIntoView({ block: "end" }); }, [msgs]);
   useEffect(() => {
     if (!seed) return;
-    if (seed.tipo === "pergunta") setInput(seed.texto);
-    else { setTexto(seed.texto); setSecao("conversa"); }
+    if (seed.tipo === "pergunta") { setInput(seed.texto); setPainel("testar"); }
+    else setTexto(seed.texto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed?.n]);
 
@@ -246,7 +247,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     setFeedback((s) => ({ ...s, [i]: "nao" }));
     const pergunta = [...msgs.slice(0, i)].reverse().find((m) => m.de === "voce")?.texto ?? "";
     setTexto(`No teste, perguntei: "${pergunta}" e ela respondeu: "${msgs[i].texto}" — não é isso. Deveria: `);
-    setSecao("conversa");
   };
 
   // ── TESTES (rodada real) ──
@@ -264,15 +264,27 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const nSim = Object.values(feedback).filter((v) => v === "sim").length;
   const nNao = Object.values(feedback).filter((v) => v === "nao").length;
 
+  // rola o feed pro fim quando o fluxo do pedido avança (a resposta nasce perto da caixinha)
+  const feedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (envio.fase === "idle") return; // no mount/reset fica no topo
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
+  }, [envio.fase]);
+
+  const meusLogs = agent.real ? (logs ?? []).filter((l) => l.agentId === agent.id).slice(0, 30) : [];
+
+  /* ═══ O DESENHO (ordem do mestre, 21/09): em cima o estado + as alterações ·
+     no meio o feed · EMBAIXO a caixinha de pedir · na lateral BOTÕEZINHOS que
+     abrem painéis: Como funciona (o artefato da feature aberta) · Testar · Logs. */
   return (
     <div className="est flex-1 min-h-0 flex flex-col">
-      {/* ── topo (breadcrumb: você está DENTRO do agente) ── */}
+      {/* ── topo ── */}
       <div className="flex items-center gap-3 px-5 flex-none" style={{ height: 52, borderBottom: "1px solid var(--e-line)" }}>
         <button onClick={onBack} title="voltar pra frota" className="flex items-center gap-1 -ml-1 px-1 py-1" style={{ color: "var(--e-mut)" }}><ArrowLeft size={15} /></button>
         <div className="rounded-lg p-0.5" style={{ border: "1px solid rgba(232,176,75,.5)", background: "#0e1116" }}><Robot state={estado} color={agent.color} size={26} /></div>
         <span className="text-[13px] font-semibold">{agent.name}</span>
         <span className="emo text-[10.5px]" style={{ color: "var(--e-dim)" }}>/</span>
-        <span className="emo text-[10.5px]" style={{ color: "var(--e-mut)" }}>{secao === "testes" ? "Testes" : "Conversa"}</span>
+        <span className="emo text-[10.5px]" style={{ color: "var(--e-mut)" }}>Conversa</span>
         <span className="emo text-[10.5px]" style={{ color: "var(--e-mut)" }}>{agent.tipo === "acao" ? "ação" : "sdr"}{rod ? ` · v${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}</span>
         <span style={{ width: 6, height: 6, borderRadius: 99, background: estado === "pausado" ? "#7d8694" : "var(--e-green)" }} />
         <div className="ml-auto flex items-center gap-4">
@@ -283,14 +295,15 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         </div>
       </div>
 
-      {/* ── faixa de resultado (vício honesto) ── */}
+      {/* ── PARTE DE CIMA: como está no momento + o que está em andamento ── */}
       <div className="flex items-center gap-5 px-6 flex-wrap flex-none" style={{ minHeight: 38, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
-        <span className="text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>SUAS MUDANÇAS</span>
+        <span className="text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>AGORA</span>
         {agent.real ? (
           <>
-            <span className="emo text-[11px]" style={{ color: "var(--e-green)" }}>{publicadas.length} no ar</span>
-            {emRev && <span className="emo text-[11px]" style={{ color: "var(--e-amber)" }}>1 em revisão</span>}
-            {seguradas.length > 0 && <span className="emo text-[11px]" style={{ color: "var(--e-mut)" }}>{seguradas.length} seguradas pelo guardião</span>}
+            <span className="emo text-[11px]" style={{ color: "var(--e-txt2)" }}>{rod ? (rod.base === "semente" ? "cérebro-semente da vertical" : `versão ${rod.versao} no ar`) : "lendo o motor…"}</span>
+            <span className="emo text-[11px]" style={{ color: "var(--e-green)" }}>{publicadas.length} {publicadas.length === 1 ? "mudança sua" : "mudanças suas"} no ar</span>
+            {emRev && <span className="emo text-[11px] truncate max-w-[320px]" style={{ color: "var(--e-amber)" }}>● em revisão: “{emRev.intent}”</span>}
+            {seguradas.length > 0 && <span className="emo text-[11px]" style={{ color: "var(--e-mut)" }}>{seguradas.length} seguradas</span>}
             <span className="emo text-[10.5px] ml-auto" style={{ color: "var(--e-dim)" }}>{execsHoje} atendimentos hoje</span>
           </>
         ) : (
@@ -303,16 +316,15 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         )}
       </div>
 
-      {/* colunas até o rodapé — a página não rola; o CENTRO rola por dentro */}
-      <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: "218px minmax(0,1fr) 400px" }}>
-        {/* ── rail: as PARTES ── */}
-        <div className="overflow-y-auto scroll-thin" style={{ borderRight: "1px solid var(--e-line)", padding: "14px 0" }}>
+      <div className="flex flex-1 min-h-0">
+        {/* ── rail: as PARTES do agente ── */}
+        <div className="w-[200px] flex-none overflow-y-auto scroll-thin" style={{ borderRight: "1px solid var(--e-line)", padding: "14px 0" }}>
           <div className="px-5 pb-2 text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>MÓDULOS</div>
-          <button onClick={() => setSecao("conversa")} className="w-full flex items-center gap-2.5 px-5 py-2 text-left" style={secao === "conversa" ? { background: "var(--e-surface)", borderRight: "2px solid var(--e-amber)" } : undefined}>
+          <div className="w-full flex items-center gap-2.5 px-5 py-2" style={{ background: "var(--e-surface)", borderRight: "2px solid var(--e-amber)" }}>
             <span style={{ width: 6, height: 6, borderRadius: 99, background: "var(--e-green)" }} />
-            <span className="text-[12.5px] flex-1" style={{ fontWeight: secao === "conversa" ? 600 : 400, color: secao === "conversa" ? "var(--e-txt)" : "var(--e-mut)" }}>Conversa</span>
+            <span className="text-[12.5px] flex-1 font-semibold" style={{ color: "var(--e-txt)" }}>Conversa</span>
             <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>{execsHoje} hoje</span>
-          </button>
+          </div>
           {naFila != null && (
             <div className="flex items-center gap-2.5 px-5 py-2">
               <span style={{ width: 6, height: 6, borderRadius: 99, background: "var(--e-green)" }} />
@@ -320,12 +332,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>{naFila} na fila</span>
             </div>
           )}
-          <button onClick={() => setSecao("testes")} className="w-full flex items-center gap-2.5 px-5 py-2 text-left" style={secao === "testes" ? { background: "var(--e-surface)", borderRight: "2px solid var(--e-amber)" } : undefined}>
-            <span style={{ width: 6, height: 6, borderRadius: 99, background: "var(--e-green)" }} />
-            <span className="text-[12.5px] flex-1" style={{ fontWeight: secao === "testes" ? 600 : 400, color: secao === "testes" ? "var(--e-txt)" : "var(--e-mut)" }}>Testes</span>
-            {run.r?.evals && <span className="emo text-[10px]" style={{ color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{run.r.evals.passaram}/{run.r.evals.total}</span>}
-          </button>
-
           {(agent.upgrades?.length ?? 0) > 0 && (
             <>
               <div className="px-5 pt-4 pb-2 text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>ATIVAR</div>
@@ -340,343 +346,379 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           )}
         </div>
 
-        {/* ── centro (rola por dentro, como um editor) ── */}
-        <div className="overflow-y-auto scroll-thin" style={{ padding: "18px 24px", minWidth: 0 }}>
-          {secao === "conversa" ? (
-            <>
-              {/* composer */}
-              <div className="rounded-xl" style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", padding: "11px 13px 9px" }}>
-                <div className="flex items-start gap-2.5">
-                  <span className="emo text-[12px] mt-1" style={{ color: "var(--e-amber)" }}>❯</span>
-                  <textarea
-                    rows={1}
-                    value={texto}
-                    onChange={(e) => setTexto(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(); } }}
-                    placeholder={'pede qualquer mudança — "no follow, só 2 toques" · "ensina que o Start é 497"'}
-                    className="flex-1 bg-transparent resize-none outline-none text-[13px] py-0.5"
-                    style={{ color: "var(--e-txt)" }}
-                  />
-                </div>
-                <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)" }}>
-                  <Mic size={13} style={{ color: "var(--e-mut)" }} />
-                  <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>segura pra falar</span>
-                  <button onClick={mandar} disabled={!texto.trim() || envio.fase === "rodando"} className="est-btn ml-auto">Enviar <ArrowUp size={11} /></button>
+        {/* ── MEIO: o feed das alterações · a caixinha fica EMBAIXO ── */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div ref={feedRef} className="flex-1 overflow-y-auto scroll-thin" style={{ padding: "18px 24px" }}>
+            {/* uma linha só: o que ela é hoje — o detalhe mora no painel Como funciona */}
+            <div className="flex items-center gap-2.5 text-[12px]" style={{ color: "var(--e-mut)" }}>
+              <span className="truncate">{agent.real ? (c?.identidade ?? "lendo o motor…") : "Bia, consultora comercial da Vega — 3 rotas · 4 regras · 12 fatos"}</span>
+              <button onClick={() => setPainel("como")} className="emo text-[10.5px] flex-none" style={{ color: "var(--e-amber)" }}>ver como funciona →</button>
+            </div>
+
+            <div className="est-faixa mt-4 mb-2"><b>MUDANÇAS</b><span>{agent.real ? `${publicadas.length} no ar${emRev ? " · 1 em revisão" : ""}${seguradas.length ? ` · ${seguradas.length} seguradas` : ""}` : "demonstração"}</span></div>
+            <div className="est-card overflow-hidden">
+              {(agent.real ? [...publicadas, ...seguradas].slice(0, 8).reverse() : []).map((r, i, arr) => {
+                const seg = String(r.status) === "rejected";
+                return (
+                  <div key={r.id ?? i} className="flex items-center gap-3 px-3.5 py-2" style={{ borderBottom: i < arr.length - 1 ? "1px solid var(--e-line)" : undefined }}>
+                    <span className="emo text-[11px] w-2.5" style={{ color: seg ? "var(--e-red)" : "var(--e-green)" }}>{seg ? "✗" : "✓"}</span>
+                    <span className="text-[12px] flex-1 truncate" style={{ color: seg ? "var(--e-mut)" : "var(--e-txt2)" }}>{r.intent}</span>
+                    <span className="emo text-[10px] flex-none" style={{ color: seg ? "var(--e-red)" : "var(--e-green)" }}>{seg ? "segurada" : "no ar"}</span>
+                    <span className="emo text-[10px] flex-none" style={{ color: "var(--e-dim)" }}>{r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : ""}</span>
+                  </div>
+                );
+              })}
+              {agent.real && publicadas.length + seguradas.length === 0 && (
+                <div className="px-3.5 py-3 text-[11.5px]" style={{ color: "var(--e-dim)" }}>Pede a primeira mudança na caixinha aí embaixo — ela passa no guardião e aparece aqui com o antes e o depois.</div>
+              )}
+              {!agent.real && (
+                <>
+                  <div className="flex items-center gap-3 px-3.5 py-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
+                    <span className="emo text-[11px] w-2.5" style={{ color: "var(--e-green)" }}>✓</span>
+                    <span className="text-[12px] flex-1">ao negar, oferece outro caminho</span>
+                    <span className="emo text-[10px]" style={{ color: "var(--e-green)" }}>+4 leads voltaram</span>
+                    <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>há 3 dias</span>
+                  </div>
+                  <div className="flex items-center gap-3 px-3.5 py-2">
+                    <span className="emo text-[11px] w-2.5" style={{ color: "var(--e-red)" }}>✗</span>
+                    <span className="text-[12px] flex-1" style={{ color: "var(--e-mut)" }}>25% de desconto — segurada: passa do teto</span>
+                    <span className="emo text-[10px]" style={{ color: "var(--e-red)" }}>não entrou</span>
+                    <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>há 4 dias</span>
+                  </div>
+                </>
+              )}
+            </div>
+            {agent.real && emRev && envio.fase === "idle" && (
+              <div className="rounded-[9px] overflow-hidden mt-2" style={{ border: "1px solid #2b2415", background: "var(--e-surface)" }}>
+                <div className="est-beam" />
+                <div className="flex items-center gap-2.5 px-3.5 py-2">
+                  <span className="emo text-[10.5px]" style={{ color: "var(--e-amber)" }}>● em revisão</span>
+                  <span className="text-[12px] flex-1 truncate" style={{ color: "var(--e-txt2)" }}>{emRev.intent}</span>
+                  <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>{emRev.createdAt ? `há ${tempoRelativo(emRev.createdAt)}` : ""}</span>
                 </div>
               </div>
+            )}
 
-              {/* professor / confirmar destino */}
-              {envio.fase === "clarificar" && (
-                <div className="est-card mt-3 p-3.5" style={{ borderColor: "rgba(88,170,228,.4)" }}>
-                  <div className="text-[12.5px]" style={{ color: "var(--e-txt2)" }}>
-                    Você mandou <b>“{envio.pedido}”</b> — só isso não me diz o que mudar. O que ela <b>passa a fazer</b>, e <b>em que momento</b>?
-                  </div>
+            {/* ── o fluxo do pedido em andamento (nasce perto da caixinha) ── */}
+            {envio.fase === "clarificar" && (
+              <div className="est-card mt-3 p-3.5" style={{ borderColor: "rgba(88,170,228,.4)" }}>
+                <div className="text-[12.5px]" style={{ color: "var(--e-txt2)" }}>
+                  Você mandou <b>“{envio.pedido}”</b> — só isso não me diz o que mudar. O que ela <b>passa a fazer</b>, e <b>em que momento</b>?
                 </div>
-              )}
-              {envio.fase === "confirmar" && (
-                <div className="est-card mt-3 p-4" style={{ borderColor: "rgba(88,170,228,.4)" }}>
-                  <div className="text-[11px] font-semibold mb-1.5" style={{ color: "#58aae4" }}>Ela confirma — e PRA ONDE vai</div>
-                  <div className="text-[13px]" style={{ color: "var(--e-txt2)" }}>“{envio.pedido}”</div>
-                  <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                    {(["fato", "regra", "doc"] as Destino[]).map((d) => {
-                      const m = DESTINO_META[d];
-                      const sel = (envio.destino ?? "regra") === d;
-                      return (
-                        <button key={d} onClick={() => setEnvio((s) => ({ ...s, destino: d }))} className="text-[10.5px] rounded-md px-2.5 py-1" style={sel ? { background: `${m.cor}1f`, border: `1px solid ${m.cor}66`, color: m.cor, fontWeight: 700 } : { border: "1px solid var(--e-line)", color: "var(--e-dim)" }}>
-                          {m.rotulo}{sel ? " ✓" : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="text-[10.5px] mt-1.5" style={{ color: "var(--e-dim)" }}>{DESTINO_META[envio.destino ?? "regra"].desc}</div>
-                  <div className="flex items-center gap-2.5 mt-3">
-                    <button onClick={() => void rodarEnsaio()} className="est-btn">{envio.destino === "doc" ? "É isso — guardar" : "É isso — roda o ensaio"}</button>
-                    <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">não — escrevo de novo</button>
-                    <span className="ml-auto inline-flex items-center gap-1 text-[10px]" style={{ color: "var(--e-dim)" }}><Lock size={10} /> núcleo blindado</span>
-                  </div>
+              </div>
+            )}
+            {envio.fase === "confirmar" && (
+              <div className="est-card mt-3 p-4" style={{ borderColor: "rgba(88,170,228,.4)" }}>
+                <div className="text-[11px] font-semibold mb-1.5" style={{ color: "#58aae4" }}>Ela confirma — e PRA ONDE vai</div>
+                <div className="text-[13px]" style={{ color: "var(--e-txt2)" }}>“{envio.pedido}”</div>
+                <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                  {(["fato", "regra", "doc"] as Destino[]).map((d) => {
+                    const m = DESTINO_META[d];
+                    const sel = (envio.destino ?? "regra") === d;
+                    return (
+                      <button key={d} onClick={() => setEnvio((s) => ({ ...s, destino: d }))} className="text-[10.5px] rounded-md px-2.5 py-1" style={sel ? { background: `${m.cor}1f`, border: `1px solid ${m.cor}66`, color: m.cor, fontWeight: 700 } : { border: "1px solid var(--e-line)", color: "var(--e-dim)" }}>
+                        {m.rotulo}{sel ? " ✓" : ""}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-              {envio.fase === "rodando" && (
-                <div className="est-card mt-3 p-3.5 flex items-center gap-2.5 text-[12px]" style={{ color: "var(--e-mut)" }}>
-                  <span className="est-spin" /> o guardião roda as travas · a IA responde as situações do SEU pedido — ~30s, teste de verdade
+                <div className="text-[10.5px] mt-1.5" style={{ color: "var(--e-dim)" }}>{DESTINO_META[envio.destino ?? "regra"].desc}</div>
+                <div className="flex items-center gap-2.5 mt-3">
+                  <button onClick={() => void rodarEnsaio()} className="est-btn">{envio.destino === "doc" ? "É isso — guardar" : "É isso — roda o ensaio"}</button>
+                  <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">não — escrevo de novo</button>
+                  <span className="ml-auto inline-flex items-center gap-1 text-[10px]" style={{ color: "var(--e-dim)" }}><Lock size={10} /> núcleo blindado</span>
                 </div>
-              )}
-              {envio.fase === "erro" && <div className="est-card mt-3 p-3.5 text-[12px]" style={{ borderColor: "rgba(248,81,73,.4)", color: "var(--e-red)" }}>{envio.erro}</div>}
-              {envio.fase === "guardado" && (
-                <div className="est-card mt-3 p-3.5 text-[12px]" style={{ borderColor: "rgba(88,170,228,.4)", color: "var(--e-txt2)" }}>
-                  Guardado pra <b>Biblioteca</b> — a busca inteligente é a próxima fatia da Metrik; seu conteúdo está no log abaixo.
-                  <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost ml-2">ok</button>
+              </div>
+            )}
+            {envio.fase === "rodando" && (
+              <div className="est-card mt-3 p-3.5 flex items-center gap-2.5 text-[12px]" style={{ color: "var(--e-mut)" }}>
+                <span className="est-spin" /> o guardião roda as travas · a IA responde as situações do SEU pedido — ~30s, teste de verdade
+              </div>
+            )}
+            {envio.fase === "erro" && <div className="est-card mt-3 p-3.5 text-[12px]" style={{ borderColor: "rgba(248,81,73,.4)", color: "var(--e-red)" }}>{envio.erro}</div>}
+            {envio.fase === "guardado" && (
+              <div className="est-card mt-3 p-3.5 text-[12px]" style={{ borderColor: "rgba(88,170,228,.4)", color: "var(--e-txt2)" }}>
+                Guardado pra <b>Biblioteca</b> — a busca inteligente é a próxima fatia da Metrik; seu conteúdo está no log.
+                <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost ml-2">ok</button>
+              </div>
+            )}
+            {(envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado") && envio.evals && (
+              <div className="mt-3 rounded-[9px] overflow-hidden" style={{ border: "1px solid #2b2415", background: "var(--e-surface)" }}>
+                <div className="est-beam" />
+                <div className="flex items-center gap-2.5 px-3.5 py-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
+                  <span className="emo text-[10.5px]" style={{ color: "var(--e-amber)" }}>● {envio.fase === "publicado" ? "publicado" : "em revisão"}</span>
+                  <span className="emo text-[11px]" style={{ color: "var(--e-txt2)" }}>conversa / {envio.destino}</span>
+                  <span className="emo text-[10px] rounded px-1.5" style={{ background: "#171b22" }}><span style={{ color: "var(--e-green)" }}>+1</span></span>
+                  <span className="emo text-[10px] ml-auto" style={{ color: "var(--e-dim)" }}>você · agora</span>
                 </div>
-              )}
-
-              {/* o DIFF do ensaio (a prova do pedido) */}
-              {(envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado") && envio.evals && (
-                <div className="mt-3 rounded-[9px] overflow-hidden" style={{ border: "1px solid #2b2415", background: "var(--e-surface)" }}>
-                  <div className="est-beam" />
-                  <div className="flex items-center gap-2.5 px-3.5 py-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                    <span className="emo text-[10.5px]" style={{ color: "var(--e-amber)" }}>● {envio.fase === "publicado" ? "publicado" : "em revisão"}</span>
-                    <span className="emo text-[11px]" style={{ color: "var(--e-txt2)" }}>conversa / {envio.destino}</span>
-                    <span className="emo text-[10px] rounded px-1.5" style={{ background: "#171b22" }}><span style={{ color: "var(--e-green)" }}>+1</span></span>
-                    <span className="emo text-[10px] ml-auto" style={{ color: "var(--e-dim)" }}>você · agora</span>
-                  </div>
-                  {envio.ensaio?.modo === "real" && envio.ensaio.situacoes[0] ? (
-                    <>
-                      <div className="px-3.5 py-1.5 text-[10.5px]" style={{ color: "var(--e-dim)", borderBottom: "1px solid var(--e-line-soft)" }}>
-                        situação: {envio.ensaio.situacoes[0].pergunta}
-                        {envio.ensaio.situacoes[0].nome === "do seu pedido" && <span className="emo ml-2" style={{ color: "var(--e-amber)" }}>do SEU pedido</span>}
-                      </div>
-                      <div className="emo">
-                        <div className="est-diff-del"><i>−</i><s>{envio.ensaio.situacoes[0].antes.slice(0, 160)}</s></div>
-                        <div className="est-diff-add"><i>+</i><s>{envio.ensaio.situacoes[0].agora.slice(0, 160)}</s></div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="emo"><div className="est-diff-add"><i>+</i><s>{envio.pedido}</s></div></div>
-                  )}
-                  <div className="flex items-center gap-3 px-3.5 py-2" style={{ borderTop: "1px solid var(--e-line)" }}>
-                    <span className="emo text-[10px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
-                      {envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}
-                    </span>
-                    {envio.ensaio?.modo !== "real" && <span className="emo text-[10px]" style={{ color: "var(--e-amber)" }}>sem cérebro — registrado pra Metrik</span>}
-                    {envio.fase === "publicado" ? (
-                      <span className="emo text-[10px] ml-auto" style={{ color: "var(--e-green)" }}>✓ no ar — testa ao lado →</span>
-                    ) : (
-                      <div className="ml-auto flex items-center gap-2">
-                        <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">deixar de fora</button>
-                        {envio.ensaio?.modo === "real" && (
-                          <button onClick={() => void publicar()} disabled={!envio.evals.aprovado || envio.fase === "publicando"} className="est-btn" style={!envio.evals.aprovado ? { opacity: 0.5 } : undefined}>
-                            {envio.fase === "publicando" ? <Loader2 size={12} className="animate-spin" /> : null} Publicar
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* VALENDO AGORA */}
-              <div className="est-faixa mt-5 mb-2"><b>VALENDO AGORA</b><span>{agent.real ? (rod ? (rod.base === "semente" ? "cérebro-semente da vertical · lido do motor ✓" : `versão ${rod.versao} · lido do motor ✓`) : "lendo o motor…") : "demonstração"}</span></div>
-              <div className="est-card overflow-hidden">
-                {agent.real && rod ? (
+                {envio.ensaio?.modo === "real" && envio.ensaio.situacoes[0] ? (
                   <>
-                    <div className="flex gap-3 px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                      <span className="emo text-[10px] w-[74px] flex-none" style={{ color: "var(--e-dim)" }}>identidade</span>
-                      <span className="text-[12.5px] flex-1" style={{ color: "var(--e-txt2)" }}>{c?.identidade ?? "—"}</span>
+                    <div className="px-3.5 py-1.5 text-[10.5px]" style={{ color: "var(--e-dim)", borderBottom: "1px solid var(--e-line-soft)" }}>
+                      situação: {envio.ensaio.situacoes[0].pergunta}
+                      {envio.ensaio.situacoes[0].nome === "do seu pedido" && <span className="emo ml-2" style={{ color: "var(--e-amber)" }}>do SEU pedido</span>}
                     </div>
-                    {c?.oferta && (
-                      <div className="flex gap-3 px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                        <span className="emo text-[10px] w-[74px] flex-none" style={{ color: "var(--e-dim)" }}>oferta</span>
-                        <span className="text-[12.5px] flex-1" style={{ color: "var(--e-txt2)" }}>{c.oferta}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-3 px-3.5 py-2.5">
-                      <span className="emo text-[10px] w-[74px] flex-none" style={{ color: "var(--e-dim)" }}>regras · {regras.length}</span>
-                      <div className="flex-1 min-w-0">
-                        {regras.map((r, i) => {
-                          const fato = /^fato:/i.test(r);
-                          const sua = fato || suasIntents.has(r.trim().toLowerCase());
-                          const b = fato ? { t: "fato", c: "#3fb950" } : sua ? { t: "sua", c: "#e8b04b" } : { t: "núcleo", c: "#7d8694" };
-                          return (
-                            <div key={i} className="flex items-start gap-2 py-1" style={{ borderBottom: i < regras.length - 1 ? "1px solid var(--e-line-soft)" : undefined }}>
-                              <span className="emo text-[8.5px] rounded px-1.5 mt-0.5 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
-                              <span className="text-[12px] flex-1" style={{ color: "var(--e-txt2)" }}>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
-                              <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); }} className="emo text-[9.5px] flex-none" style={{ color: "var(--e-amber)" }}>testar</button>
-                            </div>
-                          );
-                        })}
-                        {fatos.length === 0 && <div className="text-[10.5px] pt-1" style={{ color: "var(--e-dim)" }}>ainda sem fatos seus — ensina o primeiro pela barra ali em cima.</div>}
-                      </div>
+                    <div className="emo">
+                      <div className="est-diff-del"><i>−</i><s>{envio.ensaio.situacoes[0].antes.slice(0, 160)}</s></div>
+                      <div className="est-diff-add"><i>+</i><s>{envio.ensaio.situacoes[0].agora.slice(0, 160)}</s></div>
                     </div>
                   </>
                 ) : (
-                  <div className="px-3.5 py-3 text-[12px]" style={{ color: "var(--e-mut)" }}>
-                    Bia, consultora comercial da Vega — 3 rotas (Implementação R$ 997 · Academy R$ 197 · humano) · 4 regras · 12 fatos. <span style={{ color: "var(--e-dim)" }}>Na sua conta, isto é lido do motor de verdade.</span>
-                  </div>
+                  <div className="emo"><div className="est-diff-add"><i>+</i><s>{envio.pedido}</s></div></div>
                 )}
-              </div>
-
-              {/* MUDANÇAS */}
-              <div className="est-faixa mt-5 mb-2"><b>MUDANÇAS</b><span>{agent.real ? `${publicadas.length} no ar${emRev ? " · 1 em revisão" : ""}${seguradas.length ? ` · ${seguradas.length} seguradas` : ""}` : "demonstração"}</span></div>
-              {agent.real && emRev && envio.fase === "idle" && (
-                <div className="rounded-[9px] overflow-hidden mb-2" style={{ border: "1px solid #2b2415", background: "var(--e-surface)" }}>
-                  <div className="est-beam" />
-                  <div className="flex items-center gap-2.5 px-3.5 py-2">
-                    <span className="emo text-[10.5px]" style={{ color: "var(--e-amber)" }}>● em revisão</span>
-                    <span className="text-[12px] flex-1 truncate" style={{ color: "var(--e-txt2)" }}>{emRev.intent}</span>
-                    <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>{emRev.createdAt ? `há ${tempoRelativo(emRev.createdAt)}` : ""}</span>
-                  </div>
-                </div>
-              )}
-              <div className="est-card overflow-hidden">
-                {(agent.real ? [...publicadas, ...seguradas].slice(0, 5) : []).map((r, i, arr) => {
-                  const seg = String(r.status) === "rejected";
-                  return (
-                    <div key={r.id ?? i} className="flex items-center gap-3 px-3.5 py-2" style={{ borderBottom: i < arr.length - 1 ? "1px solid var(--e-line)" : undefined }}>
-                      <span className="emo text-[11px] w-2.5" style={{ color: seg ? "var(--e-red)" : "var(--e-green)" }}>{seg ? "✗" : "✓"}</span>
-                      <span className="text-[12px] flex-1 truncate" style={{ color: seg ? "var(--e-mut)" : "var(--e-txt2)" }}>{r.intent}</span>
-                      <span className="emo text-[10px] flex-none" style={{ color: seg ? "var(--e-red)" : "var(--e-green)" }}>{seg ? "segurada" : "no ar"}</span>
-                      <span className="emo text-[10px] flex-none" style={{ color: "var(--e-dim)" }}>{r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : ""}</span>
-                    </div>
-                  );
-                })}
-                {agent.real && publicadas.length + seguradas.length === 0 && (
-                  <div className="px-3.5 py-3 text-[11.5px]" style={{ color: "var(--e-dim)" }}>A primeira mudança que você publicar aparece aqui — com o antes e o depois.</div>
-                )}
-                {!agent.real && (
-                  <>
-                    <div className="flex items-center gap-3 px-3.5 py-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                      <span className="emo text-[11px] w-2.5" style={{ color: "var(--e-green)" }}>✓</span>
-                      <span className="text-[12px] flex-1">ao negar, oferece outro caminho</span>
-                      <span className="emo text-[10px]" style={{ color: "var(--e-green)" }}>+4 leads voltaram</span>
-                      <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>há 3 dias</span>
-                    </div>
-                    <div className="flex items-center gap-3 px-3.5 py-2">
-                      <span className="emo text-[11px] w-2.5" style={{ color: "var(--e-red)" }}>✗</span>
-                      <span className="text-[12px] flex-1" style={{ color: "var(--e-mut)" }}>25% de desconto — segurada: passa do teto</span>
-                      <span className="emo text-[10px]" style={{ color: "var(--e-red)" }}>não entrou</span>
-                      <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>há 4 dias</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          ) : (
-            /* ── TESTES: a rodada real, estilo terminal ── */
-            <>
-              <div className="est-faixa mb-2"><b>VALENDO AGORA</b><span>o placar de segurança</span></div>
-              <div className="est-card flex items-center">
-                <div className="px-5 py-3" style={{ borderRight: "1px solid var(--e-line)" }}>
-                  <div className="emo text-[22px] font-semibold">{run.r?.evals ? `${run.r.evals.passaram}/${run.r.evals.total}` : "—"}</div>
-                  <div className="text-[10px]" style={{ color: "var(--e-dim)" }}>travas de pé</div>
-                </div>
-                <div className="px-5 py-3" style={{ borderRight: "1px solid var(--e-line)" }}>
-                  <div className="emo text-[22px] font-semibold">{run.r?.evals ? (run.r.evals.taxa * 10).toFixed(1).replace(".", ",") : "—"}</div>
-                  <div className="text-[10px]" style={{ color: "var(--e-dim)" }}>nota da rodada</div>
-                </div>
-                <div className="px-5 py-3 flex-1">
-                  <div className="text-[11px]" style={{ color: "var(--e-mut)" }}>{run.r?.modo === "roteiro" ? "conferido no roteiro da vertical (sem cérebro — a Metrik liga a chave e vira ataque real)" : run.r?.modo === "real" ? `um robô-lead atacou a ${agent.name} de verdade · ${(run.r.duracaoMs / 1000).toFixed(1)}s` : "roda a suíte da vertical contra a versão que está no ar"}</div>
-                </div>
-                <div className="px-4">
-                  <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn">{run.status === "rodando" ? <Loader2 size={12} className="animate-spin" /> : null} {run.r ? "Rodar de novo" : "Rodar os testes"}</button>
-                </div>
-              </div>
-              {run.erro && <div className="text-[11.5px] mt-2" style={{ color: "var(--e-red)" }}>{run.erro}</div>}
-
-              <div className="est-faixa mt-5 mb-2"><b>A RODADA</b><span>{run.status === "rodando" ? "atacando trava por trava…" : run.r?.evals ? "linha a linha, sem filtro" : "ainda não rodou nesta visita"}</span></div>
-              <div className="est-card overflow-hidden" style={{ background: "var(--e-surface)" }}>
-                <div className="flex items-center gap-2.5 px-3.5 py-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                  <span className="emo text-[11px]" style={{ color: "var(--e-amber)" }}>❯</span>
-                  <span className="emo text-[11px]" style={{ color: "var(--e-txt2)" }}>rodar testes · {agent.real ? (rod?.base === "publicada" ? `v${rod.versao}` : "semente") : "demo"}</span>
-                </div>
-                {run.status === "rodando" && (
-                  <div className="px-4 py-3 flex items-center gap-2.5 text-[11.5px]" style={{ color: "var(--e-mut)" }}><span className="est-spin" /> o robô-lead está conversando com ela agora…</div>
-                )}
-                {run.r?.evals?.casos && (
-                  <div className="emo text-[11.5px] py-1.5">
-                    {run.r.evals.casos.map((caso: any, i: number) => (
-                      <div key={caso.caseId ?? i} className="px-4 py-1 flex gap-2.5" style={caso.passou ? undefined : { background: "rgba(248,81,73,.05)" }}>
-                        <span style={{ color: caso.passou ? "var(--e-green)" : "var(--e-red)" }}>{caso.passou ? "✓" : "✗"}</span>
-                        <span className="flex-1" style={{ color: caso.passou ? "var(--e-txt2)" : "var(--e-red)", fontWeight: caso.passou ? 400 : 600 }}>{caso.nome}</span>
-                        {run.r.ms?.[i] != null && <span style={{ color: "var(--e-dim)" }}>{(run.r.ms[i] / 1000).toFixed(1)}s</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {run.r?.modo === "demo" && <div className="px-4 py-3 text-[11.5px]" style={{ color: "var(--e-dim)" }}>Na sua conta, cada trava vira uma conversa de ataque REAL — com o resultado linha a linha.</div>}
-                {!run.r && run.status !== "rodando" && <div className="px-4 py-3 text-[11.5px]" style={{ color: "var(--e-dim)" }}>aperta “Rodar os testes” — cada trava vira uma conversa de ataque, e você vê quem aguentou.</div>}
-              </div>
-
-              {run.r?.evals?.casos?.filter((x: any) => !x.passou).map((caso: any) => (
-                <div key={caso.caseId} className="mt-3 rounded-[9px] overflow-hidden" style={{ border: "1px solid rgba(248,81,73,.35)", background: "var(--e-surface)" }}>
-                  <div className="flex items-center gap-2.5 px-3.5 py-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                    <span className="emo text-[10.5px]" style={{ color: "var(--e-red)" }}>✗ {caso.nome}</span>
-                    <span className="text-[10px] ml-auto" style={{ color: "var(--e-dim)" }}>por que quebrou</span>
-                  </div>
-                  <div className="px-3.5 py-2.5">
-                    {caso.falhas.map((f: string, j: number) => (
-                      <div key={j} className="emo text-[11px] py-0.5" style={{ color: "#f0a3a3" }}>· {f}</div>
-                    ))}
-                    <button onClick={() => { setTexto(`A trava "${caso.nome}" quebrou no teste (${caso.falhas[0] ?? ""}). Reforça: `); setSecao("conversa"); }} className="est-btn mt-2">Corrigir isto</button>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* ── NA PRÁTICA ── */}
-        <div className="flex flex-col" style={{ borderLeft: "1px solid var(--e-line)", minHeight: 0 }}>
-          <div className="flex items-center gap-2.5 px-4" style={{ height: 42, borderBottom: "1px solid var(--e-line)" }}>
-            <span className="text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-amber)" }}>NA PRÁTICA</span>
-            <span className="text-[10px]" style={{ color: "var(--e-dim)" }}>você é o lead · fora do CRM</span>
-            <div className="ml-auto flex rounded-md overflow-hidden" style={{ border: "1px solid #26303a" }}>
-              <button onClick={() => setModoTeste("ar")} className="emo text-[9px] px-2 py-1" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)" }}>no ar ✓</button>
-              <button onClick={() => (emRev || !agent.real) && setModoTeste("ensaio")} title={emRev ? `aplica: ${emRev.intent}` : "sem mudança em revisão"} className="emo text-[9px] px-2 py-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)", opacity: emRev || !agent.real ? 1 : 0.4 }}>+ revisão</button>
-            </div>
-          </div>
-          <div className="flex-1 px-4 py-4 space-y-2.5 overflow-y-auto" style={{ background: "#0b141a", minHeight: 0 }}>
-            {msgs.length === 0 && (
-              <div className="text-center text-[11px] py-8" style={{ color: "#8696a0" }}>
-                Escreve como um lead escreveria — ou toca numa sugestão.
-              </div>
-            )}
-            {msgs.map((m, i) =>
-              m.de === "voce" ? (
-                <div key={i} className="ml-auto max-w-[78%] rounded-lg px-3 py-1.5" style={{ background: "#005c4b", borderTopRightRadius: 3 }}>
-                  <div className="text-[12.5px]" style={{ color: "#e9edef" }}>{m.texto}</div>
-                </div>
-              ) : (
-                <div key={i} className="max-w-[88%]">
-                  <div className="rounded-lg px-3 py-1.5" style={{ background: m.aviso ? "rgba(232,176,75,.12)" : "#1b242b", borderTopLeftRadius: 3, border: m.aviso ? "1px solid rgba(232,176,75,.35)" : undefined }}>
-                    <div className="text-[12.5px] leading-relaxed" style={{ color: m.aviso ? "#e8b04b" : "#e9edef" }}>{m.texto}</div>
-                  </div>
-                  {!m.aviso && (
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      {m.fonte && <span className="emo text-[9px] rounded-full px-2 py-0.5" style={{ color: "var(--e-green)", background: "rgba(63,185,80,.1)", border: "1px solid rgba(63,185,80,.3)" }}>{m.fonte}</span>}
-                      {feedback[i] === "sim" ? (
-                        <span className="emo text-[9.5px] font-bold rounded px-2 py-0.5" style={{ background: "var(--e-green)", color: "#08090d" }}>✓ é isso</span>
-                      ) : feedback[i] === "nao" ? (
-                        <span className="emo text-[9.5px] rounded px-2 py-0.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>corrigindo…</span>
-                      ) : (
-                        <span className="est-feed">
-                          <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))}>✓ é isso</button>
-                          <button onClick={() => corrigir(i)}>corrigir</button>
-                        </span>
+                <div className="flex items-center gap-3 px-3.5 py-2" style={{ borderTop: "1px solid var(--e-line)" }}>
+                  <span className="emo text-[10px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
+                    {envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}
+                  </span>
+                  {envio.ensaio?.modo !== "real" && <span className="emo text-[10px]" style={{ color: "var(--e-amber)" }}>sem cérebro — registrado pra Metrik</span>}
+                  {envio.fase === "publicado" ? (
+                    <button onClick={() => setPainel("testar")} className="emo text-[10px] ml-auto" style={{ color: "var(--e-green)" }}>✓ no ar — testa na prática →</button>
+                  ) : (
+                    <div className="ml-auto flex items-center gap-2">
+                      <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">deixar de fora</button>
+                      {envio.ensaio?.modo === "real" && (
+                        <button onClick={() => void publicar()} disabled={!envio.evals.aprovado || envio.fase === "publicando"} className="est-btn" style={!envio.evals.aprovado ? { opacity: 0.5 } : undefined}>
+                          {envio.fase === "publicando" ? <Loader2 size={12} className="animate-spin" /> : null} Publicar
+                        </button>
                       )}
                     </div>
                   )}
                 </div>
-              ),
+              </div>
             )}
-            {pensando && <div className="text-[10.5px]" style={{ color: "#8696a0" }}>digitando…</div>}
-            <div ref={fimRef} />
           </div>
-          <div className="px-4 py-2" style={{ borderTop: "1px solid var(--e-line)" }}>
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {sugestoes.map((s) => (
-                <button key={s} onClick={() => void perguntar(s)} className="text-[10px] rounded-full px-2.5 py-1" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>“{s}”</button>
-              ))}
+
+          {/* ── EMBAIXO: a caixinha ── */}
+          <div className="flex-none" style={{ borderTop: "1px solid var(--e-line)", padding: "12px 24px" }}>
+            <div className="rounded-xl" style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", padding: "11px 13px 9px" }}>
+              <div className="flex items-start gap-2.5">
+                <span className="emo text-[12px] mt-1" style={{ color: "var(--e-amber)" }}>❯</span>
+                <textarea
+                  rows={1}
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(); } }}
+                  placeholder={'pede qualquer mudança — "no follow, só 2 toques" · "ensina que o Start é 497"'}
+                  className="flex-1 bg-transparent resize-none outline-none text-[13px] py-0.5"
+                  style={{ color: "var(--e-txt)" }}
+                />
+              </div>
+              <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)" }}>
+                <Mic size={13} style={{ color: "var(--e-mut)" }} />
+                <span className="emo text-[10px]" style={{ color: "var(--e-dim)" }}>segura pra falar</span>
+                <button onClick={mandar} disabled={!texto.trim() || envio.fase === "rodando"} className="est-btn ml-auto">Enviar <ArrowUp size={11} /></button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void perguntar(); } }}
-                placeholder="escreve como um lead…"
-                className="flex-1 rounded-lg px-3 py-2 text-[12px] outline-none min-w-0"
-                style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", color: "var(--e-txt)" }}
-              />
-              <button onClick={() => void perguntar()} disabled={!input.trim() || pensando} className="grid place-items-center rounded-lg flex-none" style={{ width: 32, height: 32, background: "var(--e-amber)" }}>
-                {pensando ? <Loader2 size={13} className="animate-spin" style={{ color: "#08090d" }} /> : <ArrowUp size={14} style={{ color: "#08090d" }} />}
+          </div>
+        </div>
+
+        {/* ── painel lateral (abre pelo botãozinho) ── */}
+        {painel && (
+          <div className="w-[400px] flex-none flex flex-col min-h-0" style={{ borderLeft: "1px solid var(--e-line)" }}>
+            <div className="flex items-center gap-2.5 px-4 flex-none" style={{ height: 42, borderBottom: "1px solid var(--e-line)" }}>
+              <span className="text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-amber)" }}>
+                {painel === "como" ? "COMO FUNCIONA" : painel === "testar" ? "NA PRÁTICA" : "LOGS"}
+              </span>
+              <span className="text-[10px]" style={{ color: "var(--e-dim)" }}>
+                {painel === "como" ? "a Conversa, hoje · lido do motor" : painel === "testar" ? "você é o lead · fora do CRM" : "o que ela fez, na ordem"}
+              </span>
+              <button onClick={() => setPainel(null)} className="ml-auto" style={{ color: "var(--e-mut)" }}><X size={14} /></button>
+            </div>
+
+            {/* COMO FUNCIONA — o artefato da feature aberta */}
+            {painel === "como" && (
+              <div className="flex-1 overflow-y-auto scroll-thin p-4">
+                <div className="est-faixa mb-2"><b>VALENDO AGORA</b><span>{agent.real ? (rod ? (rod.base === "semente" ? "cérebro-semente da vertical ✓" : `versão ${rod.versao} ✓`) : "lendo o motor…") : "demonstração"}</span></div>
+                <div className="est-card overflow-hidden">
+                  {agent.real && rod ? (
+                    <>
+                      <div className="flex gap-3 px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
+                        <span className="emo text-[10px] w-[74px] flex-none" style={{ color: "var(--e-dim)" }}>identidade</span>
+                        <span className="text-[12.5px] flex-1" style={{ color: "var(--e-txt2)" }}>{c?.identidade ?? "—"}</span>
+                      </div>
+                      {c?.oferta && (
+                        <div className="flex gap-3 px-3.5 py-2.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
+                          <span className="emo text-[10px] w-[74px] flex-none" style={{ color: "var(--e-dim)" }}>oferta</span>
+                          <span className="text-[12.5px] flex-1" style={{ color: "var(--e-txt2)" }}>{c.oferta}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-3 px-3.5 py-2.5">
+                        <span className="emo text-[10px] w-[74px] flex-none" style={{ color: "var(--e-dim)" }}>regras · {regras.length}</span>
+                        <div className="flex-1 min-w-0">
+                          {regras.map((r, i) => {
+                            const fato = /^fato:/i.test(r);
+                            const sua = fato || suasIntents.has(r.trim().toLowerCase());
+                            const b = fato ? { t: "fato", c: "#3fb950" } : sua ? { t: "sua", c: "#e8b04b" } : { t: "núcleo", c: "#7d8694" };
+                            return (
+                              <div key={i} className="flex items-start gap-2 py-1" style={{ borderBottom: i < regras.length - 1 ? "1px solid var(--e-line-soft)" : undefined }}>
+                                <span className="emo text-[8.5px] rounded px-1.5 mt-0.5 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
+                                <span className="text-[12px] flex-1" style={{ color: "var(--e-txt2)" }}>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
+                                <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); setPainel("testar"); }} className="emo text-[9.5px] flex-none" style={{ color: "var(--e-amber)" }}>testar</button>
+                              </div>
+                            );
+                          })}
+                          {fatos.length === 0 && <div className="text-[10.5px] pt-1" style={{ color: "var(--e-dim)" }}>ainda sem fatos seus — ensina o primeiro pela caixinha.</div>}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="px-3.5 py-3 text-[12px]" style={{ color: "var(--e-mut)" }}>
+                      Bia, consultora comercial da Vega — 3 rotas (Implementação R$ 997 · Academy R$ 197 · humano) · 4 regras · 12 fatos. <span style={{ color: "var(--e-dim)" }}>Na sua conta, isto é lido do motor de verdade.</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-[10.5px] mt-3" style={{ color: "var(--e-dim)" }}>Mudou o cérebro, muda aqui sozinho — isto não é print, é o motor.</div>
+              </div>
+            )}
+
+            {/* TESTAR — a rodada de travas + o chat na prática */}
+            {painel === "testar" && (
+              <>
+                <div className="flex-none px-4 pt-3 pb-2" style={{ borderBottom: "1px solid var(--e-line)" }}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="emo text-[11px]" style={{ color: "var(--e-amber)" }}>❯</span>
+                    <span className="emo text-[11px]" style={{ color: "var(--e-txt2)" }}>rodar testes · {agent.real ? (rod?.base === "publicada" ? `v${rod.versao}` : "semente") : "demo"}</span>
+                    {run.r?.evals && <span className="emo text-[10px]" style={{ color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{run.r.evals.passaram}/{run.r.evals.total} travas</span>}
+                    <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn ml-auto">{run.status === "rodando" ? <Loader2 size={12} className="animate-spin" /> : null} {run.r ? "de novo" : "Rodar"}</button>
+                  </div>
+                  {run.status === "rodando" && <div className="flex items-center gap-2 mt-2 text-[11px]" style={{ color: "var(--e-mut)" }}><span className="est-spin" /> o robô-lead está conversando com ela…</div>}
+                  {run.erro && <div className="text-[11px] mt-1.5" style={{ color: "var(--e-red)" }}>{run.erro}</div>}
+                  {run.r?.evals?.casos && (
+                    <div className="emo text-[11px] mt-1.5 max-h-[150px] overflow-y-auto scroll-thin">
+                      {run.r.evals.casos.map((caso: any, i: number) => (
+                        <div key={caso.caseId ?? i} className="py-0.5 flex gap-2">
+                          <span style={{ color: caso.passou ? "var(--e-green)" : "var(--e-red)" }}>{caso.passou ? "✓" : "✗"}</span>
+                          <span className="flex-1 truncate" style={{ color: caso.passou ? "var(--e-txt2)" : "var(--e-red)" }}>{caso.nome}</span>
+                          {run.r.ms?.[i] != null && <span style={{ color: "var(--e-dim)" }}>{(run.r.ms[i] / 1000).toFixed(1)}s</span>}
+                          {!caso.passou && <button onClick={() => setTexto(`A trava "${caso.nome}" quebrou no teste (${caso.falhas[0] ?? ""}). Reforça: `)} className="emo text-[9.5px]" style={{ color: "var(--e-amber)" }}>corrigir</button>}
+                        </div>
+                      ))}
+                      {run.r?.modo === "roteiro" && <div className="text-[10px] pt-1" style={{ color: "var(--e-amber)" }}>conferido no roteiro (sem cérebro) — a Metrik liga a chave e vira ataque real</div>}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-[10px]" style={{ color: "var(--e-dim)" }}>conversar com a versão:</span>
+                    <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #26303a" }}>
+                      <button onClick={() => setModoTeste("ar")} className="emo text-[9px] px-2 py-1" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)" }}>no ar ✓</button>
+                      <button onClick={() => (emRev || !agent.real) && setModoTeste("ensaio")} title={emRev ? `aplica: ${emRev.intent}` : "sem mudança em revisão"} className="emo text-[9px] px-2 py-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)", opacity: emRev || !agent.real ? 1 : 0.4 }}>+ revisão</button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1 px-4 py-4 space-y-2.5 overflow-y-auto" style={{ background: "#0b141a", minHeight: 0 }}>
+                  {msgs.length === 0 && (
+                    <div className="text-center text-[11px] py-8" style={{ color: "#8696a0" }}>
+                      Escreve como um lead escreveria — ou toca numa sugestão.
+                    </div>
+                  )}
+                  {msgs.map((m, i) =>
+                    m.de === "voce" ? (
+                      <div key={i} className="ml-auto max-w-[78%] rounded-lg px-3 py-1.5" style={{ background: "#005c4b", borderTopRightRadius: 3 }}>
+                        <div className="text-[12.5px]" style={{ color: "#e9edef" }}>{m.texto}</div>
+                      </div>
+                    ) : (
+                      <div key={i} className="max-w-[88%]">
+                        <div className="rounded-lg px-3 py-1.5" style={{ background: m.aviso ? "rgba(232,176,75,.12)" : "#1b242b", borderTopLeftRadius: 3, border: m.aviso ? "1px solid rgba(232,176,75,.35)" : undefined }}>
+                          <div className="text-[12.5px] leading-relaxed" style={{ color: m.aviso ? "#e8b04b" : "#e9edef" }}>{m.texto}</div>
+                        </div>
+                        {!m.aviso && (
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            {m.fonte && <span className="emo text-[9px] rounded-full px-2 py-0.5" style={{ color: "var(--e-green)", background: "rgba(63,185,80,.1)", border: "1px solid rgba(63,185,80,.3)" }}>{m.fonte}</span>}
+                            {feedback[i] === "sim" ? (
+                              <span className="emo text-[9.5px] font-bold rounded px-2 py-0.5" style={{ background: "var(--e-green)", color: "#08090d" }}>✓ é isso</span>
+                            ) : feedback[i] === "nao" ? (
+                              <span className="emo text-[9.5px] rounded px-2 py-0.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>corrigindo…</span>
+                            ) : (
+                              <span className="est-feed">
+                                <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))}>✓ é isso</button>
+                                <button onClick={() => corrigir(i)}>corrigir</button>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  )}
+                  {pensando && <div className="text-[10.5px]" style={{ color: "#8696a0" }}>digitando…</div>}
+                  <div ref={fimRef} />
+                </div>
+                <div className="px-4 py-2 flex-none" style={{ borderTop: "1px solid var(--e-line)" }}>
+                  <div className="flex gap-1.5 flex-wrap mb-2">
+                    {sugestoes.map((s) => (
+                      <button key={s} onClick={() => void perguntar(s)} className="text-[10px] rounded-full px-2.5 py-1" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>“{s}”</button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void perguntar(); } }}
+                      placeholder="escreve como um lead…"
+                      className="flex-1 rounded-lg px-3 py-2 text-[12px] outline-none min-w-0"
+                      style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", color: "var(--e-txt)" }}
+                    />
+                    <button onClick={() => void perguntar()} disabled={!input.trim() || pensando} className="grid place-items-center rounded-lg flex-none" style={{ width: 32, height: 32, background: "var(--e-amber)" }}>
+                      {pensando ? <Loader2 size={13} className="animate-spin" style={{ color: "#08090d" }} /> : <ArrowUp size={14} style={{ color: "#08090d" }} />}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 pt-2 emo text-[9.5px]" style={{ borderTop: "1px solid var(--e-line-soft)", color: "var(--e-dim)" }}>
+                    <span>{msgs.filter((m) => m.de === "voce").length} perguntas</span>
+                    <span style={{ color: "var(--e-green)" }}>{nSim} é isso ✓</span>
+                    {nNao > 0 && <span style={{ color: "var(--e-red)" }}>{nNao} corrigindo</span>}
+                    <span className="ml-auto">o “corrigir” escreve o pedido por você</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* LOGS — o que ela fez, na ordem (do Flight Recorder) */}
+            {painel === "logs" && (
+              <div className="flex-1 overflow-y-auto scroll-thin">
+                {agent.real ? (
+                  meusLogs.length > 0 ? (
+                    meusLogs.map((l) => (
+                      <div key={l.id} className="flex items-start gap-2.5 px-4 py-2" style={{ borderBottom: "1px solid var(--e-line-soft)" }}>
+                        <span className="emo text-[10px] w-14 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{tempoRelativo(l.at)}</span>
+                        <span className="text-[11.5px] flex-1" style={{ color: l.ok ? "var(--e-txt2)" : "var(--e-red)" }}>{l.resumo}{!l.ok && l.erro ? ` — ${l.erro}` : ""}</span>
+                        {!l.ok && <span className="emo text-[9.5px] flex-none" style={{ color: "var(--e-red)" }}>erro</span>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-6 text-[11.5px]" style={{ color: "var(--e-dim)" }}>Ainda sem execuções registradas — quando um lead falar com ela, cada passo aparece aqui.</div>
+                  )
+                ) : (
+                  agent.live.map((r, i) => (
+                    <div key={i} className="flex items-start gap-2.5 px-4 py-2" style={{ borderBottom: "1px solid var(--e-line-soft)" }}>
+                      <span className="emo text-[10px] w-14 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{r.t}</span>
+                      <span className="text-[11.5px] flex-1" style={{ color: r.status === "erro" ? "var(--e-red)" : "var(--e-txt2)" }}>{r.acao}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── os BOTÕEZINHOS laterais ── */}
+        <div className="w-[52px] flex-none flex flex-col items-center gap-1 py-3" style={{ borderLeft: "1px solid var(--e-line)" }}>
+          {([
+            { id: "como" as const, icone: FileText, rotulo: "Como" },
+            { id: "testar" as const, icone: FlaskConical, rotulo: "Testar" },
+            { id: "logs" as const, icone: ScrollText, rotulo: "Logs" },
+          ]).map((b) => {
+            const ativo = painel === b.id;
+            const Icone = b.icone;
+            return (
+              <button
+                key={b.id}
+                onClick={() => setPainel(ativo ? null : b.id)}
+                title={b.id === "como" ? "Como funciona (a feature aberta)" : b.id === "testar" ? "Testar na prática" : "Logs do agente"}
+                className="flex flex-col items-center gap-0.5 rounded-md py-1.5 w-[42px]"
+                style={ativo ? { background: "rgba(232,176,75,.12)", border: "1px solid rgba(232,176,75,.4)", color: "var(--e-amber)" } : { border: "1px solid transparent", color: "var(--e-mut)" }}
+              >
+                <Icone size={15} />
+                <span className="text-[8.5px]">{b.rotulo}</span>
               </button>
-            </div>
-            <div className="flex items-center gap-3 mt-2 pt-2 emo text-[9.5px]" style={{ borderTop: "1px solid var(--e-line-soft)", color: "var(--e-dim)" }}>
-              <span>{msgs.filter((m) => m.de === "voce").length} perguntas</span>
-              <span style={{ color: "var(--e-green)" }}>{nSim} é isso ✓</span>
-              {nNao > 0 && <span style={{ color: "var(--e-red)" }}>{nNao} corrigindo</span>}
-              <span className="ml-auto">o “corrigir” escreve o pedido por você</span>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
