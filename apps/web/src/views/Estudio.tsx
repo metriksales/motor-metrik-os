@@ -552,7 +552,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               const ativo = aba === t.id;
               const Icone = t.icone;
               return (
-                <button key={t.id} onClick={() => setAba(t.id)} className="flex items-center gap-2 px-3.5 h-full text-[13.5px]" style={ativo ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>
+                <button key={t.id} onClick={() => setAba(t.id)} className="est-tab flex items-center gap-2 px-3.5 h-full text-[13.5px]" style={ativo ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>
                   <Icone size={15} /> {t.rotulo}
                   {t.id === "exec" && <span className="live-dot" style={{ width: 6, height: 6 }} />}
                   {t.id === "historico" && agent.real && publicadas.length > 0 && <span className="emo text-[10.5px]" style={{ color: "var(--e-dim)" }}>{publicadas.length + seguradas.length}</span>}
@@ -581,6 +581,17 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             const ativas = pecas.filter((p) => p.estado !== "off");
             const desligadas = pecas.filter((p) => p.estado === "off");
             const aberta = pecas.find((p) => p.id === peca) ?? pecas[0];
+
+            // "o que ela faz" — a função em 1 frase + os trabalhos concretos (dos módulos ativos)
+            const VERBO: Record<string, { rot: string; cor: string }> = {
+              conversa: { rot: "Atende e conversa", cor: "var(--e-amber)" },
+              followup: { rot: "Recupera quem sumiu", cor: "var(--e-green)" },
+              agenda: { rot: "Agenda a reunião", cor: "#58aae4" },
+              avisa: { rot: "Chama um humano", cor: "#58aae4" },
+              crm: { rot: "Preenche o CRM", cor: "var(--e-green)" },
+            };
+            const jobs = ativas.map((p) => VERBO[p.id] ?? { rot: p.nome, cor: p.cor });
+            const funcao = agent.papel?.trim() || (c?.identidade ? `${c.identidade}.` : "Atende cada lead no WhatsApp e conduz a conversa até o próximo passo.");
 
             const NoCard = (p: Peca, sel: boolean) => (
               <button key={p.id} onClick={() => setPeca(p.id)} className="w-full text-left rounded-[11px] p-3 transition-colors" style={sel ? { border: "1px solid rgba(232,176,75,.6)", background: "linear-gradient(180deg,rgba(232,176,75,.07),var(--e-surface))", boxShadow: "0 0 0 1px rgba(232,176,75,.25)" } : { border: `1px ${p.estado === "off" ? "dashed" : "solid"} var(--e-line)`, background: "var(--e-surface)", opacity: p.estado === "off" ? 0.9 : 1 }}>
@@ -620,45 +631,60 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                       </div>
 
                       <div className="px-8 py-6">
-                        {/* PEÇA: CONVERSA (o núcleo — documento completo do motor) */}
+                        {/* PEÇA: CONVERSA (o núcleo — abre com A FUNÇÃO, depois o detalhe) */}
+                        {aberta.id === "conversa" && (
+                          <>
+                            {/* O QUE ELA FAZ — a função em 1 frase + os trabalhos concretos */}
+                            <div className="est-faixa mb-2.5"><b>O QUE ELA FAZ</b><span>a função dela, em uma frase</span></div>
+                            <p className="text-[17px] leading-relaxed mt-0 mb-3.5 font-medium" style={{ color: "var(--e-txt)", letterSpacing: "-.01em" }}>{funcao}</p>
+                            <div className="flex flex-wrap gap-2 mb-7">
+                              {jobs.map((j, i) => (
+                                <span key={i} className="est-chip"><span style={{ background: j.cor }} />{j.rot}</span>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
                         {aberta.id === "conversa" && (agent.real && rod ? (
                           <>
+                            {/* ESPERANDO VOCÊ — enxuto: a mudança pendente, sem o paragrafão inteiro */}
                             {(emRev || (envio.fase === "pronto" && envio.evals)) && (
-                              <>
-                                <div className="est-faixa mb-2"><b>ESPERANDO VOCÊ</b><span>entra no artefato quando você publicar</span></div>
-                                <div className="rounded-[9px] overflow-hidden mb-7" style={{ border: "1px solid rgba(232,176,75,.45)", background: "var(--e-surface)" }}>
-                                  <div className="est-beam" />
-                                  <div className="px-4 py-3">
-                                    <div className="emo"><div className="est-diff-add"><i>+</i><s>{envio.fase === "pronto" ? envio.pedido : emRev?.intent}</s></div></div>
-                                    <div className="flex items-center gap-3 mt-3 flex-wrap">
-                                      {envio.fase === "pronto" && envio.evals ? (
-                                        <>
-                                          <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}</span>
-                                          {envio.ensaio?.modo === "real" && <button onClick={() => void publicar()} disabled={!envio.evals.aprovado} className="est-btn" style={!envio.evals.aprovado ? { opacity: 0.5 } : undefined}>Publicar</button>}
-                                        </>
-                                      ) : (
-                                        <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>termina esta pelo chat ao lado — ensaio → guardião → publicar</span>
-                                      )}
-                                      <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-ghost ml-auto flex items-center gap-1.5">
-                                        {run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} Rodar os testes antes
-                                      </button>
-                                    </div>
-                                    {run.r?.evals && (
-                                      <div className="emo text-[12.5px] mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)", color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
-                                        {run.r.evals.aprovado ? "✓" : "✗"} {run.r.evals.passaram}/{run.r.evals.total} travas de pé{run.r.modo === "roteiro" ? " · conferido no roteiro (sem cérebro)" : ""} — detalhe na aba Testar
-                                      </div>
-                                    )}
+                              <div className="rounded-[10px] overflow-hidden mb-7" style={{ border: "1px solid rgba(232,176,75,.45)", background: "var(--e-surface)" }}>
+                                <div className="est-beam" />
+                                <div className="px-4 py-3.5">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="live-dot" style={{ width: 7, height: 7, background: "var(--e-amber)" }} />
+                                    <span className="text-[12px] font-bold" style={{ letterSpacing: ".08em", color: "var(--e-amber)" }}>ESPERANDO VOCÊ PUBLICAR</span>
                                   </div>
+                                  <p className="text-[14px] leading-relaxed m-0" style={{ color: "var(--e-txt)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{envio.fase === "pronto" ? envio.pedido : emRev?.intent}</p>
+                                  <div className="flex items-center gap-2.5 mt-3 flex-wrap">
+                                    {envio.fase === "pronto" && envio.evals ? (
+                                      <>
+                                        <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}</span>
+                                        {envio.ensaio?.modo === "real" && <button onClick={() => void publicar()} disabled={!envio.evals.aprovado} className="est-btn">Publicar</button>}
+                                      </>
+                                    ) : (
+                                      <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>termina pelo chat ao lado — ensaio → guardião → publicar</span>
+                                    )}
+                                    <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 ml-auto">
+                                      {run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} Rodar os testes
+                                    </button>
+                                  </div>
+                                  {run.r?.evals && (
+                                    <div className="emo text-[12.5px] mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--e-line-soft)", color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
+                                      {run.r.evals.aprovado ? "✓" : "✗"} {run.r.evals.passaram}/{run.r.evals.total} travas de pé{run.r.modo === "roteiro" ? " · conferido no roteiro (sem cérebro)" : ""} — detalhe na aba Testar
+                                    </div>
+                                  )}
                                 </div>
-                              </>
+                              </div>
                             )}
 
-                            <div className="est-faixa mb-2"><b>IDENTIDADE</b><span>quem ela é pro seu cliente</span></div>
-                            <p className="text-[15.5px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt)" }}>{c?.identidade ?? "—"}</p>
+                            <div className="est-faixa mb-2"><b>COMO ELA FALA</b><span>o jeito e o tom com o cliente</span></div>
+                            <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt2)" }}>{c?.identidade ?? "—"}</p>
 
                             {c?.oferta && (
                               <>
-                                <div className="est-faixa mb-2"><b>OFERTA</b><span>o que ela vende</span></div>
+                                <div className="est-faixa mb-2"><b>O QUE ELA OFERECE</b><span>o que ela vende</span></div>
                                 <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt2)" }}>{c.oferta}</p>
                               </>
                             )}
