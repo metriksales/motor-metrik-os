@@ -61,7 +61,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
       <div className="w-full max-w-md rounded-xl p-6" style={{ background: "var(--e-surface)", border: "1px solid rgba(232,176,75,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-1">
           <div>
-            <div className="emo text-[10px]" style={{ color: "var(--e-amber)", letterSpacing: ".1em" }}>LIGAR · {u.name.toUpperCase()}</div>
+            <div className="emo text-[11.5px]" style={{ color: "var(--e-amber)", letterSpacing: ".1em" }}>LIGAR · {u.name.toUpperCase()}</div>
             <div className="text-[16px] font-semibold tracking-tight mt-1">{(u.config?.length ?? 0) > 0 ? `${u.config!.length} ${u.config!.length === 1 ? "escolha" : "escolhas"} — já vem pronto` : "Já vem pronto"}</div>
           </div>
           <button onClick={onClose} className="est-ghost !p-1.5"><X size={15} /></button>
@@ -72,12 +72,12 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
             <div className="space-y-3 mt-4">
               {(u.config ?? []).map((c, i) => (
                 <div key={i}>
-                  <div className="text-[11px] mb-1.5" style={{ color: "var(--e-dim)" }}>{c.pergunta}</div>
+                  <div className="text-[12px] mb-1.5" style={{ color: "var(--e-dim)" }}>{c.pergunta}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {c.opcoes.map((o) => {
                       const sel = escolhas[i] === o;
                       return (
-                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[11.5px] rounded-lg px-3 py-1.5" style={sel ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 600 } : { border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
+                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[12.5px] rounded-lg px-3 py-1.5" style={sel ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 600 } : { border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
                           {o}{sel ? " ✓" : ""}
                         </button>
                       );
@@ -89,12 +89,12 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
             <div className="rounded-lg px-3.5 py-3 mt-4" style={{ background: "rgba(232,176,75,.07)", border: "1px solid rgba(232,176,75,.3)" }}>
               <p className="text-[12.5px] leading-relaxed m-0">{u.resultado ?? u.blurb}</p>
             </div>
-            {fase === "erro" && <div className="text-[11.5px] mt-3" style={{ color: "var(--e-red)" }}>{erro}</div>}
+            {fase === "erro" && <div className="text-[12.5px] mt-3" style={{ color: "var(--e-red)" }}>{erro}</div>}
             <div className="flex items-center gap-2.5 mt-4">
               <button onClick={() => void ativar()} disabled={fase === "rodando"} className="est-btn">{fase === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Ativar</button>
               <button onClick={onClose} className="est-ghost">depois</button>
             </div>
-            <p className="text-[10px] mt-3 m-0" style={{ color: "var(--e-dim)" }}>o ensaio roda antes de valer — se quebrar uma trava, não liga.</p>
+            <p className="text-[11.5px] mt-3 m-0" style={{ color: "var(--e-dim)" }}>o ensaio roda antes de valer — se quebrar uma trava, não liga.</p>
           </>
         ) : (
           <div className="mt-4">
@@ -347,7 +347,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
       {/* ── AGORA: o placar (personalizações escancaradas) ── */}
       <div className="flex items-center gap-5 px-6 flex-wrap flex-none" style={{ minHeight: 54, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
-        <span className="text-[11.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>AGORA</span>
+        <span className="text-[12.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>AGORA</span>
         {agent.real ? (
           <>
             {/* placar enxuto — versão e "em revisão" NÃO repetem aqui:
@@ -377,9 +377,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
       <div className="flex flex-1 min-h-0">
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
-        <div className="flex flex-col min-h-0 w-[42%] min-w-[400px] max-w-[580px] flex-none" style={{ borderRight: "1px solid var(--e-line)" }}>
+        <div className="flex flex-col min-h-0 w-[380px] min-w-[340px] flex-none" style={{ borderRight: "1px solid var(--e-line)" }}>
           <div className="flex items-center gap-2.5 px-5 flex-none" style={{ height: 42, borderBottom: "1px solid var(--e-line)" }}>
-            <span className="text-[11.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-amber)" }}>EDIÇÕES</span>
+            <span className="text-[12.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-amber)" }}>EDIÇÕES</span>
             <span className="text-[12px]" style={{ color: "var(--e-dim)" }}>fala que eu mudo — e marco no artefato ao lado</span>
           </div>
 
@@ -454,7 +454,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <button onClick={() => void rodarEnsaio()} className="est-btn">{envio.destino === "doc" ? "É isso — guardar" : "É isso — roda o ensaio"}</button>
                     <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">não — escrevo de novo</button>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-[11px] mt-2" style={{ color: "var(--e-dim)" }}><Lock size={11} /> núcleo blindado — o guardião testa antes de valer</span>
+                  <span className="inline-flex items-center gap-1 text-[12px] mt-2" style={{ color: "var(--e-dim)" }}><Lock size={11} /> núcleo blindado — o guardião testa antes de valer</span>
                 </div>
               </div>
             )}
@@ -505,7 +505,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
                       {envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}
                     </span>
-                    {envio.ensaio?.modo !== "real" && <span className="emo text-[11.5px]" style={{ color: "var(--e-amber)" }}>sem cérebro — registrado pra Metrik</span>}
+                    {envio.ensaio?.modo !== "real" && <span className="emo text-[12.5px]" style={{ color: "var(--e-amber)" }}>sem cérebro — registrado pra Metrik</span>}
                     {envio.fase === "publicado" ? (
                       <button onClick={() => setAba("testar")} className="est-btn ml-auto">Testar na prática →</button>
                     ) : (
@@ -542,9 +542,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className="flex items-center gap-2.5 mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)" }}>
                 <button onClick={falar} aria-label={gravando ? "parar de gravar" : "falar em vez de escrever"} className={"flex items-center gap-2" + (gravando ? " est-mic-on" : "")} style={{ color: "var(--e-mut)" }}>
                   <Mic size={15} />
-                  <span className="emo text-[11.5px]" style={{ color: gravando ? "var(--e-red)" : "var(--e-dim)" }}>{gravando ? "ouvindo… toca pra parar" : "toca pra falar"}</span>
+                  <span className="emo text-[12.5px]" style={{ color: gravando ? "var(--e-red)" : "var(--e-dim)" }}>{gravando ? "ouvindo… toca pra parar" : "toca pra falar"}</span>
                 </button>
-                {vozErro && <span className="text-[11.5px]" style={{ color: "var(--e-amber)" }}>{vozErro}</span>}
+                {vozErro && <span className="text-[12.5px]" style={{ color: "var(--e-amber)" }}>{vozErro}</span>}
                 <button onClick={mandar} disabled={!texto.trim() || envio.fase === "rodando"} aria-label="enviar o pedido" className="est-btn ml-auto">Enviar <ArrowUp size={13} /></button>
               </div>
             </div>
@@ -567,7 +567,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <button key={t.id} onClick={() => setAba(t.id)} className="est-tab flex items-center gap-2 px-3.5 h-full text-[13.5px]" style={ativo ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>
                   <Icone size={15} /> {t.rotulo}
                   {t.id === "exec" && <span className="live-dot" style={{ width: 6, height: 6 }} />}
-                  {t.id === "historico" && agent.real && publicadas.length > 0 && <span className="emo text-[10.5px]" style={{ color: "var(--e-dim)" }}>{publicadas.length + seguradas.length}</span>}
+                  {t.id === "historico" && agent.real && publicadas.length > 0 && <span className="emo text-[12px]" style={{ color: "var(--e-dim)" }}>{publicadas.length + seguradas.length}</span>}
                 </button>
               );
             })}
@@ -611,15 +611,15 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   <span className="grid place-items-center rounded-md flex-none" style={{ width: 26, height: 26, background: `${p.cor === "#7d8694" ? "#12161d" : p.cor + "22"}`, color: p.cor }}>{p.glifo}</span>
                   <span className="text-[13.5px] font-semibold flex-1" style={{ color: p.estado === "off" ? "var(--e-txt2)" : "var(--e-txt)" }}>{p.nome}</span>
                   {p.estado === "off" ? (
-                    <span className="emo text-[10.5px] font-semibold" style={{ color: "var(--e-amber)" }}>+ ligar</span>
+                    <span className="emo text-[12px] font-semibold" style={{ color: "var(--e-amber)" }}>+ ligar</span>
                   ) : p.estado === "nucleo" ? (
-                    <span className="emo text-[9.5px] font-bold rounded px-1.5 py-0.5" style={{ color: "#08090d", background: "var(--e-amber)" }}>NÚCLEO</span>
+                    <span className="emo text-[11.5px] font-bold rounded px-1.5 py-0.5" style={{ color: "#08090d", background: "var(--e-amber)" }}>NÚCLEO</span>
                   ) : (
-                    <span className="emo text-[10px] font-bold rounded px-1.5 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.4)" }}>no ar</span>
+                    <span className="emo text-[11.5px] font-bold rounded px-1.5 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.4)" }}>no ar</span>
                   )}
                 </div>
-                <p className="text-[11.5px] mt-1.5 mb-0 pl-[35px] leading-snug" style={{ color: "var(--e-mut)" }}>{p.resumo}</p>
-                {p.meta && <div className="emo text-[10.5px] mt-1 pl-[35px]" style={{ color: "var(--e-dim)" }}>{p.meta}</div>}
+                <p className="text-[12.5px] mt-1.5 mb-0 pl-[35px] leading-snug" style={{ color: "var(--e-mut)" }}>{p.resumo}</p>
+                {p.meta && <div className="emo text-[12px] mt-1 pl-[35px]" style={{ color: "var(--e-dim)" }}>{p.meta}</div>}
               </button>
             );
 
@@ -633,13 +633,13 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         <span className="grid place-items-center rounded-md flex-none" style={{ width: 24, height: 24, background: aberta.cor === "#7d8694" ? "#12161d" : aberta.cor + "22", color: aberta.cor }}>{aberta.glifo}</span>
                         <span className="text-[15.5px] font-semibold">{aberta.nome} — como a {agent.name} {aberta.id === "conversa" ? "fala" : "trabalha"}</span>
                         {aberta.estado !== "off" ? (
-                          <span className="emo text-[11.5px] rounded px-2 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.35)", background: "rgba(63,185,80,.08)" }}>
+                          <span className="emo text-[12.5px] rounded px-2 py-0.5" style={{ color: "var(--e-green)", border: "1px solid rgba(63,185,80,.35)", background: "rgba(63,185,80,.08)" }}>
                             {agent.real ? (rod ? (rod.base === "semente" ? "cérebro-semente" : `versão ${rod.versao}`) : "lendo…") : "demo"} · lido do motor ✓
                           </span>
                         ) : (
-                          <span className="emo text-[11.5px] rounded px-2 py-0.5" style={{ color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)" }}>disponível — não está ligada</span>
+                          <span className="emo text-[12.5px] rounded px-2 py-0.5" style={{ color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)" }}>disponível — não está ligada</span>
                         )}
-                        <span className="emo text-[11px] ml-auto" style={{ color: "var(--e-dim)" }}>a verdade do que está no ar</span>
+                        
                       </div>
 
                       <div className="px-8 py-6">
@@ -647,7 +647,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         {aberta.id === "conversa" && (
                           <>
                             {/* O QUE ELA FAZ — a função em 1 frase + os trabalhos concretos */}
-                            <div className="est-faixa mb-2.5"><b>O QUE ELA FAZ</b><span>a função dela, em uma frase</span></div>
+                            <div className="est-faixa mb-2.5"><b>O QUE ELA FAZ</b></div>
                             <p className="text-[17px] leading-relaxed mt-0 mb-3.5 font-medium" style={{ color: "var(--e-txt)", letterSpacing: "-.01em" }}>{funcao}</p>
                             <div className="flex flex-wrap gap-2 mb-7">
                               {jobs.map((j, i) => (
@@ -664,22 +664,22 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                             {emRev && (
                               <button onClick={() => setAba("historico")} className="w-full flex items-center gap-2.5 rounded-[10px] px-4 py-2.5 mb-7 text-left transition-colors" style={{ border: "1px solid rgba(232,176,75,.4)", background: "rgba(232,176,75,.06)" }}>
                                 <span className="live-dot flex-none" style={{ width: 7, height: 7, background: "var(--e-amber)" }} />
-                                <span className="text-[13px] flex-1" style={{ color: "var(--e-txt2)" }}><b style={{ color: "var(--e-amber)" }}>1 mudança sua</b> esperando você publicar</span>
-                                <span className="emo text-[11.5px]" style={{ color: "var(--e-amber)" }}>ver no Histórico →</span>
+                                <span className="text-[13px] flex-1 min-w-0" style={{ color: "var(--e-txt2)" }}><b style={{ color: "var(--e-amber)" }}>1 mudança sua</b> esperando você publicar</span>
+                                <span className="text-[12.5px] flex-none whitespace-nowrap" style={{ color: "var(--e-amber)" }}>ver no Histórico →</span>
                               </button>
                             )}
 
-                            <div className="est-faixa mb-2"><b>COMO ELA FALA</b><span>o jeito e o tom com o cliente</span></div>
+                            <div className="est-faixa mb-2"><b>COMO ELA FALA</b></div>
                             <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt2)" }}>{c?.identidade ?? "—"}</p>
 
                             {c?.oferta && (
                               <>
-                                <div className="est-faixa mb-2"><b>O QUE ELA OFERECE</b><span>o que ela vende</span></div>
+                                <div className="est-faixa mb-2"><b>O QUE ELA OFERECE</b></div>
                                 <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt2)" }}>{c.oferta}</p>
                               </>
                             )}
 
-                            <div className="est-faixa mb-2"><b>REGRAS</b><span>{regras.length} valendo · as SUAS estão marcadas</span></div>
+                            <div className="est-faixa mb-2"><b>AS REGRAS DELA</b><span>{regras.length}</span></div>
                             <div className="est-card overflow-hidden mb-6" style={{ background: "var(--e-surface)" }}>
                               {regras.map((r, i) => {
                                 const fato = /^fato:/i.test(r);
@@ -688,9 +688,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                                 const b = fato ? { t: "FATO", c: "#3fb950" } : sua ? { t: "SUA", c: "#e8b04b" } : { t: "NÚCLEO", c: "#7d8694" };
                                 return (
                                   <div key={i} className="est-row flex items-start gap-3 px-4 py-2.5" style={{ borderBottom: i < regras.length - 1 ? "1px solid var(--e-line-soft)" : undefined, ...(sua ? { background: `${b.c}0e`, borderLeft: `3px solid ${b.c}` } : { borderLeft: "3px solid transparent" }) }}>
-                                    <span className="emo text-[10.5px] font-bold rounded px-1.5 mt-1 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
+                                    <span className="emo text-[12px] font-bold rounded px-1.5 mt-1 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
                                     <span className="text-[14.5px] flex-1 leading-relaxed" style={{ color: sua ? "var(--e-txt)" : "var(--e-txt2)" }}>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
-                                    {nova && <span className="emo text-[11px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>✨ novo</span>}
+                                    {nova && <span className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>✨ novo</span>}
                                     <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); setAba("testar"); }} className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>testar</button>
                                   </div>
                                 );
@@ -717,11 +717,11 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         {/* PEÇA ATIVA que não é Conversa (ex.: Follow-up) */}
                         {aberta.id !== "conversa" && aberta.estado !== "off" && (
                           <>
-                            <div className="est-faixa mb-2"><b>O QUE ESTA PEÇA FAZ</b><span>parte do caminho do lead</span></div>
+                            <div className="est-faixa mb-2"><b>O QUE ESTA PEÇA FAZ</b></div>
                             <p className="text-[15px] leading-relaxed mt-0 mb-6" style={{ color: "var(--e-txt)" }}>{aberta.resumo}.</p>
                             {aberta.meta && (
                               <>
-                                <div className="est-faixa mb-2"><b>AGORA</b><span>estado ao vivo</span></div>
+                                <div className="est-faixa mb-2"><b>AGORA</b></div>
                                 <div className="est-card px-4 py-3 mb-6 text-[14px]" style={{ background: "var(--e-surface)", color: "var(--e-txt2)" }}>{aberta.meta}</div>
                               </>
                             )}
@@ -732,7 +732,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         {/* PEÇA DESLIGADA — o mini-artefato de "disponível pra ligar" */}
                         {aberta.estado === "off" && (
                           <>
-                            <div className="est-faixa mb-2"><b>O QUE ESTA PEÇA FAZ</b><span>ainda não está ligada</span></div>
+                            <div className="est-faixa mb-2"><b>O QUE ESTA PEÇA FAZ</b><span>não está ligada</span></div>
                             <p className="text-[15px] leading-relaxed mt-0 mb-5" style={{ color: "var(--e-txt)" }}>{aberta.resumo}.</p>
                             {aberta.upg?.resultado && (
                               <div className="rounded-[9px] px-4 py-3 mb-5" style={{ background: "rgba(232,176,75,.07)", border: "1px solid rgba(232,176,75,.3)" }}>
@@ -756,7 +756,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 {/* ═══ DIREITA · O CÉREBRO (as peças como o caminho do lead) ═══ */}
                 <div className="w-[312px] flex-none overflow-y-auto scroll-thin" style={{ borderLeft: "1px solid var(--e-line)", background: "#0a0c10" }}>
                   <div className="px-4 py-5">
-                    <div className="text-[10.5px] font-bold mb-1" style={{ letterSpacing: ".12em", color: "var(--e-dim)" }}>O CÉREBRO DA {agent.name.toUpperCase()}</div>
+                    <div className="text-[12px] font-bold mb-1" style={{ letterSpacing: ".12em", color: "var(--e-dim)" }}>O CÉREBRO DA {agent.name.toUpperCase()}</div>
                     <div className="text-[12px] mb-4 leading-snug" style={{ color: "var(--e-mut)" }}>o caminho que todo lead percorre — clica numa peça pra abrir e mudar</div>
 
                     {/* o percurso (peças ativas, com o trilho) */}
@@ -764,8 +764,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                       <div className="absolute" style={{ left: 21, top: 14, bottom: 14, width: 2, background: "var(--e-line)" }} />
                       {ativas.map((p, i) => (
                         <div key={p.id} className="relative pl-11 pb-2.5">
-                          {p.cond && <span className="absolute text-[10px] italic" style={{ left: 46, top: -8, color: "var(--e-dim)" }}>{p.cond}</span>}
-                          <span className="absolute grid place-items-center rounded-full text-[9px] font-bold" style={{ left: 13, top: 15, width: 18, height: 18, background: peca === p.id ? "var(--e-amber)" : p.cor, color: "#08090d", border: "3px solid #0a0c10" }}>{i + 1}</span>
+                          {p.cond && <span className="absolute text-[11.5px] italic" style={{ left: 46, top: -8, color: "var(--e-dim)" }}>{p.cond}</span>}
+                          <span className="absolute grid place-items-center rounded-full text-[11.5px] font-bold" style={{ left: 13, top: 15, width: 18, height: 18, background: peca === p.id ? "var(--e-amber)" : p.cor, color: "#08090d", border: "3px solid #0a0c10" }}>{i + 1}</span>
                           {NoCard(p, peca === p.id)}
                         </div>
                       ))}
@@ -784,8 +784,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     {/* mapa enxuto (só o núcleo): ensina a visão sem inventar peça */}
                     {agent.real && pecas.length <= 1 && (
                       <div className="rounded-[10px] px-3.5 py-3 mt-4" style={{ border: "1px dashed var(--e-line)", background: "var(--e-surface)" }}>
-                        <div className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--e-mut)" }}>as próximas peças</div>
-                        <p className="text-[11.5px] leading-relaxed m-0" style={{ color: "var(--e-dim)" }}>
+                        <div className="text-[12px] font-semibold mb-1.5" style={{ color: "var(--e-mut)" }}>as próximas peças</div>
+                        <p className="text-[12.5px] leading-relaxed m-0" style={{ color: "var(--e-dim)" }}>
                           Follow-up, Agendamento e Avisos no WhatsApp entram aqui como peças do caminho — conforme a Metrik liga no seu motor.
                         </p>
                       </div>
@@ -815,7 +815,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                       <button onClick={() => setModoTeste("ar")} className="text-[12px] px-3 py-1.5" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>a versão no ar hoje</button>
                       <button onClick={() => setModoTeste("ensaio")} className="text-[12px] px-3 py-1.5 flex items-center gap-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>com a mudança nova <Sparkles size={11} /></button>
                     </div>
-                    <span className="text-[11.5px]" style={{ color: "var(--e-dim)" }}>{modoTeste === "ensaio" ? "prévia da mudança que ainda não foi pro ar" : "o que os leads recebem agora"}</span>
+                    <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>{modoTeste === "ensaio" ? "prévia da mudança que ainda não foi pro ar" : "o que os leads recebem agora"}</span>
                   </div>
                 )}
                 {run.status === "rodando" && <div className="flex items-center gap-2 mt-2 text-[12.5px]" style={{ color: "var(--e-mut)" }}><span className="est-spin" /> o robô-lead está conversando com ela…</div>}
@@ -827,10 +827,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         <span style={{ color: caso.passou ? "var(--e-green)" : "var(--e-red)" }}>{caso.passou ? "✓" : "✗"}</span>
                         <span className="flex-1 truncate" style={{ color: caso.passou ? "var(--e-txt2)" : "var(--e-red)" }}>{caso.nome}</span>
                         {run.r.ms?.[i] != null && <span style={{ color: "var(--e-dim)" }}>{(run.r.ms[i] / 1000).toFixed(1)}s</span>}
-                        {!caso.passou && <button onClick={() => setTexto(`A trava "${caso.nome}" quebrou no teste (${caso.falhas[0] ?? ""}). Reforça: `)} className="emo text-[11px]" style={{ color: "var(--e-amber)" }}>corrigir</button>}
+                        {!caso.passou && <button onClick={() => setTexto(`A trava "${caso.nome}" quebrou no teste (${caso.falhas[0] ?? ""}). Reforça: `)} className="emo text-[12px]" style={{ color: "var(--e-amber)" }}>corrigir</button>}
                       </div>
                     ))}
-                    {run.r?.modo === "roteiro" && <div className="text-[11.5px] pt-1" style={{ color: "var(--e-amber)" }}>conferido no roteiro (sem cérebro) — a Metrik liga a chave e vira ataque real</div>}
+                    {run.r?.modo === "roteiro" && <div className="text-[12.5px] pt-1" style={{ color: "var(--e-amber)" }}>conferido no roteiro (sem cérebro) — a Metrik liga a chave e vira ataque real</div>}
                   </div>
                 )}
               </div>
@@ -852,11 +852,11 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                       </div>
                       {!m.aviso && (
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                          {m.fonte && <span className="emo text-[10.5px] rounded-full px-2 py-0.5" style={{ color: "var(--e-green)", background: "rgba(63,185,80,.1)", border: "1px solid rgba(63,185,80,.3)" }}>{m.fonte}</span>}
+                          {m.fonte && <span className="emo text-[12px] rounded-full px-2 py-0.5" style={{ color: "var(--e-green)", background: "rgba(63,185,80,.1)", border: "1px solid rgba(63,185,80,.3)" }}>{m.fonte}</span>}
                           {feedback[i] === "sim" ? (
-                            <span className="emo text-[11px] font-bold rounded px-2 py-0.5" style={{ background: "var(--e-green)", color: "#08090d" }}>✓ é isso</span>
+                            <span className="emo text-[12px] font-bold rounded px-2 py-0.5" style={{ background: "var(--e-green)", color: "#08090d" }}>✓ é isso</span>
                           ) : feedback[i] === "nao" ? (
-                            <span className="emo text-[11px] rounded px-2 py-0.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>corrigindo…</span>
+                            <span className="emo text-[12px] rounded px-2 py-0.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>corrigindo…</span>
                           ) : (
                             <span className="est-feed">
                               <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))}>✓ é isso</button>
@@ -874,7 +874,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className="px-5 py-2.5 flex-none" style={{ borderTop: "1px solid var(--e-line)" }}>
                 <div className="flex gap-1.5 flex-wrap mb-2">
                   {sugestoes.map((s) => (
-                    <button key={s} onClick={() => void perguntar(s)} className="text-[11.5px] rounded-full px-3 py-1" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>“{s}”</button>
+                    <button key={s} onClick={() => void perguntar(s)} className="text-[12.5px] rounded-full px-3 py-1" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>“{s}”</button>
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
@@ -890,7 +890,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     {pensando ? <Loader2 size={14} className="animate-spin" style={{ color: "#08090d" }} /> : <ArrowUp size={16} style={{ color: "#08090d" }} />}
                   </button>
                 </div>
-                <div className="flex items-center gap-3 mt-2 pt-2 emo text-[11px]" style={{ borderTop: "1px solid var(--e-line-soft)", color: "var(--e-dim)" }}>
+                <div className="flex items-center gap-3 mt-2 pt-2 emo text-[12px]" style={{ borderTop: "1px solid var(--e-line-soft)", color: "var(--e-dim)" }}>
                   <span>{msgs.filter((m) => m.de === "voce").length} perguntas</span>
                   <span style={{ color: "var(--e-green)" }}>{nSim} é isso ✓</span>
                   {nNao > 0 && <span style={{ color: "var(--e-red)" }}>{nNao} corrigindo</span>}
@@ -912,9 +912,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 meusLogs.length > 0 ? (
                   meusLogs.map((l, i) => (
                     <div key={l.id} className="est-row est-entra flex items-start gap-3.5 px-6 py-3" style={{ borderBottom: "1px solid var(--e-line-soft)", animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-                      <span className="emo text-[11.5px] w-16 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{tempoRelativo(l.at)}</span>
+                      <span className="emo text-[12.5px] w-16 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{tempoRelativo(l.at)}</span>
                       <span className="text-[14px] flex-1 leading-relaxed" style={{ color: l.ok ? "var(--e-txt2)" : "var(--e-red)" }}>{l.resumo}{!l.ok && l.erro ? ` — ${l.erro}` : ""}</span>
-                      {!l.ok && <span className="emo text-[11px] font-bold flex-none rounded px-1.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>ERRO</span>}
+                      {!l.ok && <span className="emo text-[12px] font-bold flex-none rounded px-1.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>ERRO</span>}
                     </div>
                   ))
                 ) : (
@@ -923,7 +923,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               ) : (
                 agent.live.map((r, i) => (
                   <div key={i} className="est-row flex items-start gap-3.5 px-6 py-3" style={{ borderBottom: "1px solid var(--e-line-soft)" }}>
-                    <span className="emo text-[11.5px] w-16 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{r.t}</span>
+                    <span className="emo text-[12.5px] w-16 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{r.t}</span>
                     <span className="text-[14px] flex-1" style={{ color: r.status === "erro" ? "var(--e-red)" : "var(--e-txt2)" }}>{r.acao}</span>
                   </div>
                 ))
@@ -973,9 +973,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                               {it.estado === "rev" && <span className="est-mic-on absolute inset-0 rounded-full" style={{ background: m.cor }} />}
                             </span>
                             <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                              <span className="emo text-[10.5px] font-bold rounded px-2 py-0.5" style={m.pill}>{m.rot}</span>
-                              {it.ganho && <span className="emo text-[11px]" style={{ color: "var(--e-green)" }}>{it.ganho}</span>}
-                              <span className="emo text-[11.5px]" style={{ color: "var(--e-dim)" }}>{it.quando}</span>
+                              <span className="emo text-[12px] font-bold rounded px-2 py-0.5" style={m.pill}>{m.rot}</span>
+                              {it.ganho && <span className="emo text-[12px]" style={{ color: "var(--e-green)" }}>{it.ganho}</span>}
+                              <span className="emo text-[12.5px]" style={{ color: "var(--e-dim)" }}>{it.quando}</span>
                             </div>
                             <p className="text-[14.5px] leading-relaxed m-0" style={{ color: it.estado === "seg" ? "var(--e-mut)" : "var(--e-txt)", ...clamp2 }}>{it.texto}</p>
                             {it.estado === "rev" && agent.real && (
