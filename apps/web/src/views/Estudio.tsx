@@ -260,6 +260,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const [modoTeste, setModoTeste] = useState<"ar" | "ensaio">("ar");
   const fimRef = useRef<HTMLDivElement>(null);
   useEffect(() => { fimRef.current?.scrollIntoView({ block: "end" }); }, [msgs]);
+  // sem mudança pendente, testar "com a mudança nova" não faz sentido → volta pro ar
+  useEffect(() => { if (!emRev && modoTeste === "ensaio") setModoTeste("ar"); }, [emRev, modoTeste]);
   useEffect(() => {
     if (!seed) return;
     if (seed.tipo === "pergunta") { setInput(seed.texto); setAba("testar"); }
@@ -799,17 +801,23 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             <div className="flex-1 min-h-0 flex flex-col est-entra">
               <div className="flex-none px-5 pt-3 pb-2.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="emo text-[13px]" style={{ color: "var(--e-txt2)" }}>❯ rodar testes · {agent.real ? (rod?.base === "publicada" ? `v${rod.versao}` : "semente") : "demo"}</span>
-                  {run.r?.evals && <span className="emo text-[12px]" style={{ color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{run.r.evals.passaram}/{run.r.evals.total} travas</span>}
-                  <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-[11.5px]" style={{ color: "var(--e-dim)" }}>versão:</span>
-                    <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #26303a" }}>
-                      <button onClick={() => setModoTeste("ar")} className="emo text-[10.5px] px-2.5 py-1" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)" }}>no ar ✓</button>
-                      <button onClick={() => (emRev || !agent.real) && setModoTeste("ensaio")} title={emRev ? `aplica: ${emRev.intent}` : "sem mudança em revisão"} className="emo text-[10.5px] px-2.5 py-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)", opacity: emRev || !agent.real ? 1 : 0.4 }}>+ revisão</button>
-                    </div>
-                    <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn">{run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : null} {run.r ? "de novo" : "Rodar"}</button>
-                  </div>
+                  <span className="text-[13.5px] font-semibold">Testar {agent.name}</span>
+                  <span className="text-[12px]" style={{ color: "var(--e-dim)" }}>você é o lead — veja como ela responde</span>
+                  {run.r?.evals && <span className="emo text-[12px]" style={{ color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{run.r.evals.passaram}/{run.r.evals.total} travas de pé</span>}
+                  <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 ml-auto">{run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} {run.r ? "Rodar de novo" : "Rodar os testes"}</button>
                 </div>
+                {/* a escolha da versão SÓ aparece quando há mudança pendente — aí sim
+                    faz sentido: testar como está no ar × com a mudança que você ainda não publicou */}
+                {agent.real && emRev && (
+                  <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
+                    <span className="text-[12px]" style={{ color: "var(--e-mut)" }}>conversar com:</span>
+                    <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid #26303a" }}>
+                      <button onClick={() => setModoTeste("ar")} className="text-[12px] px-3 py-1.5" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>a versão no ar hoje</button>
+                      <button onClick={() => setModoTeste("ensaio")} className="text-[12px] px-3 py-1.5 flex items-center gap-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>com a mudança nova <Sparkles size={11} /></button>
+                    </div>
+                    <span className="text-[11.5px]" style={{ color: "var(--e-dim)" }}>{modoTeste === "ensaio" ? "prévia da mudança que ainda não foi pro ar" : "o que os leads recebem agora"}</span>
+                  </div>
+                )}
                 {run.status === "rodando" && <div className="flex items-center gap-2 mt-2 text-[12.5px]" style={{ color: "var(--e-mut)" }}><span className="est-spin" /> o robô-lead está conversando com ela…</div>}
                 {run.erro && <div className="text-[12.5px] mt-1.5" style={{ color: "var(--e-red)" }}>{run.erro}</div>}
                 {run.r?.evals?.casos && (
