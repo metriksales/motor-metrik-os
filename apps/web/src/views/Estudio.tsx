@@ -336,17 +336,13 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         <span className="text-[11.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>AGORA</span>
         {agent.real ? (
           <>
+            {/* placar enxuto — versão e "em revisão" NÃO repetem aqui:
+                a versão vive no cabeçalho do artefato; o em-revisão no
+                bloco ESPERANDO VOCÊ + na aba Histórico. */}
             <div className="flex items-center gap-2.5 py-2 pr-5" style={{ borderRight: "1px solid var(--e-line)" }}>
               <span className="emo text-[26px] font-bold leading-none" style={{ color: "var(--e-amber)" }}>{publicadas.length}</span>
               <span className="text-[12px] leading-tight" style={{ color: "var(--e-txt2)" }}>personalizações<br />suas no ar</span>
             </div>
-            {emRev && (
-              <div className="flex items-center gap-2 py-2 pr-5 min-w-0" style={{ borderRight: "1px solid var(--e-line)" }}>
-                <span className="live-dot flex-none" style={{ width: 8, height: 8, background: "var(--e-amber)" }} />
-                <span className="emo text-[13.5px] truncate max-w-[360px]" style={{ color: "var(--e-amber)" }}>em revisão: “{emRev.intent}”</span>
-              </div>
-            )}
-            <span className="emo text-[13px]" style={{ color: "var(--e-txt2)" }}>{rod ? (rod.base === "semente" ? "cérebro-semente da vertical" : `versão ${rod.versao}`) : "lendo o motor…"}</span>
             {(agent.upgrades ?? []).map((u) => (
               <button key={u.name} onClick={() => setModal(u)} className="emo text-[12px] rounded-md px-2.5 py-1" style={{ color: "var(--e-mut)", border: "1px dashed var(--e-line-hi, #2a3138)" }}>+ {u.name}</button>
             ))}

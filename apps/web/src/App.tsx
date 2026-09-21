@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowRight, Bell, MessageCircle, Menu, X, Sparkles } from "lucide-react";
+import { Gauge, Search, Sun, Moon, Wand2, ChevronsUpDown, CornerDownLeft, ArrowRight, Bell, MessageCircle, Menu, X, Sparkles, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 type SubId = "trabalho" | "aovivo" | "estrutura" | "melhorar";
 import { NAV, type ViewId } from "./data";
@@ -25,6 +25,15 @@ export default function App() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [wa, setWa] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+  // menu lateral recolhível (lembra a escolha por navegador)
+  const [sideCollapsed, setSideCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem("motor:side") === "1"; } catch { return false; }
+  });
+  const toggleSide = () => setSideCollapsed((v) => {
+    const n = !v;
+    try { localStorage.setItem("motor:side", n ? "1" : "0"); } catch { /* sem storage */ }
+    return n;
+  });
   const [agentSub, setAgentSub] = useState<SubId | undefined>(undefined);
   const auth = useMotorAuth();
   const { agents, byId, erro, loading: agentsLoading } = useAgents();
@@ -78,19 +87,32 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex overflow-hidden relative">
 
-      {/* SIDEBAR */}
-      <aside className="relative z-10 w-[248px] flex-none hidden md:flex flex-col glass border-r border-[var(--line)] p-3.5">
-        <div className="flex items-center gap-2.5 px-1.5 py-2 mb-1">
+      {/* SIDEBAR (recolhível) */}
+      <aside className={cx("relative z-10 flex-none hidden md:flex flex-col glass border-r border-[var(--line)] transition-[width] duration-200", sideCollapsed ? "w-[68px] p-2" : "w-[248px] p-3.5")}>
+        <div className={cx("flex items-center py-2 mb-1", sideCollapsed ? "justify-center" : "gap-2.5 px-1.5")}>
           <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 34, height: 34, background: "var(--grad)", boxShadow: "0 8px 22px -10px #e8b04b" }}>
             <Gauge size={19} style={{ color: "#0a0714" }} strokeWidth={2.2} />
           </span>
-          <div className="leading-none">
-            <div className="font-display font-bold text-[16px] tracking-tight">Metrik</div>
-            <div className="mono-label !text-[9px] mt-1">Motor OS</div>
-          </div>
+          {!sideCollapsed && (
+            <>
+              <div className="leading-none">
+                <div className="font-display font-bold text-[16px] tracking-tight">Metrik</div>
+                <div className="mono-label !text-[9px] mt-1">Motor OS</div>
+              </div>
+              <button onClick={toggleSide} className="btn-ghost btn !p-1.5 !rounded-lg ml-auto" aria-label="Recolher menu" title="Recolher menu">
+                <PanelLeftClose size={16} />
+              </button>
+            </>
+          )}
         </div>
 
-        {auth.demo ? (
+        {sideCollapsed && (
+          <button onClick={toggleSide} className="btn-ghost btn !p-2 !rounded-lg mb-2 mx-auto" aria-label="Expandir menu" title="Expandir menu">
+            <PanelLeftOpen size={17} />
+          </button>
+        )}
+
+        {!sideCollapsed && (auth.demo ? (
           <button className="w-full flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors p-2.5 mb-4">
             <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "var(--deep)", color: "#fff" }}>{auth.orgInitial}</span>
             <div className="text-left min-w-0 flex-1">
@@ -109,39 +131,48 @@ export default function App() {
               appearance={{ elements: { rootBox: { width: "100%" } } }}
             />
           </div>
-        )}
+        ))}
 
         <nav className="space-y-0.5 flex-1">
           {NAV.map((n) => (
-            <button key={n.id} onClick={() => go(n.id)} className={cx("nav-item w-full", view === n.id && "active")}>
+            <button key={n.id} onClick={() => go(n.id)} title={sideCollapsed ? n.label : undefined} aria-label={n.label} className={cx("nav-item w-full", sideCollapsed && "!justify-center !px-0 relative", view === n.id && "active")}>
               <n.icon size={17} strokeWidth={1.9} className="flex-none" />
-              <span className="flex-1 text-left">{n.label}</span>
-              {n.id === "agentes" && (
+              {!sideCollapsed && <span className="flex-1 text-left">{n.label}</span>}
+              {n.id === "agentes" && !sideCollapsed && (
                 <span className="grid place-items-center text-[10px] font-mono rounded-full text-[var(--txt-3)]" style={{ minWidth: 17, height: 17, background: "var(--surface-hi)", border: "1px solid var(--line)" }}>{agents.length}</span>
               )}
-              {n.id === "aovivo" && <span className="live-dot" style={{ width: 7, height: 7 }} />}
+              {n.id === "aovivo" && <span className={cx("live-dot", sideCollapsed && "absolute top-1.5 right-2")} style={{ width: 7, height: 7 }} />}
             </button>
           ))}
         </nav>
 
-        <div className="pt-3 mt-2 border-t border-[var(--line)] space-y-2.5">
-          <div className="flex items-center justify-between px-1.5">
-            <div className="flex items-center gap-2 text-[11px] text-[var(--txt-3)]">
-              <span className="dot" style={{ background: "#3fb950" }} /> Claude Code
-              <span className="dot ml-1" style={{ background: "#3fb950" }} /> Codex
-            </div>
-            <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="btn-ghost btn !p-1.5 !rounded-lg" aria-label="Alternar tema">
+        {sideCollapsed ? (
+          <div className="pt-3 mt-2 border-t border-[var(--line)] flex flex-col items-center gap-2">
+            <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="btn-ghost btn !p-1.5 !rounded-lg" aria-label="Alternar tema" title="Alternar tema">
               {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
             </button>
+            <span className="live-dot" style={{ width: 8, height: 8 }} title={`${ativos} agentes no ar`} />
           </div>
-          <div className="rounded-xl bg-[var(--surface)] border border-[var(--line)] px-3 py-2.5 flex items-center justify-between">
-            <div>
-              <div className="text-[11.5px] font-medium">{ativos} agentes no ar</div>
-              <div className="text-[10px] text-[var(--txt-4)]">motor blindado</div>
+        ) : (
+          <div className="pt-3 mt-2 border-t border-[var(--line)] space-y-2.5">
+            <div className="flex items-center justify-between px-1.5">
+              <div className="flex items-center gap-2 text-[11px] text-[var(--txt-3)]">
+                <span className="dot" style={{ background: "#3fb950" }} /> Claude Code
+                <span className="dot ml-1" style={{ background: "#3fb950" }} /> Codex
+              </div>
+              <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="btn-ghost btn !p-1.5 !rounded-lg" aria-label="Alternar tema">
+                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
             </div>
-            <span className="live-dot" style={{ width: 7, height: 7 }} />
+            <div className="rounded-xl bg-[var(--surface)] border border-[var(--line)] px-3 py-2.5 flex items-center justify-between">
+              <div>
+                <div className="text-[11.5px] font-medium">{ativos} agentes no ar</div>
+                <div className="text-[10px] text-[var(--txt-4)]">motor blindado</div>
+              </div>
+              <span className="live-dot" style={{ width: 7, height: 7 }} />
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* MAIN */}
