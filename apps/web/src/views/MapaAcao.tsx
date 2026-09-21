@@ -14,15 +14,15 @@ import { Reveal } from "../ui";
 
 const ALVO_META: Record<string, { icon: any; label: string; cor: string }> = {
   etapa: { icon: Columns3, label: "etapa", cor: "#58aae4" },
-  campo: { icon: TextCursorInput, label: "campo", cor: "#e0a44a" },
+  campo: { icon: TextCursorInput, label: "campo", cor: "#e8b04b" },
   integracao: { icon: Plug, label: "integração", cor: "#7c9fe0" },
-  canal: { icon: MessageCircle, label: "canal", cor: "#34d399" },
-  documento: { icon: FileText, label: "documento", cor: "#edc074" },
+  canal: { icon: MessageCircle, label: "canal", cor: "#3fb950" },
+  documento: { icon: FileText, label: "documento", cor: "#ecc06a" },
 };
 
 const ST_META: Record<Passo["status"], { icon: any; cor: string; label: string }> = {
-  ok: { icon: Check, cor: "#34d399", label: "rodando certo" },
-  falha: { icon: X, cor: "#fb7185", label: "travou" },
+  ok: { icon: Check, cor: "#3fb950", label: "rodando certo" },
+  falha: { icon: X, cor: "#f85149", label: "travou" },
   espera: { icon: Clock, cor: "#fbbf24", label: "em espera" },
 };
 
@@ -66,12 +66,12 @@ export default function MapaAcao({ agent, onMelhorar }: { agent: Agent; onMelhor
       {/* RESULTADO — o que o cliente recebe */}
       {entrega && (
         <Reveal delay={0.05}>
-          <div className="card p-5 flex items-start gap-3" style={{ borderColor: "#34d39930", background: "linear-gradient(160deg, rgba(52,211,153,.06), var(--surface))" }}>
-            <span className="grid place-items-center rounded-lg flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid #34d39940" }}>
-              <Check size={17} style={{ color: "#34d399" }} />
+          <div className="card p-5 flex items-start gap-3" style={{ borderColor: "#3fb95030", background: "linear-gradient(160deg, rgba(63,185,80,.06), var(--surface))" }}>
+            <span className="grid place-items-center rounded-lg flex-none" style={{ width: 34, height: 34, background: "rgba(63,185,80,.14)", border: "1px solid #3fb95040" }}>
+              <Check size={17} style={{ color: "#3fb950" }} />
             </span>
             <div>
-              <div className="mono-label !text-[9px] mb-1" style={{ color: "#34d399" }}>no fim, você recebe</div>
+              <div className="mono-label !text-[9px] mb-1" style={{ color: "#3fb950" }}>no fim, você recebe</div>
               <p className="text-[14px] text-[var(--txt)] leading-relaxed">{frase(entrega.deveria)}</p>
             </div>
           </div>
@@ -104,8 +104,8 @@ function PassoAcao({ n, passo, ultimo, onMelhorar }: { n: number; passo: Passo; 
       </div>
       <p className="text-[13.5px] text-[var(--txt-2)] leading-relaxed mt-1">{frase(passo.deveria)}</p>
       {passo.status === "falha" && passo.porque && (
-        <div className="mt-2 rounded-lg px-3.5 py-2.5" style={{ background: "rgba(251,113,133,.07)", border: "1px solid rgba(251,113,133,.28)" }}>
-          <p className="text-[12.5px]" style={{ color: "#fb7185" }}>{frase(passo.porque)}</p>
+        <div className="mt-2 rounded-lg px-3.5 py-2.5" style={{ background: "rgba(248,81,73,.07)", border: "1px solid rgba(248,81,73,.28)" }}>
+          <p className="text-[12.5px]" style={{ color: "#f85149" }}>{frase(passo.porque)}</p>
           {passo.sugestao && (
             <button onClick={onMelhorar} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-medium" style={{ color: "var(--violet)" }}>
               <Wand2 size={12} /> {passo.sugestao} <ArrowRight size={12} />

@@ -71,7 +71,7 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
           <div className="text-[11.5px] text-[var(--txt-3)]">{aberta.agente} · {quando}</div>
         </div>
         {(valor ?? 0) > 0 && (
-          <span className="flex-none text-[12px] font-semibold px-2 py-0.5 rounded-full" style={{ color: "var(--emerald)", background: "rgba(52,211,153,.12)", border: "1px solid rgba(52,211,153,.3)" }}>
+          <span className="flex-none text-[12px] font-semibold px-2 py-0.5 rounded-full" style={{ color: "var(--emerald)", background: "rgba(63,185,80,.12)", border: "1px solid rgba(63,185,80,.3)" }}>
             +{reais(valor)}
           </span>
         )}
@@ -151,8 +151,8 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
                     {c.checks.map((ck, i) => (
                       <div key={i} className="flex items-start gap-2 text-[12.5px] text-[var(--txt-2)] leading-snug">
                         {ck.ok
-                          ? <Check size={14} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
-                          : <X size={14} style={{ color: "#fb7185" }} className="flex-none mt-0.5" />}
+                          ? <Check size={14} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
+                          : <X size={14} style={{ color: "#f85149" }} className="flex-none mt-0.5" />}
                         {ck.label}
                       </div>
                     ))}

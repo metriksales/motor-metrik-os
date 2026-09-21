@@ -62,9 +62,9 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
 
       {(pausaMsg || state === "pausado") && (
         <div className="rounded-xl px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{
-          border: `1px solid ${state === "pausado" ? "#fbbf2440" : "#34d39940"}`,
-          background: state === "pausado" ? "rgba(251,191,36,.08)" : "rgba(52,211,153,.08)",
-          color: state === "pausado" ? "#fbbf24" : "#34d399",
+          border: `1px solid ${state === "pausado" ? "#fbbf2440" : "#3fb95040"}`,
+          background: state === "pausado" ? "rgba(251,191,36,.08)" : "rgba(63,185,80,.08)",
+          color: state === "pausado" ? "#fbbf24" : "#3fb950",
         }}>
           {state === "pausado" ? <Clock size={14} /> : <Check size={14} />}
           {pausaMsg ?? "Este agente está pausado — a IA não está respondendo os leads."}
@@ -193,7 +193,7 @@ function AoVivoTab({ agent, onMelhorar, irModulos }: { agent: Agent; onMelhorar:
             </div>
           ) : (
             <p className="text-[12.5px] text-[var(--txt-2)]">
-              {falhas > 0 ? <>Peguei <b style={{ color: "#fb7185" }}>{falhas}</b> que {falhas === 1 ? "falhou" : "falharam"}.</> : <>Nenhuma falha hoje.</>}
+              {falhas > 0 ? <>Peguei <b style={{ color: "#f85149" }}>{falhas}</b> que {falhas === 1 ? "falhou" : "falharam"}.</> : <>Nenhuma falha hoje.</>}
             </p>
           )}
           {falhas > 0 && (
@@ -207,7 +207,7 @@ function AoVivoTab({ agent, onMelhorar, irModulos }: { agent: Agent; onMelhorar:
             <div className="flex items-center justify-between mb-2">
               <div className="mono-label !text-[9px]">Follow-up · módulo</div>
               {followOn ? (
-                <Pill color="#34d399"><span className="live-dot" style={{ width: 5, height: 5 }} /> ligado</Pill>
+                <Pill color="#3fb950"><span className="live-dot" style={{ width: 5, height: 5 }} /> ligado</Pill>
               ) : (
                 <Pill>desligado</Pill>
               )}
@@ -227,8 +227,8 @@ function AoVivoTab({ agent, onMelhorar, irModulos }: { agent: Agent; onMelhorar:
         )}
 
         {auth.demo && (
-          <div className="card p-3.5 flex items-start gap-2.5" style={{ borderColor: "#34d39930" }}>
-            <ShieldCheck size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+          <div className="card p-3.5 flex items-start gap-2.5" style={{ borderColor: "#3fb95030" }}>
+            <ShieldCheck size={15} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
             <p className="text-[11px] text-[var(--txt-2)] leading-relaxed"><b className="text-[var(--txt)]">WhatsApp conectado.</b> Se cair, esta tela vira o alarme — e te avisamos no número reserva.</p>
           </div>
         )}
@@ -268,7 +268,7 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
               height: 38,
               padding: "0 16px",
               ...(l.estado === "nucleo"
-                ? { background: "rgba(224,164,74,.13)", border: "1px solid rgba(224,164,74,.55)", color: "var(--txt)", fontWeight: 600 }
+                ? { background: "rgba(232,176,75,.13)", border: "1px solid rgba(232,176,75,.55)", color: "var(--txt)", fontWeight: 600 }
                 : l.estado === "on"
                   ? { background: "var(--surface)", border: "1px solid var(--line)", color: "var(--txt-2)", fontWeight: 500 }
                   : { background: "var(--surface-2)", border: "1px dashed var(--line-hi)", color: "var(--txt-4)", fontWeight: 500 }),
@@ -280,9 +280,9 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
               className="text-[9px] font-semibold rounded-[5px] px-1.5 py-0.5"
               style={
                 l.estado === "nucleo"
-                  ? { color: "#edc074", background: "rgba(224,164,74,.18)" }
+                  ? { color: "#ecc06a", background: "rgba(232,176,75,.18)" }
                   : l.estado === "on"
-                    ? { color: "var(--emerald)", background: "rgba(52,211,153,.12)" }
+                    ? { color: "var(--emerald)", background: "rgba(63,185,80,.12)" }
                     : { color: "var(--txt-4)" }
               }
             >
@@ -306,8 +306,8 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
         </div>
 
         <div className="space-y-4">
-          <div className="card p-4 flex items-start gap-2.5" style={{ borderColor: "#34d39930", background: "linear-gradient(160deg, rgba(52,211,153,.05), var(--surface))" }}>
-            <ShieldCheck size={16} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+          <div className="card p-4 flex items-start gap-2.5" style={{ borderColor: "#3fb95030", background: "linear-gradient(160deg, rgba(63,185,80,.05), var(--surface))" }}>
+            <ShieldCheck size={16} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
             <div>
               <div className="text-[12.5px] font-medium">Núcleo blindado</div>
               <p className="text-[11px] text-[var(--txt-3)] mt-1 leading-relaxed">{agent.shield}</p>
@@ -336,29 +336,29 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {agent.features.filter((f) => f.on).map((f) => (
-            <div key={f.name} className="card p-4" style={{ borderColor: "rgba(52,211,153,.3)" }}>
+            <div key={f.name} className="card p-4" style={{ borderColor: "rgba(63,185,80,.3)" }}>
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 min-w-0">
-                  <f.icon size={15} style={{ color: "#34d399" }} className="flex-none" />
+                  <f.icon size={15} style={{ color: "#3fb950" }} className="flex-none" />
                   <b className="text-[13px] truncate">{f.name}</b>
                 </span>
-                <Pill color="#34d399"><span className="live-dot" style={{ width: 5, height: 5 }} /> ligado</Pill>
+                <Pill color="#3fb950"><span className="live-dot" style={{ width: 5, height: 5 }} /> ligado</Pill>
               </div>
               {/follow/i.test(f.name) && followOn && (
-                <div className="mt-2.5 rounded-[9px] px-3 py-2 text-[11.5px]" style={{ background: "rgba(52,211,153,.06)", border: "1px solid rgba(52,211,153,.22)" }}>
+                <div className="mt-2.5 rounded-[9px] px-3 py-2 text-[11.5px]" style={{ background: "rgba(63,185,80,.06)", border: "1px solid rgba(63,185,80,.22)" }}>
                   <b>{naFila} na fila</b> · para se o lead responder
                 </div>
               )}
             </div>
           ))}
           {(agent.upgrades ?? []).map((u) => (
-            <div key={u.name} className="card p-4 flex flex-col" style={{ borderColor: "rgba(224,164,74,.35)", background: "linear-gradient(150deg, rgba(224,164,74,.06), var(--surface))" }}>
+            <div key={u.name} className="card p-4 flex flex-col" style={{ borderColor: "rgba(232,176,75,.35)", background: "linear-gradient(150deg, rgba(232,176,75,.06), var(--surface))" }}>
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="flex items-center gap-2 min-w-0">
-                  <u.icon size={15} style={{ color: "#e0a44a" }} className="flex-none" />
+                  <u.icon size={15} style={{ color: "#e8b04b" }} className="flex-none" />
                   <b className="text-[13px] truncate">{u.name}</b>
                 </span>
-                <span className="mono-label !text-[8px] flex-none" style={{ color: "#edc074" }}>novo</span>
+                <span className="mono-label !text-[8px] flex-none" style={{ color: "#ecc06a" }}>novo</span>
               </div>
               <p className="text-[11.5px] text-[var(--txt-3)] leading-relaxed mb-3 flex-1">{u.blurb}</p>
               <button className="btn btn-primary btn-sm self-start" onClick={() => setModal(u)}>Ligar em 1 minuto <ArrowRight size={13} /></button>
@@ -378,10 +378,10 @@ function Fluxo({ agent }: { agent: Agent }) {
   const [fix, setFix] = useState<Record<number, "sim" | "nao">>({});
   const temFalha = passos.some((p) => p.status === "falha");
   const tudoOk = !temFalha && passos.every((p) => p.status === "ok");
-  const cor = temFalha ? "#fb7185" : tudoOk ? "#34d399" : "#83879a";
+  const cor = temFalha ? "#f85149" : tudoOk ? "#3fb950" : "#83879a";
   const lbl = temFalha ? "1 passo falhando" : tudoOk ? "tudo sendo respeitado" : "em espera";
   const sIcon: any = { ok: Check, falha: X, espera: Clock };
-  const sCor: any = { ok: "#34d399", falha: "#fb7185", espera: "#83879a" };
+  const sCor: any = { ok: "#3fb950", falha: "#f85149", espera: "#83879a" };
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -412,15 +412,15 @@ function Fluxo({ agent }: { agent: Agent }) {
               <div className="text-[13.5px] font-medium text-[var(--txt)] mt-0.5">{p.label}</div>
               <div className="text-[12px] text-[var(--txt-3)] mt-0.5">deveria: {p.deveria}</div>
               {p.status === "falha" && (
-                <div className="mt-2.5 rounded-xl p-3" style={{ border: "1px solid #fb718540", background: "rgba(251,113,133,.07)" }}>
-                  <div className="text-[12px]" style={{ color: "#fb7185" }}><b>por quê:</b> {p.porque}</div>
+                <div className="mt-2.5 rounded-xl p-3" style={{ border: "1px solid #f8514940", background: "rgba(248,81,73,.07)" }}>
+                  <div className="text-[12px]" style={{ color: "#f85149" }}><b>por quê:</b> {p.porque}</div>
                   {p.sugestao && (
                     <div className="text-[12.5px] text-[var(--txt-2)] mt-2 flex gap-1.5">
-                      <Lightbulb size={14} style={{ color: "#e0a44a" }} className="flex-none mt-[1px]" /> {p.sugestao}
+                      <Lightbulb size={14} style={{ color: "#e8b04b" }} className="flex-none mt-[1px]" /> {p.sugestao}
                     </div>
                   )}
                   {fix[i] ? (
-                    <div className="text-[12px] mt-2.5" style={{ color: fix[i] === "sim" ? "#34d399" : "var(--txt-3)" }}>
+                    <div className="text-[12px] mt-2.5" style={{ color: fix[i] === "sim" ? "#3fb950" : "var(--txt-3)" }}>
                       {fix[i] === "sim" ? "Beleza — vou simular, testar e te mostrar a prova antes de publicar." : "Ok, deixei anotado."}
                     </div>
                   ) : (
@@ -529,21 +529,21 @@ function LogsTab({ agent, onCorrigir }: { agent: Agent; onCorrigir: (seed: strin
           ) : (
             <>
               <div className="flex items-baseline gap-2 mb-1"><span className="num text-[26px]" style={{ color: agent.color }}>{execsHoje}</span><span className="text-[12px] text-[var(--txt-3)]">atendimentos hoje</span></div>
-              <p className="text-[12.5px] text-[var(--txt-2)]">{errosHoje > 0 ? <>Peguei <b style={{ color: "#fb7185" }}>{errosHoje}</b> que falharam.</> : <>Nenhuma falha hoje.</>}</p>
+              <p className="text-[12.5px] text-[var(--txt-2)]">{errosHoje > 0 ? <>Peguei <b style={{ color: "#f85149" }}>{errosHoje}</b> que falharam.</> : <>Nenhuma falha hoje.</>}</p>
               <p className="text-[11px] text-[var(--txt-4)] mt-3 leading-relaxed">O selo de cada resposta (seguiu a regra / segurou / falhou) aparece assim que o robô começa a registrar a conferência.</p>
             </>
           )}
         </div>
 
-        <div className="card p-5" style={{ borderColor: "#e0a44a2e", background: "linear-gradient(165deg, rgba(224,164,74,.07), var(--surface))" }}>
+        <div className="card p-5" style={{ borderColor: "#e8b04b2e", background: "linear-gradient(165deg, rgba(232,176,75,.07), var(--surface))" }}>
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#e0a44a" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
-            <Pill color="#e0a44a">rotina · 8h</Pill>
+            <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#e8b04b" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
+            <Pill color="#e8b04b">rotina · 8h</Pill>
           </div>
           {(() => { const saiu = temConf ? nFalhou : errosHoje; return (
             <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
               {saiu > 0
-                ? <>{saiu === 1 ? "Saiu do padrão " : "Saíram do padrão "}<b style={{ color: "#fb7185" }}>{saiu}</b> — dá pra corrigir na linha do tempo abaixo.</>
+                ? <>{saiu === 1 ? "Saiu do padrão " : "Saíram do padrão "}<b style={{ color: "#f85149" }}>{saiu}</b> — dá pra corrigir na linha do tempo abaixo.</>
                 : <>Nada saiu do padrão hoje.</>}
             </p>
           ); })()}
@@ -628,15 +628,15 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
         </div>
         <div className="hidden sm:flex items-center gap-3 flex-none font-mono text-[12px]">
           <span className="text-[var(--txt-3)]">{m.execucoes} hoje</span>
-          <span style={{ color: "#34d399" }}>{pct}% ok</span>
-          <span style={{ color: m.erros ? "#fb7185" : "var(--txt-4)" }}>{m.erros} erros</span>
+          <span style={{ color: "#3fb950" }}>{pct}% ok</span>
+          <span style={{ color: m.erros ? "#f85149" : "var(--txt-4)" }}>{m.erros} erros</span>
         </div>
       </div>
 
       {/* o que dá pra melhorar */}
       {insights.length > 0 && (
         <div>
-          <div className="mono-label flex items-center gap-1.5 mb-3"><Lightbulb size={12} style={{ color: "#e0a44a" }} /> O que dá pra melhorar</div>
+          <div className="mono-label flex items-center gap-1.5 mb-3"><Lightbulb size={12} style={{ color: "#e8b04b" }} /> O que dá pra melhorar</div>
           <div className="grid md:grid-cols-2 gap-3">
             {insights.map((ins, i) => <InsightCard key={i} ins={ins} onGo={onMelhorar} />)}
           </div>
@@ -647,9 +647,9 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
 }
 
 const insMeta = {
-  elogio: { icon: ThumbsUp, color: "#34d399", tag: "indo bem" },
+  elogio: { icon: ThumbsUp, color: "#3fb950", tag: "indo bem" },
   critico: { icon: AlertTriangle, color: "#fbbf24", tag: "pede permissão" },
-  dica: { icon: Lightbulb, color: "#e0a44a", tag: "ideia" },
+  dica: { icon: Lightbulb, color: "#e8b04b", tag: "ideia" },
 } as const;
 
 function InsightCard({ ins, onGo }: { ins: Insight; onGo: () => void }) {
@@ -669,7 +669,7 @@ function InsightCard({ ins, onGo }: { ins: Insight; onGo: () => void }) {
       <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed flex-1">{ins.texto}</p>
       {ins.prova && (
         <div className="mt-2.5 text-[11px] rounded-lg px-2.5 py-1.5" style={{ background: "var(--surface-2)", border: "1px solid var(--line)", color: "var(--txt-3)" }}>
-          <Check size={11} className="inline mr-1" style={{ color: "#34d399" }} /> prova: {ins.prova}
+          <Check size={11} className="inline mr-1" style={{ color: "#3fb950" }} /> prova: {ins.prova}
         </div>
       )}
       {ins.ganho && ins.tipo !== "critico" && (
@@ -680,7 +680,7 @@ function InsightCard({ ins, onGo }: { ins: Insight; onGo: () => void }) {
       )}
       {ins.tipo === "critico" && (
         done ? (
-          <div className="mt-2.5 text-[12px]" style={{ color: done === "sim" ? "#34d399" : "var(--txt-3)" }}>
+          <div className="mt-2.5 text-[12px]" style={{ color: done === "sim" ? "#3fb950" : "var(--txt-3)" }}>
             {done === "sim" ? "Beleza — vou preparar, simular e te mostrar a prova antes de publicar." : "Ok, deixei anotado."}
           </div>
         ) : (
@@ -701,8 +701,8 @@ function Turbinar({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void
   return (
     <div className="space-y-4">
       {/* núcleo blindado */}
-      <div className="card p-4 flex items-start gap-3" style={{ borderColor: "#34d39930", background: "linear-gradient(160deg, rgba(52,211,153,.06), var(--surface))" }}>
-        <ShieldCheck size={18} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+      <div className="card p-4 flex items-start gap-3" style={{ borderColor: "#3fb95030", background: "linear-gradient(160deg, rgba(63,185,80,.06), var(--surface))" }}>
+        <ShieldCheck size={18} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
         <p className="text-[12.5px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">Núcleo blindado.</b> {agent.shield} Estes recursos são operados pela Metrik — pra mudar o comportamento, é no <b className="text-[var(--txt)]">Melhorar</b> (com ensaio e guardião).</p>
       </div>
 
@@ -717,10 +717,10 @@ function Turbinar({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium truncate">{f.name}</div>
-                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#e0a44a" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você" : "operado pela Metrik"}</span>
+                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#e8b04b" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você" : "operado pela Metrik"}</span>
               </div>
-              <span className="pill flex-none" style={{ color: f.on ? "#34d399" : "var(--txt-4)", borderColor: f.on ? "#34d39940" : "var(--line)", background: f.on ? "#34d39912" : "var(--surface-2)" }}>
-                {f.on ? <><span className="live-dot" style={{ width: 6, height: 6, background: "#34d399" }} /> ligado</> : "desligado"}
+              <span className="pill flex-none" style={{ color: f.on ? "#3fb950" : "var(--txt-4)", borderColor: f.on ? "#3fb95040" : "var(--line)", background: f.on ? "#3fb95012" : "var(--surface-2)" }}>
+                {f.on ? <><span className="live-dot" style={{ width: 6, height: 6, background: "#3fb950" }} /> ligado</> : "desligado"}
               </span>
             </div>
           ))}
@@ -806,7 +806,7 @@ function UpgradeSetup({ agent, upgrade, onCancel, onConfirm }: { agent: Agent; u
         </div>
 
         <div className="p-4 border-t border-[var(--line)] flex items-center justify-between gap-2">
-          <div className="text-[11px] text-[var(--txt-4)] flex items-center gap-1.5"><ShieldCheck size={13} style={{ color: "#34d399" }} /> não toca no núcleo</div>
+          <div className="text-[11px] text-[var(--txt-4)] flex items-center gap-1.5"><ShieldCheck size={13} style={{ color: "#3fb950" }} /> não toca no núcleo</div>
           <div className="flex gap-2">
             <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancelar</button>
             <button className="btn btn-primary btn-sm" onClick={onConfirm}><Check size={14} /> Ativar</button>
@@ -826,14 +826,14 @@ const RESP: Record<string, { tipo: string; txt: string }> = {
 };
 const respMeta: Record<string, { label: string; color: string }> = {
   ajuste: { label: "ajuste", color: "#fbbf24" },
-  novo: { label: "recurso novo", color: "#e0a44a" },
+  novo: { label: "recurso novo", color: "#e8b04b" },
   regra: { label: "trava / regra", color: "#58aae4" },
 };
 const ORIG: Record<string, { label: string; color: string }> = {
   metrik: { label: "Metrik", color: "#83879a" },
   chat: { label: "chat", color: "#58aae4" },
   ajuste: { label: "botão", color: "#fbbf24" },
-  claude: { label: "Claude Code", color: "#e0a44a" },
+  claude: { label: "Claude Code", color: "#e8b04b" },
   codex: { label: "Codex", color: "#58aae4" },
 };
 
@@ -841,8 +841,8 @@ type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string 
 /** o DESTINO da informação (canvas Cérebro do Robô): 🧾 fato · ⚙️ regra · 📚 doc */
 type Destino = "fato" | "regra" | "doc";
 const DESTINO_META: Record<Destino, { emoji: string; label: string; cor: string; desc: string }> = {
-  fato: { emoji: "🧾", label: "Lista · fato exato", cor: "#34d399", desc: "ela passa a responder sempre igual — entra no cérebro depois do ensaio rápido." },
-  regra: { emoji: "⚙️", label: "Motor · comportamento", cor: "#e0a44a", desc: "muda o jeito dela agir — o guardião testa no ensaio antes de valer." },
+  fato: { emoji: "🧾", label: "Lista · fato exato", cor: "#3fb950", desc: "ela passa a responder sempre igual — entra no cérebro depois do ensaio rápido." },
+  regra: { emoji: "⚙️", label: "Motor · comportamento", cor: "#e8b04b", desc: "muda o jeito dela agir — o guardião testa no ensaio antes de valer." },
   doc: { emoji: "📚", label: "Biblioteca · documento", cor: "#58aae4", desc: "conteúdo longo — fica guardado; a busca inteligente entra na próxima atualização da Metrik." },
 };
 /** palpite de destino (sem cérebro é heurística — o cliente SEMPRE confirma) */
@@ -896,8 +896,8 @@ const DEMO_HIST: HistRow[] = [
 ];
 type HistRow = { origem: string; oque: string; quando: string; estado: string; prova?: string; rendeu?: string };
 const BADGE_ORIGEM: Record<string, { label: string; cor: string }> = {
-  chat: { label: "VOCÊ", cor: "#edc074" },
-  ajuste: { label: "MÓDULO", cor: "#edc074" },
+  chat: { label: "VOCÊ", cor: "#ecc06a" },
+  ajuste: { label: "MÓDULO", cor: "#ecc06a" },
   metrik: { label: "METRIK", cor: "#58aae4" },
   claude: { label: "METRIK", cor: "#58aae4" },
   codex: { label: "METRIK", cor: "#58aae4" },
@@ -941,10 +941,10 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(6,8,12,.6)", backdropFilter: "blur(6px)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#151a24", border: "1px solid rgba(224,164,74,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.8)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#151a24", border: "1px solid rgba(232,176,75,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.8)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-1">
           <div>
-            <div className="mono-label !text-[9px]" style={{ color: "#edc074" }}>Ligar · {u.name}</div>
+            <div className="mono-label !text-[9px]" style={{ color: "#ecc06a" }}>Ligar · {u.name}</div>
             <div className="font-display font-bold text-[16px] tracking-tight mt-1">
               {(u.config?.length ?? 0) > 0 ? `${u.config!.length} ${u.config!.length === 1 ? "escolha" : "escolhas"} — já vem pronto` : "Já vem pronto"}
             </div>
@@ -962,7 +962,7 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
                     {c.opcoes.map((o) => {
                       const sel = escolhas[i] === o;
                       return (
-                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[11.5px] rounded-lg px-3 py-1.5 transition-colors" style={sel ? { background: "#e0a44a", color: "#0c0f15", fontWeight: 600 } : { border: "1px solid var(--line-hi)", color: "var(--txt-2)" }}>
+                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[11.5px] rounded-lg px-3 py-1.5 transition-colors" style={sel ? { background: "#e8b04b", color: "#08090d", fontWeight: 600 } : { border: "1px solid var(--line-hi)", color: "var(--txt-2)" }}>
                           {o}{sel ? " ✓" : ""}
                         </button>
                       );
@@ -971,10 +971,10 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
                 </div>
               ))}
             </div>
-            <div className="rounded-xl px-3.5 py-3 mt-4" style={{ background: "rgba(224,164,74,.08)", border: "1px solid rgba(224,164,74,.3)" }}>
+            <div className="rounded-xl px-3.5 py-3 mt-4" style={{ background: "rgba(232,176,75,.08)", border: "1px solid rgba(232,176,75,.3)" }}>
               <p className="text-[12.5px] leading-relaxed m-0">{u.resultado ?? u.blurb}</p>
             </div>
-            {fase === "erro" && <div className="text-[11.5px] mt-3" style={{ color: "#fb7185" }}>{erro}</div>}
+            {fase === "erro" && <div className="text-[11.5px] mt-3" style={{ color: "#f85149" }}>{erro}</div>}
             <div className="flex items-center gap-2.5 mt-4">
               <button onClick={() => void ativar()} disabled={fase === "rodando"} className="btn btn-primary">
                 {fase === "rodando" ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Ativar
@@ -985,13 +985,13 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
           </>
         ) : fase === "ok" ? (
           <div className="mt-4">
-            <div className="flex items-center gap-2.5 text-[14px] font-medium"><Check size={17} style={{ color: "#34d399" }} /> Ligado — no ar.</div>
+            <div className="flex items-center gap-2.5 text-[14px] font-medium"><Check size={17} style={{ color: "#3fb950" }} /> Ligado — no ar.</div>
             <p className="text-[12px] text-[var(--txt-3)] mt-1.5">Passou no guardião e já está valendo. Ficou registrado no histórico.</p>
             <button onClick={onClose} className="btn btn-primary btn-sm mt-4">Beleza</button>
           </div>
         ) : fase === "segurada" ? (
           <div className="mt-4">
-            <div className="flex items-center gap-2.5 text-[14px] font-medium" style={{ color: "#fb7185" }}><ShieldCheck size={17} /> O guardião segurou.</div>
+            <div className="flex items-center gap-2.5 text-[14px] font-medium" style={{ color: "#f85149" }}><ShieldCheck size={17} /> O guardião segurou.</div>
             <p className="text-[12px] text-[var(--txt-3)] mt-1.5">Essa configuração encostaria numa trava do núcleo — por isso não ligou. Está no histórico.</p>
             <button onClick={onClose} className="btn btn-sm mt-4">Entendi</button>
           </div>
@@ -1107,7 +1107,7 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
       {/* o telefone — a conversa */}
       <div className="rounded-2xl overflow-hidden border border-[var(--line)] min-w-0" style={{ background: WA.fundo }}>
         <div className="flex items-center gap-3 px-4 py-2.5" style={{ background: WA.topo }}>
-          <div className="rounded-full p-1 flex-none" style={{ background: "var(--deep)", border: "1px solid rgba(224,164,74,.5)" }}>
+          <div className="rounded-full p-1 flex-none" style={{ background: "var(--deep)", border: "1px solid rgba(232,176,75,.5)" }}>
             <Robot state="ativo" color={agent.color} size={28} />
           </div>
           <div className="flex-1 min-w-0">
@@ -1115,12 +1115,12 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
             <div className="text-[10.5px]" style={{ color: WA.meta }}>você é o lead — pergunta qualquer coisa</div>
           </div>
           <div className="flex rounded-[9px] overflow-hidden flex-none" style={{ border: "1px solid rgba(255,255,255,.14)" }}>
-            <button onClick={() => setModo("ar")} className="text-[10px] font-semibold px-2.5 py-1.5" style={modo === "ar" ? { background: "#34d399", color: "#0c0f15" } : { color: WA.meta }}>no ar ✓</button>
+            <button onClick={() => setModo("ar")} className="text-[10px] font-semibold px-2.5 py-1.5" style={modo === "ar" ? { background: "#3fb950", color: "#08090d" } : { color: WA.meta }}>no ar ✓</button>
             <button
               onClick={() => (emPreparo || !agent.real) && setModo("ensaio")}
               title={emPreparo ? `aplica por cima: ${emPreparo}` : "sem mudança em ensaio agora"}
               className="text-[10px] font-semibold px-2.5 py-1.5"
-              style={modo === "ensaio" ? { background: "#fbbf24", color: "#0c0f15" } : { color: WA.meta, opacity: emPreparo || !agent.real ? 1 : 0.4 }}
+              style={modo === "ensaio" ? { background: "#fbbf24", color: "#08090d" } : { color: WA.meta, opacity: emPreparo || !agent.real ? 1 : 0.4 }}
             >
               com o ensaio
             </button>
@@ -1148,16 +1148,16 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
                 {!m.aviso && (
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     {m.fonte && (
-                      <span className="text-[9.5px] font-semibold rounded-full px-2.5 py-1" style={{ color: "#34d399", background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.3)" }}>{m.fonte}</span>
+                      <span className="text-[9.5px] font-semibold rounded-full px-2.5 py-1" style={{ color: "#3fb950", background: "rgba(63,185,80,.1)", border: "1px solid rgba(63,185,80,.3)" }}>{m.fonte}</span>
                     )}
                     {feedback[i] === "sim" ? (
-                      <span className="text-[10px] font-bold rounded-[7px] px-2.5 py-1" style={{ background: "#34d399", color: "#0c0f15" }}>✓ é isso</span>
+                      <span className="text-[10px] font-bold rounded-[7px] px-2.5 py-1" style={{ background: "#3fb950", color: "#08090d" }}>✓ é isso</span>
                     ) : feedback[i] === "nao" ? (
-                      <span className="text-[10px] font-semibold rounded-[7px] px-2.5 py-1" style={{ color: "#fb7185", border: "1px solid rgba(251,113,133,.4)" }}>corrigindo no Melhorar…</span>
+                      <span className="text-[10px] font-semibold rounded-[7px] px-2.5 py-1" style={{ color: "#f85149", border: "1px solid rgba(248,81,73,.4)" }}>corrigindo no Melhorar…</span>
                     ) : (
                       <>
-                        <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))} className="text-[10px] font-bold rounded-[7px] px-2.5 py-1" style={{ background: "#34d399", color: "#0c0f15" }}>✓ é isso</button>
-                        <button onClick={() => naoEIsso(i)} className="text-[10px] font-semibold rounded-[7px] px-2.5 py-1" style={{ color: "#fb7185", border: "1px solid rgba(251,113,133,.4)" }}>✗ não é isso — corrigir</button>
+                        <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))} className="text-[10px] font-bold rounded-[7px] px-2.5 py-1" style={{ background: "#3fb950", color: "#08090d" }}>✓ é isso</button>
+                        <button onClick={() => naoEIsso(i)} className="text-[10px] font-semibold rounded-[7px] px-2.5 py-1" style={{ color: "#f85149", border: "1px solid rgba(248,81,73,.4)" }}>✗ não é isso — corrigir</button>
                       </>
                     )}
                   </div>
@@ -1179,18 +1179,18 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
             style={{ background: WA.campo, color: WA.txt }}
           />
           <button onClick={() => void enviarTeste()} disabled={!input.trim() || rodando} className="grid place-items-center rounded-full flex-none" style={{ width: 40, height: 40, background: "var(--grad)" }}>
-            {rodando ? <Loader2 size={16} className="animate-spin" style={{ color: "#0c0f15" }} /> : <ArrowUp size={17} style={{ color: "#0c0f15" }} />}
+            {rodando ? <Loader2 size={16} className="animate-spin" style={{ color: "#08090d" }} /> : <ArrowUp size={17} style={{ color: "#08090d" }} />}
           </button>
         </div>
       </div>
 
       {/* rail: a IA orienta o teste + placar honesto */}
       <div className="space-y-4">
-        <div className="card p-4" style={{ borderColor: "rgba(224,164,74,.35)", background: "linear-gradient(150deg, rgba(224,164,74,.07), var(--surface))" }}>
-          <div className="mono-label !text-[9px] mb-2.5" style={{ color: "#edc074" }}>Ela sugere o que testar</div>
+        <div className="card p-4" style={{ borderColor: "rgba(232,176,75,.35)", background: "linear-gradient(150deg, rgba(232,176,75,.07), var(--surface))" }}>
+          <div className="mono-label !text-[9px] mb-2.5" style={{ color: "#ecc06a" }}>Ela sugere o que testar</div>
           <div className="space-y-1.5">
             {sugestoes.map((s) => (
-              <button key={s} onClick={() => void enviarTeste(s)} className="block w-full text-left text-[12px] rounded-[9px] px-3 py-2 transition-colors hover:border-[rgba(224,164,74,.4)]" style={{ background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+              <button key={s} onClick={() => void enviarTeste(s)} className="block w-full text-left text-[12px] rounded-[9px] px-3 py-2 transition-colors hover:border-[rgba(232,176,75,.4)]" style={{ background: "var(--surface-2)", border: "1px solid var(--line)" }}>
                 “{s}”
               </button>
             ))}
@@ -1207,14 +1207,14 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
           <div className="mono-label !text-[9px] mb-2.5">Este teste</div>
           <div className="flex gap-5">
             <div><div className="num text-[20px] leading-none">{nPerg}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">perguntas</div></div>
-            <div><div className="num text-[20px] leading-none" style={{ color: "#34d399" }}>{nSim}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">é isso ✓</div></div>
-            <div><div className="num text-[20px] leading-none" style={{ color: "#fb7185" }}>{nNao}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">corrigindo</div></div>
+            <div><div className="num text-[20px] leading-none" style={{ color: "#3fb950" }}>{nSim}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">é isso ✓</div></div>
+            <div><div className="num text-[20px] leading-none" style={{ color: "#f85149" }}>{nNao}</div><div className="text-[9.5px] text-[var(--txt-3)] mt-1">corrigindo</div></div>
           </div>
           <p className="text-[10.5px] text-[var(--txt-3)] mt-3 leading-relaxed m-0">o “✗ não é isso” abre o Melhorar com a conversa já colada — corrige e testa de novo aqui.</p>
         </div>
 
-        <div className="card p-3.5 flex items-start gap-2.5" style={{ borderColor: "#34d39930" }}>
-          <ShieldCheck size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+        <div className="card p-3.5 flex items-start gap-2.5" style={{ borderColor: "#3fb95030" }}>
+          <ShieldCheck size={15} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
           <p className="text-[11px] text-[var(--txt-2)] leading-relaxed m-0"><b className="text-[var(--txt)]">{agent.real ? "É o cérebro de verdade" : "Demonstração"}</b> — {agent.real ? "o mesmo do ar, rodando sem ferramentas: não mexe no CRM, no estado nem no seu WhatsApp." : "na sua conta, este chat conversa com o cérebro real do ar."}</p>
         </div>
       </div>
@@ -1248,7 +1248,7 @@ function RodandoAgora({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhora
   }, [agent.id]);
 
   if (erro) {
-    return <div className="card p-5 text-[12.5px]" style={{ color: "#fb7185" }}>Não consegui ler o motor agora: {erro}</div>;
+    return <div className="card p-5 text-[12.5px]" style={{ color: "#f85149" }}>Não consegui ler o motor agora: {erro}</div>;
   }
   if (!rod) {
     return (
@@ -1275,7 +1275,7 @@ function RodandoAgora({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhora
           {semente ? (
             <span className="pill" style={{ color: "#fbbf24", borderColor: "#fbbf2440", background: "#fbbf2414" }}>cérebro-semente da vertical</span>
           ) : (
-            <span className="pill" style={{ color: "var(--emerald)", borderColor: "#34d39940", background: "#34d39914" }}>
+            <span className="pill" style={{ color: "var(--emerald)", borderColor: "#3fb95040", background: "#3fb95014" }}>
               versão {rod.versao}{rod.desde ? ` · no ar há ${tempoRelativo(rod.desde)}` : ""}
             </span>
           )}
@@ -1299,7 +1299,7 @@ function RodandoAgora({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhora
         {regras.map((r, i) => {
           const fato = ehFato(r);
           const sua = fato || ehSua(r);
-          const badge = fato ? { t: "🧾 fato seu", c: "#34d399" } : sua ? { t: "✦ sua", c: "#edc074" } : { t: "🔒 núcleo", c: "#838a99" };
+          const badge = fato ? { t: "🧾 fato seu", c: "#3fb950" } : sua ? { t: "✦ sua", c: "#ecc06a" } : { t: "🔒 núcleo", c: "#838a99" };
           return (
             <div key={i} className="flex items-start gap-2.5 py-2 border-b border-[var(--line)] last:border-0">
               <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none mt-0.5" style={{ color: badge.c, background: `${badge.c}14`, border: `1px solid ${badge.c}35` }}>{badge.t}</span>
@@ -1345,7 +1345,7 @@ function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar
     ? (cs ?? []).filter((r) => tipoDe(r) === "regra" && estadoDe(r)).map((r) => ({ titulo: String(r.intent ?? ""), estado: estadoDe(r)! }))
     : (agent.mapa?.ramos?.[0]?.regras ?? []).slice(0, 4).map((rg) => ({ titulo: `Se ${rg.se}`, estado: "no ar" as string }));
 
-  const estCor = (e: string) => (e === "no ar" ? "#34d399" : e === "guardado" ? "#58aae4" : "#fbbf24");
+  const estCor = (e: string) => (e === "no ar" ? "#3fb950" : e === "guardado" ? "#58aae4" : "#fbbf24");
   const Item = ({ titulo, estado }: { titulo: string; estado: string }) => (
     <div className="flex items-center gap-2 py-1.5 border-b border-[var(--line)] last:border-0 text-[12px]">
       <span className="flex-1 min-w-0 truncate">{titulo}</span>
@@ -1359,14 +1359,14 @@ function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar
       <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
         <div className="font-display font-semibold text-[16px] tracking-tight">Tudo que {agent.name} <span className="grad-text">sabe</span> — e onde vive</div>
         <div className="flex items-center gap-4">
-          <span className="text-[10.5px] text-[var(--txt-4)]"><b style={{ color: "#34d399" }}>{fatos.length}</b> fatos · <b style={{ color: "#58aae4" }}>{docs.length}</b> docs · <b style={{ color: "#edc074" }}>{regras.length}</b> regras</span>
+          <span className="text-[10.5px] text-[var(--txt-4)]"><b style={{ color: "#3fb950" }}>{fatos.length}</b> fatos · <b style={{ color: "#58aae4" }}>{docs.length}</b> docs · <b style={{ color: "#ecc06a" }}>{regras.length}</b> regras</span>
           <button className="btn btn-primary btn-sm" onClick={() => onMelhorar()}>+ Ensinar</button>
         </div>
       </div>
       <p className="text-[11px] text-[var(--txt-4)] mb-4">cada informação mostra onde vive e se está no ar — o “testar” abre a conversa de teste.</p>
 
       <div className="grid md:grid-cols-3 gap-3">
-        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(52,211,153,.3)", background: "var(--surface)" }}>
+        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(63,185,80,.3)", background: "var(--surface)" }}>
           <div className="flex items-center gap-2 mb-0.5"><span className="text-[15px]">🧾</span><b className="text-[13px]">Listas — fatos exatos</b></div>
           <div className="text-[10px] text-[var(--txt-4)] mb-2.5">preço, horário, link: responde sempre igual</div>
           {fatos.length === 0 ? (
@@ -1392,14 +1392,14 @@ function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar
           ) : (
             (docs as any[]).map((d, i) => (
               <div key={i} className="py-1.5 border-b border-[var(--line)] last:border-0">
-                <div className="flex items-center gap-2 text-[12px]"><span className="flex-1 truncate">{d.titulo}</span><span className="text-[9.5px] font-semibold" style={{ color: "#34d399" }}>no ar ✓</span></div>
+                <div className="flex items-center gap-2 text-[12px]"><span className="flex-1 truncate">{d.titulo}</span><span className="text-[9.5px] font-semibold" style={{ color: "#3fb950" }}>no ar ✓</span></div>
                 {d.uso && <div className="text-[10px] text-[var(--txt-4)] mt-0.5">{d.uso}</div>}
               </div>
             ))
           )}
         </div>
 
-        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(224,164,74,.35)", background: "var(--surface)" }}>
+        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(232,176,75,.35)", background: "var(--surface)" }}>
           <div className="flex items-center gap-2 mb-0.5"><span className="text-[15px]">⚙️</span><b className="text-[13px]">Motor — como ela age</b></div>
           <div className="text-[10px] text-[var(--txt-4)] mb-2.5">comportamento: só entra passando pelo ensaio</div>
           {regras.length === 0 ? (
@@ -1430,7 +1430,7 @@ function EnsaioProgresso() {
   return (
     <div className="card p-5">
       <div className="flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
-        <Loader2 size={15} className="animate-spin flex-none" style={{ color: "#e0a44a" }} />
+        <Loader2 size={15} className="animate-spin flex-none" style={{ color: "#e8b04b" }} />
         <span className="flex-1">{msg}</span>
         <span className="tick flex-none">{s}s</span>
       </div>
@@ -1554,9 +1554,9 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
           <h3 className="font-display text-[24px] font-bold tracking-tight m-0">Tudo que {agent.name} <span className="grad-text">já aprendeu</span></h3>
           <div className="flex gap-6 text-right">
             <div><div className="num text-[24px] leading-none">{nAr}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">no ar</div></div>
-            <div><div className="num text-[24px] leading-none" style={{ color: "#edc074" }}>{nSuas}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">suas</div></div>
+            <div><div className="num text-[24px] leading-none" style={{ color: "#ecc06a" }}>{nSuas}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">suas</div></div>
             <div><div className="num text-[24px] leading-none" style={{ color: "#58aae4" }}>{nMet}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">da Metrik</div></div>
-            <div><div className="num text-[24px] leading-none" style={{ color: nSeg > 0 ? "#fb7185" : "#34d399" }}>{nSeg}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">seguradas 🛡</div></div>
+            <div><div className="num text-[24px] leading-none" style={{ color: nSeg > 0 ? "#f85149" : "#3fb950" }}>{nSeg}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">seguradas 🛡</div></div>
           </div>
         </div>
         <div className="card px-5">
@@ -1564,15 +1564,15 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
           {linhas.map((h, i) => {
             const b = BADGE_ORIGEM[h.origem] ?? BADGE_ORIGEM.chat;
             const segurada = h.estado === "segurada" || h.estado === "rejeitado";
-            const ec = h.estado === "no ar" ? "#34d399" : segurada ? "#fb7185" : "#fbbf24";
+            const ec = h.estado === "no ar" ? "#3fb950" : segurada ? "#f85149" : "#fbbf24";
             return (
               <div key={i} className="flex items-center gap-4 py-3.5 border-b border-[var(--line)] last:border-0">
-                <span className="grid place-items-center rounded-[7px] flex-none text-[10px] font-bold" style={{ width: 66, height: 24, background: `${segurada ? "#fb7185" : b.cor}1f`, border: `1px solid ${segurada ? "#fb7185" : b.cor}55`, color: segurada ? "#fb7185" : b.cor }}>{b.label}</span>
+                <span className="grid place-items-center rounded-[7px] flex-none text-[10px] font-bold" style={{ width: 66, height: 24, background: `${segurada ? "#f85149" : b.cor}1f`, border: `1px solid ${segurada ? "#f85149" : b.cor}55`, color: segurada ? "#f85149" : b.cor }}>{b.label}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13.5px] font-medium leading-snug">{h.oque}</div>
-                  <div className="text-[10.5px] mt-0.5" style={{ color: segurada ? "#fb7185" : "var(--txt-4)" }}>{[h.quando, h.prova].filter(Boolean).join(" · ")}</div>
+                  <div className="text-[10.5px] mt-0.5" style={{ color: segurada ? "#f85149" : "var(--txt-4)" }}>{[h.quando, h.prova].filter(Boolean).join(" · ")}</div>
                 </div>
-                {h.rendeu && <span className="text-[10.5px] font-semibold rounded-[7px] px-2.5 py-1 flex-none hidden sm:block" style={{ color: "#34d399", background: "rgba(52,211,153,.08)" }}>{h.rendeu}</span>}
+                {h.rendeu && <span className="text-[10.5px] font-semibold rounded-[7px] px-2.5 py-1 flex-none hidden sm:block" style={{ color: "#3fb950", background: "rgba(63,185,80,.08)" }}>{h.rendeu}</span>}
                 <span className="pill flex-none" style={{ color: ec, borderColor: `${ec}40`, background: `${ec}14` }}>{segurada ? "segurada 🛡" : h.estado === "no ar" ? "no ar ✓" : h.estado}</span>
               </div>
             );
@@ -1595,19 +1595,19 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
 
       {/* ── PASSO 1 · fala ou escreve, do seu jeito (canvas Porta Única) ── */}
       <div className="flex gap-3.5">
-        <StepBadge n={1} cor="#e0a44a" ativo={envio.fase === "idle" || envio.fase === "clarificar"} />
-        <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "rgba(224,164,74,.3)", background: "linear-gradient(150deg, rgba(224,164,74,.06), var(--surface))" }}>
+        <StepBadge n={1} cor="#e8b04b" ativo={envio.fase === "idle" || envio.fase === "clarificar"} />
+        <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "rgba(232,176,75,.3)", background: "linear-gradient(150deg, rgba(232,176,75,.06), var(--surface))" }}>
           <div className="font-display font-bold text-[16px] tracking-tight mb-3">Fala ou escreve — <span className="grad-text">do seu jeito</span></div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setGravando((g) => !g)}
               title={gravando ? "parar — o áudio vira texto no campo" : "falar em vez de digitar"}
               className="grid place-items-center rounded-full flex-none transition-transform hover:scale-105"
-              style={{ width: 54, height: 54, background: gravando ? "#fb7185" : "var(--grad)", boxShadow: gravando ? "0 0 0 5px rgba(251,113,133,.18)" : "0 12px 26px -14px rgba(224,164,74,.7)" }}
+              style={{ width: 54, height: 54, background: gravando ? "#f85149" : "var(--grad)", boxShadow: gravando ? "0 0 0 5px rgba(248,81,73,.18)" : "0 12px 26px -14px rgba(232,176,75,.7)" }}
             >
-              <Mic size={22} style={{ color: "#0c0f15" }} />
+              <Mic size={22} style={{ color: "#08090d" }} />
             </button>
-            <div className="melhorar-campo flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 transition-colors flex-1 min-w-0" style={gravando ? { borderColor: "#fb718560" } : undefined}>
+            <div className="melhorar-campo flex items-end gap-2 rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] p-2 transition-colors flex-1 min-w-0" style={gravando ? { borderColor: "#f8514960" } : undefined}>
               <textarea
                 rows={2}
                 value={texto}
@@ -1622,8 +1622,8 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
             </button>
           </div>
           {gravando ? (
-            <div className="text-[11px] mt-2.5 flex items-center gap-1.5" style={{ color: "#fb7185" }}>
-              <span className="live-dot" style={{ width: 6, height: 6, background: "#fb7185" }} /> gravando… fale e toque no microfone — vira texto no campo
+            <div className="text-[11px] mt-2.5 flex items-center gap-1.5" style={{ color: "#f85149" }}>
+              <span className="live-dot" style={{ width: 6, height: 6, background: "#f85149" }} /> gravando… fale e toque no microfone — vira texto no campo
             </div>
           ) : (
             <div className="text-[10.5px] text-[var(--txt-4)] mt-2.5">bagunçado serve · áudio vira texto na hora · o núcleo é blindado</div>
@@ -1678,16 +1678,16 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
 
       {/* ── PASSO 3 · a prova (ensaio) e o publicar ── */}
       <div className="flex gap-3.5">
-        <StepBadge n={3} cor="#34d399" ativo={envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "guardado" || envio.fase === "erro"} />
+        <StepBadge n={3} cor="#3fb950" ativo={envio.fase === "registrando" || envio.fase === "ensaiando" || envio.fase === "pronto" || envio.fase === "publicando" || envio.fase === "publicado" || envio.fase === "guardado" || envio.fase === "erro"} />
         <div className="flex-1 min-w-0 space-y-4">
           {envio.fase === "registrando" && (
             <div className="card p-5 flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
-              <Loader2 size={15} className="animate-spin" style={{ color: "#e0a44a" }} /> anotando o pedido…
+              <Loader2 size={15} className="animate-spin" style={{ color: "#e8b04b" }} /> anotando o pedido…
             </div>
           )}
           {envio.fase === "ensaiando" && <EnsaioProgresso />}
           {envio.fase === "erro" && (
-            <div className="card p-4 text-[12.5px]" style={{ borderColor: "#fb718540", background: "rgba(251,113,133,.06)", color: "#fb7185" }}>{envio.erro}</div>
+            <div className="card p-4 text-[12.5px]" style={{ borderColor: "#f8514940", background: "rgba(248,81,73,.06)", color: "#f85149" }}>{envio.erro}</div>
           )}
           {envio.fase === "guardado" && (
             <div className="card p-5" style={{ borderColor: "rgba(88,170,228,.4)", background: "linear-gradient(160deg, rgba(88,170,228,.06), var(--surface))" }}>
@@ -1705,9 +1705,9 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
       {/* ── ENSAIO: a simulação claríssima — antes vs agora + guardião ── */}
       {envio.fase === "pronto" && envio.evals && (
         <Reveal>
-          <div className="card p-5 md:p-6" style={{ borderColor: "#e0a44a2e" }}>
+          <div className="card p-5 md:p-6" style={{ borderColor: "#e8b04b2e" }}>
             <div className="flex items-center gap-2 mb-1">
-              <FlaskConical size={17} style={{ color: "#e0a44a" }} />
+              <FlaskConical size={17} style={{ color: "#e8b04b" }} />
               <span className="font-display font-semibold text-[16px]">O ensaio da sua mudança</span>
             </div>
             <p className="text-[13.5px] text-[var(--txt-2)] mb-4">Você pediu: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
@@ -1716,10 +1716,10 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
               <>
                 {/* GUARDIÃO — testou o SEU pedido de verdade (cérebro ligado) */}
                 <div className="rounded-xl px-4 py-3 mb-5 flex items-center gap-3" style={{
-                  border: `1px solid ${envio.evals.aprovado ? "#34d39938" : "#fb718538"}`,
-                  background: envio.evals.aprovado ? "rgba(52,211,153,.07)" : "rgba(251,113,133,.07)",
+                  border: `1px solid ${envio.evals.aprovado ? "#3fb95038" : "#f8514938"}`,
+                  background: envio.evals.aprovado ? "rgba(63,185,80,.07)" : "rgba(248,81,73,.07)",
                 }}>
-                  <ShieldCheck size={20} style={{ color: envio.evals.aprovado ? "#34d399" : "#fb7185" }} className="flex-none" />
+                  <ShieldCheck size={20} style={{ color: envio.evals.aprovado ? "#3fb950" : "#f85149" }} className="flex-none" />
                   <div className="min-w-0 flex-1">
                     <div className="text-[13.5px] font-medium text-[var(--txt)]">
                       {envio.evals.aprovado
@@ -1740,7 +1740,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
                       <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)] flex items-center gap-2 flex-wrap">
                         <span><span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}</span>
                         {s.nome === "do seu pedido" && (
-                          <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none" style={{ color: "#edc074", background: "rgba(224,164,74,.14)", border: "1px solid rgba(224,164,74,.4)" }}>do SEU pedido</span>
+                          <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none" style={{ color: "#ecc06a", background: "rgba(232,176,75,.14)", border: "1px solid rgba(232,176,75,.4)" }}>do SEU pedido</span>
                         )}
                       </div>
                       <div className="grid md:grid-cols-2">
@@ -1748,8 +1748,8 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
                           <div className="mono-label !text-[9px] mb-1.5 !text-[var(--txt-4)]">antes</div>
                           <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{s.antes}</p>
                         </div>
-                        <div className="p-4 border-t border-[var(--line)]" style={{ background: "rgba(52,211,153,.05)" }}>
-                          <div className="mono-label !text-[9px] mb-1.5" style={{ color: "#34d399" }}>agora</div>
+                        <div className="p-4 border-t border-[var(--line)]" style={{ background: "rgba(63,185,80,.05)" }}>
+                          <div className="mono-label !text-[9px] mb-1.5" style={{ color: "#3fb950" }}>agora</div>
                           <p className="text-[13px] text-[var(--txt)] leading-relaxed">{s.agora}</p>
                         </div>
                       </div>
@@ -1784,7 +1784,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-[11.5px] text-[var(--txt-4)] mb-5">
-                  <ShieldCheck size={13} style={{ color: "#34d399" }} /> só dá pra dizer o básico: o pedido não pede nada que quebre as travas do núcleo. Testar SE ele faz o que você quer, só com o cérebro ligado.
+                  <ShieldCheck size={13} style={{ color: "#3fb950" }} /> só dá pra dizer o básico: o pedido não pede nada que quebre as travas do núcleo. Testar SE ele faz o que você quer, só com o cérebro ligado.
                 </div>
                 <div className="pt-4 border-t border-[var(--line)]">
                   <div className="text-[14px] font-medium text-[var(--txt)] mb-3">O que você quer fazer?</div>
@@ -1801,12 +1801,12 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
 
       {(envio.fase === "publicando" || envio.fase === "publicado") && (
         <Reveal>
-          <div className="card p-5 flex items-center gap-3" style={{ borderColor: envio.fase === "publicado" ? "#34d39940" : "var(--line)", background: envio.fase === "publicado" ? "rgba(52,211,153,.06)" : undefined }}>
+          <div className="card p-5 flex items-center gap-3" style={{ borderColor: envio.fase === "publicado" ? "#3fb95040" : "var(--line)", background: envio.fase === "publicado" ? "rgba(63,185,80,.06)" : undefined }}>
             {envio.fase === "publicando" ? (
-              <><Loader2 size={18} className="animate-spin" style={{ color: "#e0a44a" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
+              <><Loader2 size={18} className="animate-spin" style={{ color: "#e8b04b" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
             ) : (
               <>
-                <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid rgba(52,211,153,.34)" }}><Check size={17} style={{ color: "#34d399" }} /></div>
+                <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(63,185,80,.14)", border: "1px solid rgba(63,185,80,.34)" }}><Check size={17} style={{ color: "#3fb950" }} /></div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-medium text-[var(--txt)]">No ar! A mudança já está valendo pra sua IA.</div>
                   <div className="text-[12px] text-[var(--txt-3)] mt-0.5">Virou uma nova versão — prova na prática:</div>
@@ -1849,7 +1849,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
           {linhas.length === 0 && <p className="text-[11.5px] text-[var(--txt-3)]">A primeira mudança que você pedir aparece aqui.</p>}
           {linhas.slice(0, 3).map((h, i) => {
             const segurada = h.estado === "segurada" || h.estado === "rejeitado";
-            const ec = h.estado === "no ar" ? "#34d399" : segurada ? "#fb7185" : "#fbbf24";
+            const ec = h.estado === "no ar" ? "#3fb950" : segurada ? "#f85149" : "#fbbf24";
             return (
               <div key={i} className="flex items-center gap-2 py-1.5 border-b border-[var(--line)] last:border-0 text-[11.5px]">
                 <span className="flex-1 min-w-0 truncate text-[var(--txt-2)]">{h.oque}</span>

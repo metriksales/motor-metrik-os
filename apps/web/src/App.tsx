@@ -83,7 +83,7 @@ export default function App() {
       {/* SIDEBAR */}
       <aside className="relative z-10 w-[248px] flex-none hidden md:flex flex-col glass border-r border-[var(--line)] p-3.5">
         <div className="flex items-center gap-2.5 px-1.5 py-2 mb-1">
-          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 34, height: 34, background: "var(--grad)", boxShadow: "0 8px 22px -10px #e0a44a" }}>
+          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 34, height: 34, background: "var(--grad)", boxShadow: "0 8px 22px -10px #e8b04b" }}>
             <Gauge size={19} style={{ color: "#0a0714" }} strokeWidth={2.2} />
           </span>
           <div className="leading-none">
@@ -129,8 +129,8 @@ export default function App() {
         <div className="pt-3 mt-2 border-t border-[var(--line)] space-y-2.5">
           <div className="flex items-center justify-between px-1.5">
             <div className="flex items-center gap-2 text-[11px] text-[var(--txt-3)]">
-              <span className="dot" style={{ background: "#34d399" }} /> Claude Code
-              <span className="dot ml-1" style={{ background: "#34d399" }} /> Codex
+              <span className="dot" style={{ background: "#3fb950" }} /> Claude Code
+              <span className="dot ml-1" style={{ background: "#3fb950" }} /> Codex
             </div>
             <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="btn-ghost btn !p-1.5 !rounded-lg" aria-label="Alternar tema">
               {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
@@ -151,8 +151,8 @@ export default function App() {
         <header className="flex-none flex items-center justify-between gap-3 px-4 md:px-7 h-[62px] border-b border-[var(--line)] glass">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* celular: logo = voltar pro Início (âncora de "casa" sempre visível) */}
-            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #e0a44a" }} aria-label="Início">
-              <Gauge size={17} style={{ color: "#0c0f15" }} strokeWidth={2.2} />
+            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #e8b04b" }} aria-label="Início">
+              <Gauge size={17} style={{ color: "#08090d" }} strokeWidth={2.2} />
             </button>
             <div className="min-w-0">
               <h1 className="font-display font-semibold text-[16px] tracking-tight leading-none truncate">{agent ? agent.name : nav.label}</h1>
@@ -184,7 +184,7 @@ export default function App() {
                             const nota = p.impact?.evals?.taxa != null ? (p.impact.evals.taxa * 10).toFixed(1).replace(".", ",") : null;
                             return (
                               <button key={p.id} onClick={() => openAgent(p.agentId, "melhorar")} className="w-full text-left rounded-xl p-2.5 hover:bg-[var(--surface-2)] transition-colors flex gap-2.5">
-                                <span className="grid place-items-center rounded-md flex-none mt-0.5" style={{ width: 18, height: 18, background: "rgba(52,211,153,.16)", border: "1px solid rgba(52,211,153,.34)", color: "#34d399", fontSize: 10, fontWeight: 700 }}>✓</span>
+                                <span className="grid place-items-center rounded-md flex-none mt-0.5" style={{ width: 18, height: 18, background: "rgba(63,185,80,.16)", border: "1px solid rgba(63,185,80,.34)", color: "#3fb950", fontSize: 10, fontWeight: 700 }}>✓</span>
                                 <div className="min-w-0">
                                   <div className="text-[12.5px] font-medium">{p.agentName} · passou no porteiro{nota ? ` · nota ${nota}` : ""}</div>
                                   <div className="text-[11.5px] text-[var(--txt-3)] truncate">“{p.intent}” — falta você aprovar</div>
@@ -205,7 +205,7 @@ export default function App() {
                       )}
                     </div>
                     <div className="px-3 py-2.5 border-t border-[var(--line)] flex items-center justify-between">
-                      <span className="text-[12px] text-[var(--txt-2)] flex items-center gap-1.5"><MessageCircle size={13} style={{ color: "#34d399" }} /> Receber no WhatsApp</span>
+                      <span className="text-[12px] text-[var(--txt-2)] flex items-center gap-1.5"><MessageCircle size={13} style={{ color: "#3fb950" }} /> Receber no WhatsApp</span>
                       <button onClick={() => setWa((v) => !v)}><Toggle on={wa} /></button>
                     </div>
                   </motion.div>
@@ -234,14 +234,14 @@ export default function App() {
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-thin px-4 md:px-7 py-6 pb-24 md:pb-6">
           {/* modo DEMO: deixa claro que é EXEMPLO — a conta real começa limpa */}
           {auth.demo && (
-            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ borderColor: "rgba(224,164,74,.35)", background: "rgba(224,164,74,.08)", color: "var(--txt-2)" }}>
-              <Sparkles size={14} style={{ color: "#e0a44a" }} className="flex-none" />
+            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ borderColor: "rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)", color: "var(--txt-2)" }}>
+              <Sparkles size={14} style={{ color: "#e8b04b" }} className="flex-none" />
               <span><b className="text-[var(--txt)]">Isto é um exemplo</b> — números e conversas de demonstração. A sua conta começa limpa e vai enchendo sozinha conforme a IA trabalha.</span>
             </div>
           )}
           {/* modo LOGADO: falha real da API nunca vira maquete — vira aviso claro */}
           {!auth.demo && erro && (
-            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]" style={{ borderColor: "rgba(251,113,133,.4)", background: "rgba(251,113,133,.08)", color: "#fb7185" }}>
+            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]" style={{ borderColor: "rgba(248,81,73,.4)", background: "rgba(248,81,73,.08)", color: "#f85149" }}>
               Não consegui falar com o motor agora: <span className="font-mono">{erro}</span>. A Metrik já enxerga isso do outro lado — se persistir, chama a gente.
             </div>
           )}

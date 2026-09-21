@@ -45,7 +45,7 @@ function Agenda({ w, color }: { w: Work; color: string }) {
                 <div className="text-[13.5px] font-medium truncate">{a.quem}</div>
                 <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--txt-3)] mt-0.5"><CI size={11} /> {a.canal}</div>
               </div>
-              <Pill color={ok ? "#34d399" : "#fbbf24"}>{a.status}</Pill>
+              <Pill color={ok ? "#3fb950" : "#fbbf24"}>{a.status}</Pill>
             </li>
           );
         })}
@@ -57,9 +57,9 @@ function Agenda({ w, color }: { w: Work; color: string }) {
 function Followups({ w, color }: { w: Work; color: string }) {
   const items = w.followups ?? [];
   const meta: Record<string, { color: string; label: string }> = {
-    agora: { color: "#e0a44a", label: "enviando" },
+    agora: { color: "#e8b04b", label: "enviando" },
     agendado: { color: "#58aae4", label: "vai enviar" },
-    feito: { color: "#34d399", label: "enviado" },
+    feito: { color: "#3fb950", label: "enviado" },
   };
   return (
     <div className="card p-5">
@@ -97,7 +97,7 @@ function Followups({ w, color }: { w: Work; color: string }) {
 function Contratos({ w }: { w: Work }) {
   const items = w.contratos ?? [];
   const meta: Record<string, { color: string }> = {
-    assinado: { color: "#34d399" }, enviado: { color: "#58aae4" }, vencendo: { color: "#fbbf24" }, expirado: { color: "#fb7185" },
+    assinado: { color: "#3fb950" }, enviado: { color: "#58aae4" }, vencendo: { color: "#fbbf24" }, expirado: { color: "#f85149" },
   };
   const atencao = items.filter((c) => c.status === "vencendo" || c.status === "expirado");
   return (
@@ -158,7 +158,7 @@ function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelh
               <ul className="space-y-1.5">
                 {doCat.map((i, idx) => (
                   <li key={idx} className="flex items-start gap-2.5 rounded-lg px-3 py-2" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
-                    <Check size={14} className="flex-none mt-0.5" style={{ color: "#34d399" }} />
+                    <Check size={14} className="flex-none mt-0.5" style={{ color: "#3fb950" }} />
                     <span className="text-[13px] text-[var(--txt)] leading-snug">{i.titulo}</span>
                   </li>
                 ))}
@@ -169,9 +169,9 @@ function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelh
       </div>
 
       {/* HANDOFF — ensinar algo novo é ação → só no Melhorar */}
-      <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3.5" style={{ borderColor: "#e0a44a2e", background: "linear-gradient(160deg, rgba(224,164,74,.06), var(--surface))" }}>
-        <span className="grid place-items-center rounded-xl flex-none" style={{ width: 40, height: 40, background: "rgba(224,164,74,.14)", border: "1px solid #e0a44a40" }}>
-          <BookOpen size={19} style={{ color: "#e0a44a" }} />
+      <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3.5" style={{ borderColor: "#e8b04b2e", background: "linear-gradient(160deg, rgba(232,176,75,.06), var(--surface))" }}>
+        <span className="grid place-items-center rounded-xl flex-none" style={{ width: 40, height: 40, background: "rgba(232,176,75,.14)", border: "1px solid #e8b04b40" }}>
+          <BookOpen size={19} style={{ color: "#e8b04b" }} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-[14px] font-medium text-[var(--txt)]">Quer ensinar algo novo — um plano, um preço, uma objeção?</div>
@@ -217,7 +217,7 @@ function Acoes({ w, color }: { w: Work; color: string }) {
               <div className="text-[12px] text-[var(--txt-3)]">a IA dispara sozinha no gatilho acima — você acompanha no log</div>
             </div>
           </div>
-          <Pill color="#34d399"><span className="live-dot" style={{ width: 6, height: 6, background: "#34d399" }} /> na fila</Pill>
+          <Pill color="#3fb950"><span className="live-dot" style={{ width: 6, height: 6, background: "#3fb950" }} /> na fila</Pill>
         </div>
       </div>
 
@@ -230,8 +230,8 @@ function Acoes({ w, color }: { w: Work; color: string }) {
         <ul className="space-y-1">
           {a.log.map((l, i) => (
             <li key={i} className={cx("flex items-center gap-3 py-2.5", i !== a.log.length - 1 && "border-b border-[var(--line)]")}>
-              <span className="grid place-items-center rounded-lg flex-none" style={{ width: 28, height: 28, background: l.ok ? "rgba(52,211,153,.16)" : "rgba(251,113,133,.16)", border: `1px solid ${l.ok ? "#34d39930" : "#fb718530"}` }}>
-                {l.ok ? <Check size={14} style={{ color: "#34d399" }} /> : <X size={14} style={{ color: "#fb7185" }} />}
+              <span className="grid place-items-center rounded-lg flex-none" style={{ width: 28, height: 28, background: l.ok ? "rgba(63,185,80,.16)" : "rgba(248,81,73,.16)", border: `1px solid ${l.ok ? "#3fb95030" : "#f8514930"}` }}>
+                {l.ok ? <Check size={14} style={{ color: "#3fb950" }} /> : <X size={14} style={{ color: "#f85149" }} />}
               </span>
               <span className="text-[13px] text-[var(--txt)] flex-1 truncate">{l.quem}</span>
               <span className="tick">{l.quando}</span>

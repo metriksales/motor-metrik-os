@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, AlertCircle, Wallet, ArrowRight, Sparkles, Radio, ShieldCheck, GraduationCap, BadgeCheck } from "lucide-react";
+import { AlertCircle, ArrowRight, Sparkles, ShieldCheck, GraduationCap, BadgeCheck } from "lucide-react";
 import { STATS, type ViewId } from "../data";
 import { useAgents } from "../lib/agents";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
-import { Reveal, Delta, Skeleton, cx } from "../ui";
+import { Reveal, Delta, Skeleton } from "../ui";
 import { Robot } from "../Robot";
 import FechamentoDia from "./FechamentoDia";
 import Marcos from "./Marcos";
 
+// O Início é o ESTADO DA OPERAÇÃO, não uma landing page: placar do dia,
+// a frota em linhas, o que precisa de você e o que acabou de acontecer.
+// Mesma gramática do Estúdio — denso, mono nos dados, honesto.
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
   const auth = useMotorAuth();
   const { agents } = useAgents();
@@ -49,82 +52,97 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
     : STATS;
 
   return (
-    <div className="space-y-6">
-      {/* HERO — banner com peso (linha Bridge) */}
+    <div className="space-y-4">
+      {/* ── HOJE — o placar da operação, sem discurso ── */}
       <Reveal>
-        <div className="hero-banner card-hover relative overflow-hidden rounded-2xl">
-          <div className="aurora !opacity-50" />
-          <div className="relative p-7 md:p-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="live-dot" />
-                <span className="mono-label" style={{ color: "var(--emerald)" }}>{ativos} de {agents.length} agentes trabalhando</span>
-              </div>
-              <h1 className="font-display font-bold tracking-tight leading-[1.02] text-[34px] md:text-[47px]">
-                Sua operação está <span className="grad-text">trabalhando sozinha</span>.
-              </h1>
-              {stats && fora.length > 0 ? (
-                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed" style={{ color: "var(--txt-2)" }}>
-                  <span className="font-medium" style={{ color: "var(--txt)" }}>Enquanto você esteve fora</span>{" "}
-                  <span style={{ color: "var(--txt-3)" }}>(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
-                  {fora.length === 1 ? "atendimento" : "atendimentos"}
-                  {foraReunioes > 0 && <> · {foraReunioes} {foraReunioes === 1 ? "reunião marcada" : "reuniões marcadas"}</>}
-                  {foraValor > 0 && <> · <span style={{ color: "var(--emerald)" }}>+{reais(foraValor)}</span></>}
-                </p>
-              ) : (
-                <p className="mt-4 text-[15px] md:text-[16px] leading-relaxed max-w-xl" style={{ color: "var(--txt-2)" }}>
-                  Uma frota de robôs atende, qualifica, agenda, recupera e rastreia — cada um blindado.
-                  Você só observa e, quando quiser, pede uma melhoria.
-                </p>
-              )}
-              <div className="flex gap-2.5 mt-6">
-                <button className="btn btn-primary" onClick={() => go("aovivo")}><Radio size={15} /> Ver ao vivo</button>
-                <button className="btn" onClick={() => go("agentes")}>Abrir a frota</button>
-              </div>
+        <div className="card overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 border-b border-[var(--line)]">
+            <div className="flex items-center gap-2">
+              <span className="live-dot" />
+              <span className="mono-label">Hoje · {ativos} de {agents.length} no ar</span>
             </div>
-
-            {/* fleet strip */}
-            <div className="flex-none">
-              <div className="mono-label mb-2.5">A frota</div>
-              <div className="flex gap-2">
-                {agents.map((a) => (
-                  <button key={a.id} onClick={() => onOpen(a.id)} title={a.name} className="rounded-lg p-1.5 border card-hover" style={{ borderColor: a.state === "ativo" ? `${a.color}30` : "var(--line)", background: a.state === "ativo" ? `${a.color}12` : "var(--surface)" }}>
-                    <Robot state={a.state} color={a.color} size={40} />
-                  </button>
-                ))}
-              </div>
-            </div>
+            {stats && fora.length > 0 ? (
+              <span className="text-[12px] text-[var(--txt-3)]">
+                enquanto você esteve fora <span className="text-[var(--txt-4)]">(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
+                {fora.length === 1 ? "atendimento" : "atendimentos"}
+                {foraReunioes > 0 && <> · {foraReunioes} {foraReunioes === 1 ? "reunião" : "reuniões"}</>}
+                {foraValor > 0 && <> · <span style={{ color: "var(--emerald)" }}>+{reais(foraValor)}</span></>}
+              </span>
+            ) : (
+              <span className="text-[12px] text-[var(--txt-4)]">
+                {stats ? "dados reais da sua conta" : "números de demonstração"}
+              </span>
+            )}
           </div>
+
+          {carregandoReal ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[var(--line)]">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-[var(--surface)] px-5 py-4">
+                  <Skeleton style={{ width: "60%", height: 11 }} />
+                  <Skeleton className="mt-3" style={{ width: "45%", height: 24 }} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[var(--line)]">
+              {kpis.map((s) => (
+                <div key={s.label} className="bg-[var(--surface)] px-5 py-4">
+                  <div className="text-[12px] text-[var(--txt-3)] mb-2">{s.label}</div>
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="num text-[25px] leading-none">{s.value}</div>
+                    <Delta up={s.up}>{s.delta}</Delta>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {stats && (
+            <div className="px-5 py-2.5 border-t border-[var(--line)] font-mono text-[11.5px] text-[var(--txt-3)]">
+              {reunioesHoje} {reunioesHoje === 1 ? "reunião marcada" : "reuniões marcadas"} hoje
+              <span className="text-[var(--txt-4)]"> · </span>semana {reais(stats.valor7dCentavos ?? 0)}
+              <span className="text-[var(--txt-4)]"> · </span>desde o início {reais(stats.valorTotalCentavos ?? 0)}
+            </div>
+          )}
         </div>
       </Reveal>
 
       {/* marco alcançado (aparece 1× quando cruza um degrau real) */}
       <Marcos stats={stats} orgKey={auth.orgId ?? "demo"} />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {carregandoReal
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="card p-4">
-                <Skeleton style={{ width: "60%", height: 11 }} />
-                <Skeleton className="mt-3" style={{ width: "45%", height: 24 }} />
+      {/* ── A FROTA — cada robô é uma linha; clicar abre o Estúdio dele ── */}
+      <Reveal delay={0.04}>
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3">
+            <span className="mono-label">A frota · {agents.length}</span>
+            <button className="text-[12px] flex items-center gap-1" style={{ color: "var(--violet)" }} onClick={() => go("agentes")}>
+              abrir a frota <ArrowRight size={13} />
+            </button>
+          </div>
+          {agents.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => onOpen(a.id)}
+              className="w-full flex items-center gap-3 px-5 py-3 border-t border-[var(--line)] text-left transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <Robot state={a.state} color={a.color} size={26} />
+              <div className="min-w-0 flex-none w-36 md:w-44">
+                <div className="text-[13.5px] font-semibold text-[var(--txt)] truncate">{a.name}</div>
+                <div className="text-[11.5px] text-[var(--txt-4)] truncate">{a.papel}</div>
               </div>
-            ))
-          : kpis.map((s, i) => (
-              <Reveal key={s.label} delay={0.04 * i}>
-                <div
-                  className={cx("card card-hover p-4", s.value.startsWith("R$") && "money-glow")}
-                  style={s.value.startsWith("R$") ? { borderColor: "rgba(52,211,153,.35)" } : undefined}
-                >
-                  <div className="text-[12.5px] text-[var(--txt-3)] mb-2">{s.label}</div>
-                  <div className="flex items-end justify-between">
-                    <div className="num text-[26px] leading-none">{s.value}</div>
-                    <Delta up={s.up}>{s.delta}</Delta>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-      </div>
+              <span className="hidden md:block flex-1 min-w-0 text-[13px] text-[var(--txt-3)] truncate">{a.agora}</span>
+              <span
+                className="font-mono text-[11.5px] flex-none"
+                style={{ color: a.state === "ativo" ? "var(--emerald)" : "var(--txt-4)" }}
+              >
+                {a.state === "ativo" ? "no ar" : "pausado"}
+              </span>
+              <ArrowRight size={14} className="flex-none text-[var(--txt-4)]" />
+            </button>
+          ))}
+        </div>
+      </Reveal>
 
       {/* POR QUE ISSO NÃO É UM CHATBOT — pitch de venda: SÓ na vitrine (demo).
           Cliente pagante não precisa ser revendido todo dia. */}
@@ -132,20 +150,20 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
         <Reveal delay={0.05}>
           <div className="card p-5 md:p-6">
             <div className="mono-label mb-1.5">Por que isso não é (mais um) robozinho</div>
-            <h2 className="font-display text-[17px] md:text-[19px] font-semibold tracking-tight mb-4 max-w-2xl leading-snug">
+            <h2 className="font-display text-[16px] md:text-[18px] font-semibold tracking-tight mb-4 max-w-2xl leading-snug">
               Ferramenta de US$97 você configura e torce.{" "}
               <span className="grad-text">Aqui, uma operação inteira trabalha — e te mostra a prova.</span>
             </h2>
             <div className="grid md:grid-cols-3 gap-3">
               <Pilar
                 icon={ShieldCheck}
-                color="#34d399"
+                color="#3fb950"
                 titulo="Operado com prova"
                 texto="A Metrik constrói e opera. Cada execução vira uma linha na sua caixa-preta — o que fez, por quê, e quanto rendeu."
               />
               <Pilar
                 icon={GraduationCap}
-                color="#e0a44a"
+                color="#e8b04b"
                 titulo="Escola"
                 texto="A IA errou? Você corrige apontando, como faria com uma pessoa. O motor aprende sem você tocar em nada por dentro."
               />
@@ -160,64 +178,87 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
         </Reveal>
       )}
 
-      {/* decisões — com dado real quando existe; mock SÓ na vitrine */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Reveal delay={0.05}>
-          <Decision
-            icon={CheckCircle2}
-            color="#34d399"
-            titulo="Aconteceu"
-            linhas={
-              stats
-                ? [
-                    `${stats.execucoes} ${stats.execucoes === 1 ? "atendimento" : "atendimentos"} hoje`,
-                    stats.taxa != null ? `${Math.round(stats.taxa * 100)}% de acerto` : "sem atendimentos ainda hoje",
-                    `${reunioesHoje} ${reunioesHoje === 1 ? "reunião marcada" : "reuniões marcadas"}`,
-                  ]
-                : ["774 execuções hoje", "99,3% de acerto", "5 reuniões marcadas"]
-            }
-          />
-        </Reveal>
-        <Reveal delay={0.1}>
-          <div className="card card-hover p-5 h-full" style={{ borderColor: "#fbbf2433", background: "linear-gradient(160deg, rgba(251,191,36,.07), var(--surface))" }}>
-            <div className="flex items-center gap-2.5 mb-3">
-              <AlertCircle size={18} style={{ color: "#fbbf24" }} />
-              <span className="font-display font-semibold text-[15px]">Precisa de você</span>
+      {/* ── AO VIVO + o que precisa de você + pedir melhoria ── */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Reveal delay={0.05} className="lg:col-span-2">
+          <div className="card overflow-hidden h-full">
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="mono-label">Ao vivo</span>
+              <button className="text-[12px] flex items-center gap-1" style={{ color: "var(--violet)" }} onClick={() => go("aovivo")}>
+                ver tudo <ArrowRight size={13} />
+              </button>
             </div>
-            <ul className="space-y-2 text-[13.5px] text-[var(--txt-2)]">
-              {stats ? (
-                errosHoje.length > 0 ? (
-                  errosHoje.slice(0, 2).map((l) => (
-                    <li key={l.id} className="flex gap-2"><b className="text-[var(--txt)]">{agents.find((a) => a.id === l.agentId)?.name ?? "Motor"}</b> {l.erro ?? l.resumo}</li>
-                  ))
-                ) : (
-                  <li className="flex gap-2">nada pendente — a frota está rodando sozinha ✓</li>
-                )
-              ) : (
-                <>
-                  <li className="flex gap-2"><b className="text-[var(--txt)]">Recuperador</b> bateu no limite de toques 1×</li>
-                  <li className="flex gap-2"><b className="text-[var(--txt)]">Contratos</b> está pausado</li>
-                </>
-              )}
-            </ul>
-            <button className="btn btn-sm mt-4 w-full justify-between" onClick={() => go("agentes")}>Abrir a frota <ArrowRight size={15} /></button>
+            {logs && logs.length > 0 ? (
+              <ul>
+                {logs.slice(0, 5).map((l) => {
+                  const a = agents.find((x) => x.id === l.agentId);
+                  return (
+                    <li key={l.id} className="flex items-center gap-3 px-5 py-2.5 border-t border-[var(--line)]">
+                      <span className="font-mono text-[11px] text-[var(--txt-4)] w-16 flex-none">{tempoRelativo(l.at)}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[13px] font-medium text-[var(--txt)]">{a?.name ?? l.motor ?? "Motor"}</span>{" "}
+                        <span className="text-[13px] text-[var(--txt-2)]">{l.resumo}</span>
+                        {(l.valorCentavos ?? 0) > 0 && (
+                          <span className="font-mono text-[11.5px] font-medium ml-1.5" style={{ color: "var(--emerald)" }}>+{reais(l.valorCentavos)}</span>
+                        )}
+                      </div>
+                      {!l.ok && <span className="font-mono text-[11px] flex-none" style={{ color: "var(--rose)" }}>erro</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <ul>
+                {feedDemo.map((a) => (
+                  <li key={a.id} className="flex items-center gap-3 px-5 py-2.5 border-t border-[var(--line)]">
+                    <span className="live-dot flex-none" style={{ width: 6, height: 6, background: a.color }} />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[13px] font-medium text-[var(--txt)]">{a.name}</span>{" "}
+                      <span className="text-[13px] text-[var(--txt-2)]">{a.agora}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </Reveal>
-        <Reveal delay={0.15}>
-          <Decision
-            icon={Wallet}
-            color="#e0a44a"
-            titulo="Rendeu"
-            linhas={
-              stats
-                ? [
-                    `${reais(stats.valorCentavos)} hoje`,
-                    `${reais(stats.valor7dCentavos ?? 0)} na semana`,
-                    `${reais(stats.valorTotalCentavos ?? 0)} desde o início`,
-                  ]
-                : ["R$ 18.400 em oportunidades", "R$ 13,97 de custo no dia", "margem tranquila"]
-            }
-          />
+
+        <Reveal delay={0.1}>
+          <div className="space-y-4 h-full flex flex-col">
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertCircle size={16} style={{ color: "var(--amber)" }} />
+                <span className="font-display font-semibold text-[14px]">Precisa de você</span>
+              </div>
+              <ul className="space-y-2 text-[13px] text-[var(--txt-2)]">
+                {stats ? (
+                  errosHoje.length > 0 ? (
+                    errosHoje.slice(0, 2).map((l) => (
+                      <li key={l.id} className="flex gap-2"><b className="text-[var(--txt)]">{agents.find((a) => a.id === l.agentId)?.name ?? "Motor"}</b> {l.erro ?? l.resumo}</li>
+                    ))
+                  ) : (
+                    <li>nada pendente — a frota está rodando sozinha ✓</li>
+                  )
+                ) : (
+                  <>
+                    <li className="flex gap-2"><b className="text-[var(--txt)]">Recuperador</b> bateu no limite de toques 1×</li>
+                    <li className="flex gap-2"><b className="text-[var(--txt)]">Contratos</b> está pausado</li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            <div className="card p-5 flex-1 flex flex-col">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} style={{ color: "var(--violet)" }} />
+                <span className="font-display font-semibold text-[14px]">Quer mudar algo?</span>
+              </div>
+              <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">
+                Escolha um robô e peça em português. A Metrik simula, testa de verdade e te mostra a prova antes de qualquer coisa ir pro ar.
+              </p>
+              <button className="btn btn-primary mt-4 w-full" onClick={() => go("agentes")}>Escolher um agente <ArrowRight size={15} /></button>
+            </div>
+          </div>
         </Reveal>
       </div>
 
@@ -237,98 +278,18 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           <FechamentoDia stats={stats} logs={logs} demo={auth.demo} />
         </Reveal>
       )}
-
-      {/* ao vivo preview + pedir melhoria */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        <Reveal delay={0.05} className="lg:col-span-2">
-          <div className="card p-5 h-full">
-            <div className="flex items-center justify-between mb-4">
-              <div className="mono-label">Ao vivo</div>
-              <button className="text-[12px] flex items-center gap-1" style={{ color: "#e0a44a" }} onClick={() => go("aovivo")}>ver tudo <ArrowRight size={13} /></button>
-            </div>
-            {logs && logs.length > 0 ? (
-              <ul className="space-y-1">
-                {logs.slice(0, 4).map((l, i, arr) => {
-                  const a = agents.find((x) => x.id === l.agentId);
-                  return (
-                    <li key={l.id} className={cx("flex items-center gap-3 py-2.5", i !== arr.length - 1 && "border-b border-[var(--line)]")}>
-                      <Robot state={a?.state ?? "ativo"} color={a?.color ?? "#e0a44a"} size={30} />
-                      <div className="min-w-0 flex-1">
-                        <span className="text-[13.5px] text-[var(--txt)]">{a?.name ?? l.motor ?? "Motor"}</span>{" "}
-                        <span className="text-[13.5px] text-[var(--txt-2)]">{l.resumo}</span>
-                        {(l.valorCentavos ?? 0) > 0 && (
-                          <span className="text-[12px] font-medium ml-1.5" style={{ color: "var(--emerald)" }}>+{reais(l.valorCentavos)}</span>
-                        )}
-                      </div>
-                      <span className="tick flex-none">{tempoRelativo(l.at)}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <ul className="space-y-1">
-                {feedDemo.map((a, i) => (
-                  <li key={a.id} className={cx("flex items-center gap-3 py-2.5", i !== feedDemo.length - 1 && "border-b border-[var(--line)]")}>
-                    <Robot state={a.state} color={a.color} size={30} />
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[13.5px] text-[var(--txt)]">{a.name}</span>{" "}
-                      <span className="text-[13.5px] text-[var(--txt-2)]">{a.agora}</span>
-                    </div>
-                    <span className="live-dot flex-none" style={{ width: 6, height: 6, background: a.color }} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1}>
-          <div className="grad-border h-full">
-            <div className="relative p-5 h-full flex flex-col">
-              <div className="aurora !h-[40%] !opacity-30" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={17} style={{ color: "#e0a44a" }} />
-                  <span className="font-display font-semibold text-[15px]">Quer mudar algo?</span>
-                </div>
-                <p className="text-[13.5px] text-[var(--txt-2)] leading-relaxed">
-                  Escolha um robô e peça em português. A Metrik simula, testa de verdade e te mostra a prova
-                  antes de qualquer coisa ir pro ar.
-                </p>
-              </div>
-              <button className="btn btn-primary mt-auto w-full" onClick={() => go("agentes")}>Escolher um agente <ArrowRight size={16} /></button>
-            </div>
-          </div>
-        </Reveal>
-      </div>
     </div>
   );
 }
 
 function Pilar({ icon: Icon, color, titulo, texto }: { icon: any; color: string; titulo: string; texto: string }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+    <div className="rounded-[9px] border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={16} style={{ color }} />
         <span className="font-display font-semibold text-[13.5px]">{titulo}</span>
       </div>
       <p className="text-[12.5px] text-[var(--txt-3)] leading-relaxed">{texto}</p>
-    </div>
-  );
-}
-
-function Decision({ icon: Icon, color, titulo, linhas }: { icon: any; color: string; titulo: string; linhas: string[] }) {
-  return (
-    <div className="card card-hover p-5 h-full">
-      <div className="flex items-center gap-2.5 mb-3">
-        <Icon size={18} style={{ color }} />
-        <span className="font-display font-semibold text-[15px]">{titulo}</span>
-      </div>
-      <ul className="space-y-2 text-[13.5px] text-[var(--txt-2)]">
-        {linhas.map((l) => (
-          <li key={l} className="flex items-start gap-2"><span className="dot mt-1.5" style={{ background: color }} />{l}</li>
-        ))}
-      </ul>
     </div>
   );
 }

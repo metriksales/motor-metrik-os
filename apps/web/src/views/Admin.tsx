@@ -16,9 +16,9 @@ const DEMO_MEMBROS: Membro[] = [
 ];
 
 const ROLE_LABEL: Record<string, { label: string; cor: string }> = {
-  owner: { label: "dono", cor: "#e0a44a" },
+  owner: { label: "dono", cor: "#e8b04b" },
   admin: { label: "admin", cor: "#58aae4" },
-  operator: { label: "operador", cor: "#34d399" },
+  operator: { label: "operador", cor: "#3fb950" },
   viewer: { label: "só leitura", cor: "#83879a" },
 };
 
@@ -47,8 +47,8 @@ export default function Admin() {
       {/* organização */}
       <Reveal>
         <div className="card p-5 flex items-center gap-4">
-          <span className="grid place-items-center rounded-xl flex-none" style={{ width: 42, height: 42, background: "#e0a44a16", border: "1px solid #e0a44a30" }}>
-            <Building2 size={20} style={{ color: "#e0a44a" }} />
+          <span className="grid place-items-center rounded-xl flex-none" style={{ width: 42, height: 42, background: "#e8b04b16", border: "1px solid #e8b04b30" }}>
+            <Building2 size={20} style={{ color: "#e8b04b" }} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="font-display font-semibold text-[16px]">{auth.orgName}</div>
@@ -56,7 +56,7 @@ export default function Admin() {
               {auth.demo ? "organização de exemplo" : "a sua organização — os dados são só seus"}
             </div>
           </div>
-          <Pill color={auth.demo ? "#83879a" : "#34d399"}>{auth.demo ? "demo" : "conta real"}</Pill>
+          <Pill color={auth.demo ? "#83879a" : "#3fb950"}>{auth.demo ? "demo" : "conta real"}</Pill>
         </div>
       </Reveal>
 
@@ -65,7 +65,7 @@ export default function Admin() {
         <div className="card p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="mono-label flex items-center gap-1.5"><Users size={12} /> Usuários com acesso</div>
-            <span className="pill" style={real ? { color: "#e0a44a" } : undefined}>
+            <span className="pill" style={real ? { color: "#e8b04b" } : undefined}>
               {real ? <Database size={11} /> : null} {real ? "dado real ✓" : "demo"}
             </span>
           </div>
@@ -95,7 +95,7 @@ export default function Admin() {
         <div className="card p-5">
           <div className="mono-label flex items-center gap-1.5 mb-3"><KeyRound size={12} /> Login e acesso</div>
           <p className="text-[13px] text-[var(--txt-2)] leading-relaxed flex items-start gap-2">
-            <Check size={15} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+            <Check size={15} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
             {auth.demo
               ? "Cada pessoa da sua equipe entra com o próprio login e senha, e vê só a sua operação. A Metrik cuida de toda a configuração de acesso."
               : "Login ativo — cada pessoa entra com a própria conta e vê só a sua operação. Pra convidar alguém, é só pedir pra Metrik."}
@@ -106,7 +106,7 @@ export default function Admin() {
       {/* segurança — sem jargão: a Metrik opera por baixo, seus dados protegidos */}
       <Reveal delay={0.12}>
         <div className="card p-5 flex items-start gap-3">
-          <ShieldCheck size={18} style={{ color: "#34d399" }} className="flex-none mt-0.5" />
+          <ShieldCheck size={18} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
           <div>
             <div className="text-[13.5px] font-medium text-[var(--txt)]">Seus dados, protegidos</div>
             <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed mt-0.5">

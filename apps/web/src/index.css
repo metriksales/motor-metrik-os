@@ -3,73 +3,76 @@
 @tailwind utilities;
 
 /* ============================================================
-   MOTOR · METRIK OS — design tokens (aprovado: "Casa do Motor")
-   noite focada · ÂMBAR + azul Metrik · Poppins · dopamina honesta
+   MOTOR · METRIK OS — design tokens (a REFUNDAÇÃO: língua do Estúdio,
+   ref. 21st.dev, no app INTEIRO): neutro quase-preto + hairlines,
+   ÂMBAR ÚNICO como acento, Inter + JetBrains Mono, diff verde/vermelho.
+   --violet mantém o NOME (centenas de usos) = o âmbar da marca.
    ============================================================ */
 :root {
-  /* Escuro ardósia com âmbar protagonista e azul de apoio (as cores de antes,
-     no layout novo). --violet mantém o NOME (centenas de usos) = âmbar. */
-  --bg: #0c0f15;
-  --bg-2: #10141c;
-  --surface: rgba(255, 255, 255, 0.026);
-  --surface-2: rgba(255, 255, 255, 0.045);
-  --surface-hi: rgba(255, 255, 255, 0.065);
-  --line: rgba(255, 255, 255, 0.085);
-  --line-hi: rgba(255, 255, 255, 0.15);
+  --bg: #08090d;
+  --bg-2: #0a0c10;
+  --surface: #0e1116;
+  --surface-2: #10141c;
+  --surface-hi: #151a24;
+  --line: #1e232c;
+  --line-hi: #2a3138;
 
-  --txt: #f2f3f6;
-  --txt-2: #b6bac6;
-  --txt-3: #838a99;
-  --txt-4: #5b6272;
+  --txt: #e9ecf1;
+  --txt-2: #b9c0cb;
+  --txt-3: #8b93a1;
+  --txt-4: #7d8694;
 
   /* --deep = chão sólido de ênfase (botões Assumir, logos) — âmbar profundo */
-  --deep: #33270e;
-  --lime: #edc074;
-  --wash: rgba(224, 164, 74, 0.08);
+  --deep: #261e0b;
+  --lime: #e8b04b;
+  --wash: rgba(232, 176, 75, 0.07);
 
-  --violet: #e0a44a;
-  --violet-2: #edc074;
+  --violet: #e8b04b;
+  --violet-2: #ecc06a;
   --indigo: #4f86c8;
   --fuchsia: #58aae4;
   --cyan: #58aae4;
-  --emerald: #34d399;
-  --amber: #fbbf24;
-  --rose: #fb7185;
+  --emerald: #3fb950;
+  --amber: #d29922;
+  --rose: #f85149;
 
-  --grad: linear-gradient(135deg, #e0a44a 0%, #58aae4 100%);
-  --grad-soft: linear-gradient(135deg, rgba(224, 164, 74, 0.14), rgba(88, 170, 228, 0.12));
+  /* acento ÚNICO: o "grad" virou o âmbar sólido (um valor de background) */
+  --grad: #e8b04b;
+  --grad-soft: rgba(232, 176, 75, 0.09);
 
-  --radius: 12px;
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.82);
-  --glow-violet: 0 0 0 1px rgba(224, 164, 74, 0.3), 0 20px 60px -22px rgba(224, 164, 74, 0.45);
+  --radius: 9px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 14px 32px -22px rgba(0, 0, 0, 0.7);
+  --glow-violet: 0 0 0 1px rgba(232, 176, 75, 0.3), 0 16px 44px -20px rgba(232, 176, 75, 0.35);
 }
 
-/* variante CLARA (toggle) — mesma família âmbar/azul em papel quente */
+/* variante CLARA (toggle) — o mesmo sistema em papel neutro */
 html[data-theme="light"] {
-  --bg: #faf8f4;
-  --bg-2: #f3efe6;
+  --bg: #f6f7f9;
+  --bg-2: #eef0f3;
   --surface: #ffffff;
-  --surface-2: #f7f3ea;
-  --surface-hi: #f0e9db;
-  --line: #e5ddcc;
-  --line-hi: #d2c6ab;
+  --surface-2: #f2f4f7;
+  --surface-hi: #e9ecf0;
+  --line: #dde1e7;
+  --line-hi: #c8cdd5;
 
-  --txt: #171310;
-  --txt-2: #4a4232;
-  --txt-3: #77705f;
-  --txt-4: #a29a87;
+  --txt: #14171c;
+  --txt-2: #3d434d;
+  --txt-3: #6b7280;
+  --txt-4: #8b93a1;
 
-  --deep: #33270e;
-  --violet: #9a6b17;
-  --violet-2: #e0a44a;
+  --deep: #261e0b;
+  --violet: #8a6210;
+  --violet-2: #a97a1a;
   --indigo: #3d6d9e;
-  --fuchsia: #2e6ea6;
-  --cyan: #2e6ea6;
-  --emerald: #12a150;
-  --amber: #c07d12;
-  --rose: #d64550;
+  --fuchsia: #2b6cb0;
+  --cyan: #2b6cb0;
+  --emerald: #1a7f37;
+  --amber: #9a6700;
+  --rose: #cf222e;
 
-  --shadow: 0 1px 2px rgba(51, 39, 14, 0.05), 0 14px 32px -20px rgba(51, 39, 14, 0.18);
+  --grad: #8a6210;
+  --grad-soft: rgba(138, 98, 16, 0.08);
+  --shadow: 0 1px 2px rgba(20, 23, 28, 0.05), 0 12px 28px -20px rgba(20, 23, 28, 0.15);
 }
 
 * {
@@ -86,14 +89,14 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--txt);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow: hidden;
 }
 
 ::selection {
-  background: rgba(224, 164, 74, 0.32);
+  background: rgba(232, 176, 75, 0.3);
   color: #fff;
 }
 
@@ -117,26 +120,26 @@ body {
   background-clip: content-box;
 }
 
-/* ---------- typography helpers ---------- */
+/* ---------- typography helpers (Inter fala · Mono conta) ---------- */
 .font-display {
-  font-family: "Poppins", system-ui, sans-serif;
-  letter-spacing: -0.01em;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
 }
 .font-mono {
   font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
 .mono-label {
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--txt-4);
 }
 .num {
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -159,36 +162,33 @@ body {
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  border-color: rgba(224, 164, 74, 0.45);
+  border-color: rgba(232, 176, 75, 0.45);
   box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.6);
 }
 html[data-theme="light"] .card-hover:hover {
   box-shadow: 0 2px 4px rgba(51, 39, 14, 0.05), 0 22px 44px -22px rgba(51, 39, 14, 0.28);
 }
 
-/* gradient border wrapper */
+/* borda de destaque (o antigo "grad-border") — hairline com âmbar discreto */
 .grad-border {
   position: relative;
   border-radius: var(--radius);
   background: var(--surface);
-  border: 1px solid transparent;
-  background-image: linear-gradient(var(--bg-2), var(--bg-2)),
-    linear-gradient(135deg, rgba(224, 164, 74, 0.55), rgba(88, 170, 228, 0.4));
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
+  border: 1px solid rgba(232, 176, 75, 0.3);
 }
 
-/* ---------- text gradient ---------- */
+/* ---------- o antigo "grad-text": acento ÚNICO, sem gradiente ---------- */
 .grad-text {
-  background: linear-gradient(100deg, #edc074, #e0a44a 40%, #58aae4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--violet);
 }
 html[data-theme="light"] .grad-text {
-  background: linear-gradient(100deg, #9a6b17, #2e6ea6);
-  -webkit-background-clip: text;
-  background-clip: text;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--violet);
 }
 .grad-text-shimmer {
   background: linear-gradient(100deg, var(--txt) 20%, var(--violet) 45%, var(--violet-2) 60%, var(--txt) 80%);
@@ -211,19 +211,9 @@ html[data-theme="light"] .grid-bg {
   background-image: linear-gradient(rgba(51, 39, 14, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(51, 39, 14, 0.05) 1px, transparent 1px);
 }
+/* a aurora MORREU na refundação — o fundo é quieto, o conteúdo fala */
 .aurora {
-  position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 62vh;
-  pointer-events: none;
-  filter: blur(80px);
-  opacity: 0.42;
-  background: radial-gradient(40% 60% at 22% 18%, rgba(224, 164, 74, 0.42) 0%, transparent 70%),
-    radial-gradient(36% 55% at 72% 8%, rgba(88, 170, 228, 0.3) 0%, transparent 70%),
-    radial-gradient(40% 58% at 92% 34%, rgba(88, 170, 228, 0.18) 0%, transparent 70%);
-}
-html[data-theme="light"] .aurora {
-  opacity: 0.3;
+  display: none;
 }
 
 /* ---------- pills / chips / dots ---------- */
@@ -276,9 +266,9 @@ html[data-theme="light"] .aurora {
    tailwind.config só entram no bundle se alguma utility animate-* for usada,
    e `animation:` direto não conta (cicatriz: o app inteiro ficou sem pulso). */
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45); }
-  70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.45); }
+  70% { box-shadow: 0 0 0 9px rgba(63, 185, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0); }
 }
 @keyframes shimmer {
   0% { background-position: 200% center; }
@@ -373,13 +363,18 @@ html[data-theme="light"] .wa-bubble .wa-meta {
 .btn-primary {
   border: 1px solid transparent;
   background: var(--grad);
-  color: #0c0f15;
-  font-weight: 700;
-  box-shadow: 0 12px 30px -12px rgba(224, 164, 74, 0.75);
+  color: #08090d;
+  font-weight: 600;
+  box-shadow: 0 8px 22px -12px rgba(232, 176, 75, 0.55);
 }
 .btn-primary:hover {
   filter: brightness(1.07);
-  box-shadow: 0 14px 34px -10px rgba(224, 164, 74, 0.85);
+  box-shadow: 0 10px 26px -10px rgba(232, 176, 75, 0.65);
+}
+/* no claro o âmbar da marca escurece (#8a6210) — o texto vai pro branco */
+html[data-theme="light"] .btn-primary {
+  color: #fff;
+  box-shadow: 0 8px 22px -14px rgba(138, 98, 16, 0.5);
 }
 .btn-ghost {
   background: transparent;
@@ -415,9 +410,10 @@ html[data-theme="light"] .wa-bubble .wa-meta {
   background: var(--surface-2);
   color: var(--txt);
 }
+/* ativo = o padrão do rail do Estúdio: chão quieto + filete âmbar */
 .nav-item.active {
-  background: rgba(224, 164, 74, 0.13);
-  border: 1px solid rgba(224, 164, 74, 0.3);
+  background: var(--surface);
+  border: 1px solid var(--line);
   color: var(--txt);
   font-weight: 600;
 }
@@ -427,10 +423,10 @@ html[data-theme="light"] .wa-bubble .wa-meta {
   left: -9px;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
+  width: 2px;
   height: 18px;
   border-radius: 99px;
-  background: linear-gradient(180deg, #e0a44a, #58aae4);
+  background: var(--violet);
 }
 
 /* misc */
@@ -580,31 +576,31 @@ html[data-theme="light"] .wa-bubble .wa-meta {
 }
 
 /* ============================================================
-   ENCAIXE "Casa do Motor" — cantos firmes mas acolhedores
+   ENCAIXE da refundação — cantos firmes (língua do Estúdio)
    sobrescreve as utilities do tailwind (mesma especificidade, vem depois)
    ============================================================ */
-.rounded-3xl { border-radius: 16px; }
-.rounded-2xl { border-radius: 14px; }
-.rounded-xl  { border-radius: 11px; }
+.rounded-3xl { border-radius: 12px; }
+.rounded-2xl { border-radius: 10px; }
+.rounded-xl  { border-radius: 9px; }
 .rounded-lg  { border-radius: 8px; }
-.rounded-\[10px\], .rounded-\[11px\], .rounded-\[12px\], .rounded-\[13px\], .rounded-\[14px\] { border-radius: 11px; }
-.\!rounded-2xl { border-radius: 14px !important; }
-.\!rounded-xl  { border-radius: 11px !important; }
+.rounded-\[10px\], .rounded-\[11px\], .rounded-\[12px\], .rounded-\[13px\], .rounded-\[14px\] { border-radius: 9px; }
+.\!rounded-2xl { border-radius: 10px !important; }
+.\!rounded-xl  { border-radius: 9px !important; }
 .\!rounded-lg  { border-radius: 8px !important; }
 
-.btn { border-radius: 11px; }
-.btn-sm { border-radius: 9px; }
-.chip { border-radius: 9px; }
-.nav-item { border-radius: 11px; }
+.btn { border-radius: 8px; }
+.btn-sm { border-radius: 7px; }
+.chip { border-radius: 7px; }
+.nav-item { border-radius: 8px; }
 
-/* card com a barrinha âmbar→azul que entra no hover */
-.card { border-radius: 14px; }
+/* card com o filete âmbar fino que entra no hover */
+.card { border-radius: 10px; }
 .card-hover { overflow: hidden; }
 .card-hover::before {
   content: "";
   position: absolute;
   left: 0; right: 0; top: 0;
-  height: 3px;
+  height: 2px;
   background: var(--grad);
   transform: scaleX(0);
   transform-origin: left;
@@ -772,26 +768,26 @@ html[data-theme="light"] .wa-bubble .wa-meta {
 
 /* o campo do Melhorar acende em âmbar quando você escreve (canvas) */
 .melhorar-campo:focus-within {
-  border-color: rgba(224, 164, 74, 0.6);
-  box-shadow: 0 0 0 3px rgba(224, 164, 74, 0.12);
+  border-color: rgba(232, 176, 75, 0.6);
+  box-shadow: 0 0 0 3px rgba(232, 176, 75, 0.12);
 }
 
 /* dopamina honesta: o card/badge de dinheiro respira de leve */
 .money-glow { animation: money-glow 3s ease-in-out infinite; }
 @keyframes money-glow {
-  0%, 100% { box-shadow: 0 0 12px -4px rgba(52, 211, 153, 0.55); }
-  50% { box-shadow: 0 0 20px -3px rgba(52, 211, 153, 0.9); }
+  0%, 100% { box-shadow: 0 0 12px -4px rgba(63, 185, 80, 0.55); }
+  50% { box-shadow: 0 0 20px -3px rgba(63, 185, 80, 0.9); }
 }
 @media (prefers-reduced-motion: reduce) {
   .money-glow { animation: none !important; }
 }
 
-/* hero — banner com peso (noite + âmbar/azul, aprovado na Casa do Motor) */
+/* hero — painel quieto da refundação: hairline + toque âmbar mínimo */
 .hero-banner {
-  border: 1px solid rgba(224, 164, 74, 0.22);
-  background: linear-gradient(112deg, rgba(224, 164, 74, 0.1), rgba(16, 20, 28, 0.55) 55%, var(--bg-2));
+  border: 1px solid var(--line);
+  background: linear-gradient(150deg, rgba(232, 176, 75, 0.05), var(--surface) 55%);
 }
 html[data-theme="light"] .hero-banner {
-  border-color: #e8d9b8;
-  background: linear-gradient(112deg, #f8ecd8 0%, #f6f1e6 58%, #faf8f4 100%);
+  border-color: var(--line);
+  background: linear-gradient(150deg, rgba(138, 98, 16, 0.05), var(--surface) 55%);
 }

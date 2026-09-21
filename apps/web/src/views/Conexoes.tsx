@@ -14,7 +14,7 @@ export default function Conexoes() {
             <div className="aurora !opacity-30" />
             <div className="relative max-w-2xl">
               <div className="flex items-center gap-2 mb-2">
-                <Plug size={16} style={{ color: "#e0a44a" }} />
+                <Plug size={16} style={{ color: "#e8b04b" }} />
                 <span className="mono-label">As conexões da sua operação</span>
               </div>
               <h2 className="font-display text-[22px] md:text-[26px] font-semibold tracking-tight">
@@ -38,7 +38,7 @@ export default function Conexoes() {
               <div className="card card-hover p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className="mono-label">{c.tipo}</span>
-                  <span className="pill flex-none" style={{ color: c.ok ? "#34d399" : "var(--txt-4)", borderColor: c.ok ? "#34d39940" : "var(--line)", background: c.ok ? "#34d39912" : "var(--surface-2)" }}>
+                  <span className="pill flex-none" style={{ color: c.ok ? "#3fb950" : "var(--txt-4)", borderColor: c.ok ? "#3fb95040" : "var(--line)", background: c.ok ? "#3fb95012" : "var(--surface-2)" }}>
                     {c.ok ? <><Check size={11} /> ligado</> : "a ligar"}
                   </span>
                 </div>
@@ -57,8 +57,8 @@ export default function Conexoes() {
       {/* bastidores — honesto, sem npx/terminal: a Metrik opera por aqui */}
       <Reveal delay={0.1}>
         <div className="card p-5 flex items-start gap-3">
-          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 38, height: 38, background: "rgba(224,164,74,.14)", border: "1px solid rgba(224,164,74,.3)" }}>
-            <Wrench size={18} style={{ color: "#e0a44a" }} />
+          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 38, height: 38, background: "rgba(232,176,75,.14)", border: "1px solid rgba(232,176,75,.3)" }}>
+            <Wrench size={18} style={{ color: "#e8b04b" }} />
           </span>
           <div>
             <div className="text-[13.5px] font-medium text-[var(--txt)]">Bastidores da Metrik</div>

@@ -44,7 +44,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           detalhe: l.erro ?? undefined,
           valorCentavos: l.valorCentavos,
           agente: a?.name ?? l.motor ?? "motor",
-          color: a?.color ?? "#e0a44a",
+          color: a?.color ?? "#e8b04b",
           id: l.id,
           raw: l,
         };
@@ -128,7 +128,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
             <ul className="space-y-1">
               {feed.map((r, i) => {
                   const conf = conferir(r);
-                  const st = r.status === "run" ? { icon: Loader2, color: "#e0a44a" } : { icon: SELO_META[conf.veredito].icon, color: SELO_META[conf.veredito].cor };
+                  const st = r.status === "run" ? { icon: Loader2, color: "#e8b04b" } : { icon: SELO_META[conf.veredito].icon, color: SELO_META[conf.veredito].cor };
                   const dinheiroLinha = (r.valorCentavos ?? 0) > 0;
                   const nova = vistos.current !== null && !vistos.current.has(r.id);
                   const abrir = () =>
@@ -142,7 +142,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                       key={r.id}
                       onClick={abrir}
                       role="button"
-                      initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(224,164,74,.14)" } : false}
+                      initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(232,176,75,.14)" } : false}
                       animate={{ opacity: 1, y: 0, backgroundColor: "rgba(0,0,0,0)" }}
                       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1], backgroundColor: { duration: 2 } }}
                       className={cx(
@@ -165,7 +165,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                       {dinheiroLinha && (
                         <span
                           className="flex-none text-[11.5px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ color: "var(--emerald)", background: "rgba(52,211,153,.12)", border: "1px solid rgba(52,211,153,.3)", boxShadow: "0 0 14px -4px rgba(52,211,153,.5)" }}
+                          style={{ color: "var(--emerald)", background: "rgba(63,185,80,.12)", border: "1px solid rgba(63,185,80,.3)", boxShadow: "0 0 14px -4px rgba(63,185,80,.5)" }}
                         >
                           +{reais(r.valorCentavos)}
                         </span>

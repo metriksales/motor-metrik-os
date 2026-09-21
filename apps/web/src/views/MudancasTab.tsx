@@ -17,9 +17,9 @@ const ORIGEM_LABEL: Record<Mudanca["origem"], string> = {
 };
 
 const STATUS_COR: Record<Mudanca["status"], string> = {
-  "no ar": "#34d399",
+  "no ar": "#3fb950",
   "em teste": "#fbbf24",
-  "aguardando aprovação": "#e0a44a",
+  "aguardando aprovação": "#e8b04b",
 };
 
 export default function MudancasTab({ agent }: { agent: Agent }) {
@@ -64,7 +64,7 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
     <div className="space-y-4">
       <Reveal>
         <div className="card p-4 flex items-start gap-3">
-          <Sparkles size={16} className="flex-none mt-0.5" style={{ color: "#e0a44a" }} />
+          <Sparkles size={16} className="flex-none mt-0.5" style={{ color: "#e8b04b" }} />
           <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
             Você pede no <b className="text-[var(--txt)]">Melhorar</b> — e o que entra no ar aparece aqui,
             com antes/depois, <b className="text-[var(--txt)]">onde encaixou</b> no processo e a prova do porteiro.
@@ -89,7 +89,7 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
 function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
   const stCor = STATUS_COR[m.status];
   return (
-    <div className="card p-5" style={{ borderColor: "#e0a44a2e" }}>
+    <div className="card p-5" style={{ borderColor: "#e8b04b2e" }}>
       <div className="flex items-center justify-between gap-3 mb-2.5">
         <span className="text-[12px] text-[var(--txt-3)]">
           {m.quando} · <b className="text-[var(--txt-2)]">{ORIGEM_LABEL[m.origem]}</b>
@@ -111,8 +111,8 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
             <div className="mono-label !text-[9px] mb-1 !text-[var(--txt-4)]">antes</div>
             <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{m.antes}</p>
           </div>
-          <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#34d3990d", border: "1px solid #34d39928" }}>
-            <div className="mono-label !text-[9px] mb-1" style={{ color: "#34d399" }}>agora</div>
+          <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#3fb9500d", border: "1px solid #3fb95028" }}>
+            <div className="mono-label !text-[9px] mb-1" style={{ color: "#3fb950" }}>agora</div>
             <p className="text-[13px] text-[var(--txt)] leading-relaxed">{m.agora}</p>
           </div>
         </div>
@@ -127,7 +127,7 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
           </span>
         )}
         {m.porteiro && (
-          <span className="inline-flex items-center gap-1.5" style={{ color: "#34d399" }}>
+          <span className="inline-flex items-center gap-1.5" style={{ color: "#3fb950" }}>
             <ShieldCheck size={13} /> porteiro: {m.porteiro.casos} · nota {m.porteiro.nota}
           </span>
         )}
@@ -142,7 +142,7 @@ function SeloPorteiro({ nota, taxa }: { nota: string; taxa?: number }) {
   const t = taxa ?? Math.min(1, parseFloat(nota.replace(",", ".")) / 10 || 0);
   const R = 24;
   const C = 2 * Math.PI * R;
-  const cor = t >= 0.75 ? "#34d399" : "#fbbf24";
+  const cor = t >= 0.75 ? "#3fb950" : "#fbbf24";
   return (
     <div className="flex-none flex flex-col items-center" title={`porteiro: nota ${nota}`}>
       <svg width={62} height={62} viewBox="0 0 62 62">

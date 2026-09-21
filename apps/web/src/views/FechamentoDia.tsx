@@ -56,7 +56,7 @@ export default function FechamentoDia({
           <div className="flex items-center justify-between gap-3 mb-5">
             <div className="mono-label">Fechamento · {hojePorExtenso()}</div>
             <div className="flex items-center gap-1.5 text-[var(--txt-3)]">
-              <Gauge size={13} style={{ color: "#e0a44a" }} />
+              <Gauge size={13} style={{ color: "#e8b04b" }} />
               <span className="mono-label !text-[9px]">Motor Metrik OS</span>
             </div>
           </div>
@@ -64,23 +64,23 @@ export default function FechamentoDia({
           {/* os três números grandes */}
           <div className="grid grid-cols-3 gap-4">
             <Numero valor={String(execucoes)} rotulo={execucoes === 1 ? "atendimento" : "atendimentos"} />
-            <Numero valor={`${acerto}%`} rotulo="de acerto" cor="#34d399" />
-            <Numero valor={reais(valorMostrado)} rotulo={rotuloValor} cor="#e0a44a" />
+            <Numero valor={`${acerto}%`} rotulo="de acerto" cor="#3fb950" />
+            <Numero valor={reais(valorMostrado)} rotulo={rotuloValor} cor="#e8b04b" />
           </div>
 
           {/* melhor momento do dia */}
           {melhorTxt && (
-            <div className="mt-6 flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(52,211,153,.07)", border: "1px solid rgba(52,211,153,.22)" }}>
-              <span className="grid place-items-center rounded-lg flex-none" style={{ width: 34, height: 34, background: "rgba(52,211,153,.14)", border: "1px solid rgba(52,211,153,.3)" }}>
-                <Trophy size={16} style={{ color: "#34d399" }} />
+            <div className="mt-6 flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(63,185,80,.07)", border: "1px solid rgba(63,185,80,.22)" }}>
+              <span className="grid place-items-center rounded-lg flex-none" style={{ width: 34, height: 34, background: "rgba(63,185,80,.14)", border: "1px solid rgba(63,185,80,.3)" }}>
+                <Trophy size={16} style={{ color: "#3fb950" }} />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="mono-label !text-[9px] mb-0.5" style={{ color: "#34d399" }}>{melhorRotulo}</div>
+                <div className="mono-label !text-[9px] mb-0.5" style={{ color: "#3fb950" }}>{melhorRotulo}</div>
                 <div className="text-[13.5px] text-[var(--txt)] truncate">
                   {melhorTxt.resumo} <span className="text-[var(--txt-4)]">· {melhorTxt.quando}</span>
                 </div>
               </div>
-              <span className="flex-none font-display font-semibold text-[15px]" style={{ color: "#34d399" }}>+{melhorTxt.valor}</span>
+              <span className="flex-none font-display font-semibold text-[15px]" style={{ color: "#3fb950" }}>+{melhorTxt.valor}</span>
             </div>
           )}
         </div>

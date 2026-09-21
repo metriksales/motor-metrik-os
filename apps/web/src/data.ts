@@ -86,10 +86,10 @@ export type Conferencia = {
 };
 
 export const SELO_META: Record<Selo, { label: string; cor: string; icon: any }> = {
-  seguiu: { label: "Seguiu a regra", cor: "#34d399", icon: Check },
+  seguiu: { label: "Seguiu a regra", cor: "#3fb950", icon: Check },
   segurou: { label: "Segurou de propósito", cor: "#58aae4", icon: ShieldCheck },
   conversou: { label: "Conversou", cor: "#8a94a4", icon: MessageCircleHeart },
-  falhou: { label: "Falhou", cor: "#fb7185", icon: X },
+  falhou: { label: "Falhou", cor: "#f85149", icon: X },
 };
 
 // Deriva o selo honesto: se o log já traz a conferência real, usa; senão só o que
@@ -263,7 +263,7 @@ export const AGENTS: Agent[] = [
       triagem: { faz: "Entende em 1–2 perguntas o que a pessoa quer", coleta: ["o que procura", "urgência", "já é cliente?"] },
       ramos: [
         {
-          id: "comprar", nome: "Quer contratar", cor: "#34d399",
+          id: "comprar", nome: "Quer contratar", cor: "#3fb950",
           quando: "pergunta de plano, preço ou como funciona",
           coleta: ["tamanho da operação", "prazo pra começar"],
           on: true, execucoesHoje: 9, ultima: "há 4 min — Marina A.",
@@ -363,7 +363,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#e0a44a",
+    color: "#e8b04b",
     agora: "movendo 3 leads pra etapa “Qualificada”",
     fluxo: [
       { label: "Lê a conversa", deveria: "a cada lead novo", status: "ok" },
@@ -471,7 +471,7 @@ export const AGENTS: Agent[] = [
       ],
     },
     state: "ativo",
-    color: "#34d399",
+    color: "#3fb950",
     agora: "reabrindo 2 conversas que esfriaram",
     fluxo: [
       { label: "Percebe que sumiu", deveria: "lead parou de responder", status: "ok" },
@@ -636,7 +636,7 @@ export const AGENTS: Agent[] = [
       ],
     },
     state: "pausado",
-    color: "#fb7185",
+    color: "#f85149",
     agora: "pausado por você — retoma quando quiser",
     fluxo: [
       { label: "Negócio é ganho", deveria: "gatilho de ganho no funil", status: "espera", alvo: { tipo: "etapa", nome: "Ganho" } },
@@ -694,7 +694,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#edc074",
+    color: "#ecc06a",
     agora: "gerando petição pra 3 casos na etapa “Protocolar”",
     fluxo: [
       { label: "Recebe o gatilho", deveria: "caso entra na etapa “Protocolar” — ou você clica no card", status: "ok", alvo: { tipo: "etapa", nome: "Protocolar" } },
@@ -803,7 +803,7 @@ export const AGENTS: Agent[] = [
       },
       ramos: [
         {
-          id: "bpc", nome: "BPC / LOAS", cor: "#34d399",
+          id: "bpc", nome: "BPC / LOAS", cor: "#3fb950",
           quando: "idoso 65+ ou pessoa com deficiência sem condição de se manter",
           coleta: ["idade", "renda da casa por pessoa", "CadÚnico em dia?"],
           on: true, execucoesHoje: 12, ultima: "há 9 min — Dona Cléia",
@@ -830,7 +830,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "previdenciario", nome: "Aposentadoria", cor: "#e0a44a",
+          id: "previdenciario", nome: "Aposentadoria", cor: "#e8b04b",
           quando: "menciona INSS, tempo de contribuição ou “me aposentar”",
           coleta: ["anos de contribuição", "idade", "quando contribuiu por último"],
           on: true, execucoesHoje: 7, ultima: "há 25 min — Sr. Almir",
@@ -966,7 +966,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#e0a44a",
+          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#e8b04b",
           quando: "quer aprender Kommo, prestar serviço ou implementar pra clientes",
           on: true, execucoesHoje: 4, ultima: "há 18 min — agência SP",
           regras: [
@@ -983,7 +983,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "ghl", nome: "GHL Academy · R$ 197/mês", cor: "#34d399",
+          id: "ghl", nome: "GHL Academy · R$ 197/mês", cor: "#3fb950",
           quando: "quer montar agência, ter contas GHL próprias e margem recorrente",
           on: true, execucoesHoje: 3,
           regras: [
@@ -1010,7 +1010,7 @@ export const AGENTS: Agent[] = [
 export const AGENT_BY_ID = (id: string) => AGENTS.find((a) => a.id === id);
 
 export const STATE_META: Record<AgentState, { label: string; color: string }> = {
-  ativo: { label: "trabalhando", color: "#34d399" },
+  ativo: { label: "trabalhando", color: "#3fb950" },
   idle: { label: "em espera", color: "#83879a" },
   pausado: { label: "pausado", color: "#fbbf24" },
 };
@@ -1035,13 +1035,13 @@ export type Modulo = {
 };
 
 export const MODULOS: Modulo[] = [
-  { id: "m2", name: "Recuperar no-show", icon: CalendarX, color: "#34d399", blurb: "reativa quem faltou na reunião, sem você lembrar", gatilho: "faltou na reunião", acao: "reoferece 2 horários", installed: true, tag: "popular" },
+  { id: "m2", name: "Recuperar no-show", icon: CalendarX, color: "#3fb950", blurb: "reativa quem faltou na reunião, sem você lembrar", gatilho: "faltou na reunião", acao: "reoferece 2 horários", installed: true, tag: "popular" },
   { id: "m3", name: "Alerta por palavra", icon: BellRing, color: "#fbbf24", blurb: "te avisa quando alguém fala “cancelar” ou “reembolso”", gatilho: "palavra crítica", acao: "avisa seu grupo", installed: true },
-  { id: "m1", name: "Upsell inteligente", icon: TrendingUp, color: "#e0a44a", blurb: "oferece o upgrade certo pra quem já é cliente", gatilho: "compra confirmada", acao: "sugere o plano acima", installed: false, tag: "popular" },
+  { id: "m1", name: "Upsell inteligente", icon: TrendingUp, color: "#e8b04b", blurb: "oferece o upgrade certo pra quem já é cliente", gatilho: "compra confirmada", acao: "sugere o plano acima", installed: false, tag: "popular" },
   { id: "m5", name: "Contrato ZapSign", icon: FileSignature, color: "#7c9fe0", blurb: "gera e manda o contrato pra assinar assim que fecha", gatilho: "negócio ganho", acao: "envia contrato", installed: false, tag: "novo" },
   { id: "m4", name: "Enriquecer campo", icon: Sparkles, color: "#58aae4", blurb: "descobre e completa os dados do lead sozinho", gatilho: "dado faltando", acao: "preenche o campo", installed: false },
   { id: "m6", name: "Rastreio de origem", icon: Radar, color: "#58aae4", blurb: "mostra de qual anúncio cada lead realmente veio", gatilho: "novo lead", acao: "marca a origem", installed: true },
-  { id: "m7", name: "Auditoria de funil", icon: ScanSearch, color: "#fb7185", blurb: "acha leads parados e dinheiro esquecido no funil", gatilho: "toda segunda", acao: "manda o relatório", installed: true },
+  { id: "m7", name: "Auditoria de funil", icon: ScanSearch, color: "#f85149", blurb: "acha leads parados e dinheiro esquecido no funil", gatilho: "toda segunda", acao: "manda o relatório", installed: true },
   { id: "m8", name: "Resumo por voz", icon: Volume2, color: "#58aae4", blurb: "te manda um áudio com o resumo do dia", gatilho: "fim do dia", acao: "envia o áudio", installed: false, tag: "novo" },
 ];
 
@@ -1053,7 +1053,7 @@ export const CHAT_EXEMPLOS = [
 ];
 
 export const CONEXOES_MCP = [
-  { id: "claude", name: "Claude Code", desc: "conecte e peça direto do terminal — vira mudança segura, testada e reversível aqui dentro", status: "conectado", color: "#e0a44a" },
+  { id: "claude", name: "Claude Code", desc: "conecte e peça direto do terminal — vira mudança segura, testada e reversível aqui dentro", status: "conectado", color: "#e8b04b" },
   { id: "codex", name: "Codex", desc: "mesma tomada, outro assistente — a Metrik aprova e publica com prova", status: "conectado", color: "#58aae4" },
 ];
 

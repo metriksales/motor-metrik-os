@@ -47,7 +47,7 @@ export default function Modulos({
           <div className="relative p-5 md:p-6">
             <div className="aurora !h-[70%] !opacity-30" />
             <div className="relative flex items-start gap-3">
-              <Blocks size={20} style={{ color: "#e0a44a" }} className="flex-none mt-0.5" />
+              <Blocks size={20} style={{ color: "#e8b04b" }} className="flex-none mt-0.5" />
               <div>
                 <p className="text-[13.5px] text-[var(--txt-2)] max-w-2xl">
                   <b className="text-[var(--txt)]">Módulos são habilidades simples que entram DENTRO de um agente.</b> Cada
@@ -55,8 +55,8 @@ export default function Modulos({
                   Clique num e você vai direto pro agente certo pra ligar.
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2.5">
-                  <Pill color="#34d399"><Check size={12} /> prontos da Metrik</Pill>
-                  <Pill color="#e0a44a"><Plug size={12} /> ou traga o seu pelo Claude</Pill>
+                  <Pill color="#3fb950"><Check size={12} /> prontos da Metrik</Pill>
+                  <Pill color="#e8b04b"><Plug size={12} /> ou traga o seu pelo Claude</Pill>
                 </div>
               </div>
             </div>
@@ -88,13 +88,13 @@ export default function Modulos({
             <Reveal delay={0.03 * lista.length}>
               <button onClick={() => go("conexoes")} className="w-full h-full min-h-[220px] text-left rounded-[18px] p-5 flex flex-col justify-center items-start gap-3" style={{ border: "1.5px dashed var(--line-hi)" }}>
                 <span className="grid place-items-center rounded-[13px]" style={{ width: 42, height: 42, background: "var(--surface-2)", border: "1px solid var(--line)" }}>
-                  <Plug size={20} style={{ color: "#e0a44a" }} />
+                  <Plug size={20} style={{ color: "#e8b04b" }} />
                 </span>
                 <div>
                   <div className="font-display font-semibold text-[15px] mb-1">Traga a sua</div>
                   <p className="text-[12.5px] text-[var(--txt-3)] leading-snug">Fez uma habilidade no Claude Code? Ela aparece aqui e vira um recurso de um robô seu, já marcada pro agente certo.</p>
                 </div>
-                <span className="text-[12.5px] flex items-center gap-1.5 mt-1" style={{ color: "#e0a44a" }}><Plug size={13} /> Conectar <ArrowRight size={13} /></span>
+                <span className="text-[12.5px] flex items-center gap-1.5 mt-1" style={{ color: "#e8b04b" }}><Plug size={13} /> Conectar <ArrowRight size={13} /></span>
               </button>
             </Reveal>
           )}
@@ -129,7 +129,7 @@ function ModuloCard({ m, compat, onOpen }: { m: Modulo; compat?: { id: string; l
 
       {m.installed ? (
         <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--line)]">
-          <span className="pill" style={{ color: "#34d399", borderColor: "#34d39940", background: "#34d39914" }}><Check size={12} /> já ligado</span>
+          <span className="pill" style={{ color: "#3fb950", borderColor: "#3fb95040", background: "#3fb95014" }}><Check size={12} /> já ligado</span>
           <button className="btn btn-ghost btn-sm" onClick={abrir}>Abrir <ArrowRight size={13} /></button>
         </div>
       ) : (

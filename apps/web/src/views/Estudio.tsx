@@ -264,7 +264,7 @@ export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
   const nNao = Object.values(feedback).filter((v) => v === "nao").length;
 
   return (
-    <div className="est rounded-2xl overflow-hidden" style={{ border: "1px solid var(--e-line)" }}>
+    <div className="est">
       {/* ── topo ── */}
       <div className="flex items-center gap-3.5 px-6" style={{ height: 52, borderBottom: "1px solid var(--e-line)" }}>
         <div className="rounded-lg p-0.5" style={{ border: "1px solid rgba(232,176,75,.5)", background: "#0e1116" }}><Robot state={estado} color={agent.color} size={26} /></div>
