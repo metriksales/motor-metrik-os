@@ -177,6 +177,10 @@ export default function App() {
 
       {/* MAIN */}
       <main className="relative z-10 flex-1 flex flex-col min-w-0">
+        {/* agente aberto = modo foco: o Estúdio tem barra própria (nome, voltar,
+            toggle, Ao vivo). Esconder o cabeçalho do app aqui MATA o "Bia" e o
+            "no ar" repetidos e devolve uma barra inteira de altura. */}
+        {!agent && (
         <header className="flex-none flex items-center justify-between gap-3 px-4 md:px-7 h-[62px] border-b border-[var(--line)] glass">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* celular: logo = voltar pro Início (âncora de "casa" sempre visível) */}
@@ -184,8 +188,8 @@ export default function App() {
               <Gauge size={17} style={{ color: "#08090d" }} strokeWidth={2.2} />
             </button>
             <div className="min-w-0">
-              <h1 className="font-display font-semibold text-[16px] tracking-tight leading-none truncate">{agent ? agent.name : nav.label}</h1>
-              <p className="text-[11.5px] text-[var(--txt-3)] mt-1 truncate">{agent ? `Agente · ${agent.papel}` : nav.hint}</p>
+              <h1 className="font-display font-semibold text-[16px] tracking-tight leading-none truncate">{nav.label}</h1>
+              <p className="text-[11.5px] text-[var(--txt-3)] mt-1 truncate">{nav.hint}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -259,6 +263,7 @@ export default function App() {
             )}
           </div>
         </header>
+        )}
 
         {/* agente aberto = MODO WORKSPACE: a tela É o app (sem coluna centrada,
             sem scroll de página — o Estúdio gerencia o scroll por dentro) */}

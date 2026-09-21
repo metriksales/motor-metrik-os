@@ -793,54 +793,62 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             </div>
           )}
 
-          {/* ── ABA HISTÓRICO ── */}
-          {aba === "historico" && (
-            <div className="flex-1 overflow-y-auto scroll-thin est-entra">
-              <div className="flex items-center gap-2.5 px-6 py-3.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                <span className="text-[13.5px] font-semibold">Tudo que você já mudou</span>
-                <span className="text-[12px] ml-auto" style={{ color: "var(--e-dim)" }}>{agent.real ? `${publicadas.length} no ar · ${seguradas.length} seguradas` : "demonstração"}</span>
-              </div>
-              {agent.real && emRev && (
-                <div className="est-entra" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                  <div className="est-beam" />
-                  <div className="flex items-center gap-3.5 px-6 py-3.5">
-                    <span className="live-dot flex-none" style={{ width: 8, height: 8, background: "var(--e-amber)" }} />
-                    <span className="text-[15px] flex-1 font-medium truncate">{emRev.intent}</span>
-                    <span className="emo text-[11px] font-bold rounded px-2 py-0.5 flex-none" style={{ color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.5)" }}>EM REVISÃO</span>
-                    <span className="emo text-[12px] flex-none" style={{ color: "var(--e-dim)" }}>{emRev.createdAt ? `há ${tempoRelativo(emRev.createdAt)}` : ""}</span>
-                  </div>
+          {/* ── ABA HISTÓRICO — linha do tempo (trilho + nós), texto em 2 linhas ── */}
+          {aba === "historico" && (() => {
+            type Item = { texto: string; estado: "rev" | "ar" | "seg"; quando?: string; ganho?: string };
+            const itens: Item[] = agent.real
+              ? [
+                  ...(emRev ? [{ texto: emRev.intent, estado: "rev" as const, quando: emRev.createdAt ? `há ${tempoRelativo(emRev.createdAt)}` : undefined }] : []),
+                  ...publicadas.map((r) => ({ texto: r.intent, estado: "ar" as const, quando: r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : undefined })),
+                  ...seguradas.map((r) => ({ texto: r.intent, estado: "seg" as const, quando: r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : undefined })),
+                ]
+              : [
+                  { texto: "ao negar, oferece outro caminho", estado: "ar", quando: "há 3 dias", ganho: "+4 leads voltaram" },
+                  { texto: "25% de desconto — passa do teto do núcleo", estado: "seg", quando: "há 4 dias" },
+                ];
+            const META = {
+              rev: { cor: "var(--e-amber)", rot: "EM REVISÃO", pill: { color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.5)" } },
+              ar: { cor: "var(--e-green)", rot: "✓ NO AR", pill: { color: "#08090d", background: "var(--e-green)" } },
+              seg: { cor: "var(--e-red)", rot: "✗ SEGURADA", pill: { color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" } },
+            } as const;
+            const clamp2 = { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" };
+            return (
+              <div className="flex-1 overflow-y-auto scroll-thin est-entra">
+                <div className="flex items-center gap-2.5 px-6 py-3.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
+                  <span className="text-[13.5px] font-semibold">Tudo que você já mudou</span>
+                  <span className="text-[12px] ml-auto" style={{ color: "var(--e-dim)" }}>{agent.real ? `${publicadas.length} no ar · ${seguradas.length} seguradas${emRev ? " · 1 em revisão" : ""}` : "demonstração"}</span>
                 </div>
-              )}
-              {(agent.real ? [...publicadas, ...seguradas] : []).map((r, i) => {
-                const seg = String(r.status) === "rejected";
-                return (
-                  <div key={r.id ?? i} className="est-row est-entra flex items-center gap-3.5 px-6 py-3.5" style={{ borderBottom: "1px solid var(--e-line-soft)", borderLeft: `3px solid ${seg ? "var(--e-red)" : "var(--e-green)"}`, animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-                    <span className="text-[15px] flex-1 font-medium truncate" style={{ color: seg ? "var(--e-mut)" : "var(--e-txt)" }}>{r.intent}</span>
-                    <span className="emo text-[11px] font-bold rounded px-2 py-0.5 flex-none" style={seg ? { color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" } : { color: "#08090d", background: "var(--e-green)" }}>{seg ? "✗ SEGURADA" : "✓ NO AR"}</span>
-                    <span className="emo text-[12px] flex-none" style={{ color: "var(--e-dim)" }}>{r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : ""}</span>
+
+                {itens.length === 0 ? (
+                  <div className="px-6 py-10 text-[14px]" style={{ color: "var(--e-dim)" }}>Sua primeira mudança aparece aqui — com data, status e o texto do pedido.</div>
+                ) : (
+                  <div className="px-6 py-6">
+                    <div className="relative">
+                      {/* o trilho */}
+                      <div className="absolute top-2 bottom-2" style={{ left: 7, width: 1, background: "var(--e-line)" }} />
+                      {itens.map((it, i) => {
+                        const m = META[it.estado];
+                        return (
+                          <div key={i} className="relative pl-9 pb-6 last:pb-0 est-entra" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
+                            {/* o nó */}
+                            <span className="absolute rounded-full" style={{ left: 0, top: 3, width: 16, height: 16, background: m.cor, border: "3px solid #0a0c10" }}>
+                              {it.estado === "rev" && <span className="est-mic-on absolute inset-0 rounded-full" style={{ background: m.cor }} />}
+                            </span>
+                            <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+                              <span className="emo text-[10.5px] font-bold rounded px-2 py-0.5" style={m.pill}>{m.rot}</span>
+                              {it.ganho && <span className="emo text-[11px]" style={{ color: "var(--e-green)" }}>{it.ganho}</span>}
+                              <span className="emo text-[11.5px]" style={{ color: "var(--e-dim)" }}>{it.quando}</span>
+                            </div>
+                            <p className="text-[14.5px] leading-relaxed m-0" style={{ color: it.estado === "seg" ? "var(--e-mut)" : "var(--e-txt)", ...clamp2 }}>{it.texto}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-              {agent.real && publicadas.length + seguradas.length === 0 && !emRev && (
-                <div className="px-6 py-8 text-[14px]" style={{ color: "var(--e-dim)" }}>Sua primeira mudança publicada aparece aqui — com data e o antes/depois.</div>
-              )}
-              {!agent.real && (
-                <>
-                  <div className="est-row flex items-center gap-3.5 px-6 py-3.5" style={{ borderBottom: "1px solid var(--e-line-soft)", borderLeft: "3px solid var(--e-green)" }}>
-                    <span className="text-[15px] flex-1 font-medium">ao negar, oferece outro caminho</span>
-                    <span className="emo text-[12px]" style={{ color: "var(--e-green)" }}>+4 leads voltaram</span>
-                    <span className="emo text-[11px] font-bold rounded px-2 py-0.5" style={{ color: "#08090d", background: "var(--e-green)" }}>✓ NO AR</span>
-                    <span className="emo text-[12px]" style={{ color: "var(--e-dim)" }}>há 3 dias</span>
-                  </div>
-                  <div className="est-row flex items-center gap-3.5 px-6 py-3.5" style={{ borderLeft: "3px solid var(--e-red)" }}>
-                    <span className="text-[15px] flex-1 font-medium" style={{ color: "var(--e-mut)" }}>25% de desconto — segurada: passa do teto</span>
-                    <span className="emo text-[11px] font-bold rounded px-2 py-0.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>✗ SEGURADA</span>
-                    <span className="emo text-[12px]" style={{ color: "var(--e-dim)" }}>há 4 dias</span>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
