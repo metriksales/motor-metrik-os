@@ -715,6 +715,19 @@ html[data-theme="light"] .btn-primary {
 .est-row:hover { background: rgba(255, 255, 255, 0.035); }
 /* entrada em cascata — usar com animation-delay inline */
 .est-entra { animation: est-wipe 0.35s ease-out both; }
+/* teclado enxerga onde está (a11y): anel âmbar em tudo que é clicável */
+.est button:focus-visible,
+.est [tabindex]:focus-visible {
+  outline: 2px solid var(--e-amber);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* microfone GRAVANDO: pulsa vermelho — estado real, não enfeite */
+.est-mic-on { color: var(--e-red) !important; animation: est-pulse 1.2s ease-in-out infinite; }
+@keyframes est-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 .est-btn {
   display: inline-flex;
   align-items: center;
@@ -777,7 +790,7 @@ html[data-theme="light"] .btn-primary {
   animation: est-girar 1s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .est-diff-add, .est-spin, .est-beam, .est-entra { animation: none !important; }
+  .est-diff-add, .est-spin, .est-beam, .est-entra, .est-mic-on { animation: none !important; }
 }
 
 /* o campo do Melhorar acende em âmbar quando você escreve (canvas) */
