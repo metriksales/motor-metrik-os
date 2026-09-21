@@ -242,6 +242,16 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao publicar" }); }
   };
 
+  // publicar direto uma mudança que ficou "em revisão" (do Histórico)
+  const [revErro, setRevErro] = useState<string | null>(null);
+  const [revIndo, setRevIndo] = useState(false);
+  const publicarEmRev = async () => {
+    if (!emRev || revIndo) return;
+    try { setRevErro(null); setRevIndo(true); await api.publicarMudanca(emRev.id, auth.getToken); setTick((x) => x + 1); }
+    catch (e) { setRevErro(e instanceof Error ? e.message : "não consegui publicar — retoma pelo chat"); }
+    finally { setRevIndo(false); }
+  };
+
   // ── NA PRÁTICA (chat sandbox real) ──
   const [msgs, setMsgs] = useState<MsgT[]>([]);
   const [input, setInput] = useState("");
@@ -627,7 +637,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         ) : (
                           <span className="emo text-[11.5px] rounded px-2 py-0.5" style={{ color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)" }}>disponível — não está ligada</span>
                         )}
-                        {aberta.estado !== "off" && <button onClick={() => setAba("testar")} className="est-ghost ml-auto flex items-center gap-1.5"><FlaskConical size={13} /> Testar isto</button>}
+                        <span className="emo text-[11px] ml-auto" style={{ color: "var(--e-dim)" }}>a verdade do que está no ar</span>
                       </div>
 
                       <div className="px-8 py-6">
@@ -647,36 +657,14 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
                         {aberta.id === "conversa" && (agent.real && rod ? (
                           <>
-                            {/* ESPERANDO VOCÊ — enxuto: a mudança pendente, sem o paragrafão inteiro */}
-                            {(emRev || (envio.fase === "pronto" && envio.evals)) && (
-                              <div className="rounded-[10px] overflow-hidden mb-7" style={{ border: "1px solid rgba(232,176,75,.45)", background: "var(--e-surface)" }}>
-                                <div className="est-beam" />
-                                <div className="px-4 py-3.5">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="live-dot" style={{ width: 7, height: 7, background: "var(--e-amber)" }} />
-                                    <span className="text-[12px] font-bold" style={{ letterSpacing: ".08em", color: "var(--e-amber)" }}>ESPERANDO VOCÊ PUBLICAR</span>
-                                  </div>
-                                  <p className="text-[14px] leading-relaxed m-0" style={{ color: "var(--e-txt)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{envio.fase === "pronto" ? envio.pedido : emRev?.intent}</p>
-                                  <div className="flex items-center gap-2.5 mt-3 flex-wrap">
-                                    {envio.fase === "pronto" && envio.evals ? (
-                                      <>
-                                        <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{envio.evals.aprovado ? "✓" : "✗"} guardião {envio.evals.passaram}/{envio.evals.total}</span>
-                                        {envio.ensaio?.modo === "real" && <button onClick={() => void publicar()} disabled={!envio.evals.aprovado} className="est-btn">Publicar</button>}
-                                      </>
-                                    ) : (
-                                      <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>termina pelo chat ao lado — ensaio → guardião → publicar</span>
-                                    )}
-                                    <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 ml-auto">
-                                      {run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} Rodar os testes
-                                    </button>
-                                  </div>
-                                  {run.r?.evals && (
-                                    <div className="emo text-[12.5px] mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--e-line-soft)", color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
-                                      {run.r.evals.aprovado ? "✓" : "✗"} {run.r.evals.passaram}/{run.r.evals.total} travas de pé{run.r.modo === "roteiro" ? " · conferido no roteiro (sem cérebro)" : ""} — detalhe na aba Testar
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                            {/* aviso FINO: a mudança pendente NÃO mora no artefato — mora
+                                no chat (quando fresca) e no Histórico. Aqui só o ponteiro. */}
+                            {emRev && (
+                              <button onClick={() => setAba("historico")} className="w-full flex items-center gap-2.5 rounded-[10px] px-4 py-2.5 mb-7 text-left transition-colors" style={{ border: "1px solid rgba(232,176,75,.4)", background: "rgba(232,176,75,.06)" }}>
+                                <span className="live-dot flex-none" style={{ width: 7, height: 7, background: "var(--e-amber)" }} />
+                                <span className="text-[13px] flex-1" style={{ color: "var(--e-txt2)" }}><b style={{ color: "var(--e-amber)" }}>1 mudança sua</b> esperando você publicar</span>
+                                <span className="emo text-[11.5px]" style={{ color: "var(--e-amber)" }}>ver no Histórico →</span>
+                              </button>
                             )}
 
                             <div className="est-faixa mb-2"><b>COMO ELA FALA</b><span>o jeito e o tom com o cliente</span></div>
@@ -982,6 +970,13 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                               <span className="emo text-[11.5px]" style={{ color: "var(--e-dim)" }}>{it.quando}</span>
                             </div>
                             <p className="text-[14.5px] leading-relaxed m-0" style={{ color: it.estado === "seg" ? "var(--e-mut)" : "var(--e-txt)", ...clamp2 }}>{it.texto}</p>
+                            {it.estado === "rev" && agent.real && (
+                              <div className="flex items-center gap-2.5 mt-3 flex-wrap">
+                                <button onClick={() => void publicarEmRev()} disabled={revIndo} className="est-btn">{revIndo ? <Loader2 size={12} className="animate-spin" /> : null} Publicar</button>
+                                <button onClick={() => { setAba("testar"); }} className="est-btn2"><FlaskConical size={12} /> Testar antes</button>
+                                {revErro && <span className="text-[12px]" style={{ color: "var(--e-red)" }}>{revErro}</span>}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
