@@ -4,7 +4,7 @@
 // progresso = log de terminal. Tudo lido do MOTOR (spec, ledger, evals,
 // chat-sandbox) — zero vitrine vestida em agente real.
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Clock, Loader2, Lock, Mic, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, Check, Clock, Loader2, Lock, Mic, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
 import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
 import { api } from "../lib/api";
@@ -131,9 +131,10 @@ const DEMO_PRATICA: { re: RegExp; resp: string; fonte: string }[] = [
   { re: /desconto|vista/i, resp: "Consigo até 10% à vista — e o retorno paga o resto. Monto a conta pro seu caso?", fonte: "segurou no teto de 10% — trava valendo" },
 ];
 
-export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
+export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, seed }: {
   agent: Agent;
   estado: "ativo" | "idle" | "pausado";
+  onBack: () => void;
   onToggle: () => void;
   onAoVivo: () => void;
   seed?: { tipo: "pedido" | "pergunta"; texto: string; n: number } | null;
@@ -264,11 +265,14 @@ export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
   const nNao = Object.values(feedback).filter((v) => v === "nao").length;
 
   return (
-    <div className="est">
-      {/* ── topo ── */}
-      <div className="flex items-center gap-3.5 px-6" style={{ height: 52, borderBottom: "1px solid var(--e-line)" }}>
+    <div className="est flex-1 min-h-0 flex flex-col">
+      {/* ── topo (breadcrumb: você está DENTRO do agente) ── */}
+      <div className="flex items-center gap-3 px-5 flex-none" style={{ height: 52, borderBottom: "1px solid var(--e-line)" }}>
+        <button onClick={onBack} title="voltar pra frota" className="flex items-center gap-1 -ml-1 px-1 py-1" style={{ color: "var(--e-mut)" }}><ArrowLeft size={15} /></button>
         <div className="rounded-lg p-0.5" style={{ border: "1px solid rgba(232,176,75,.5)", background: "#0e1116" }}><Robot state={estado} color={agent.color} size={26} /></div>
         <span className="text-[13px] font-semibold">{agent.name}</span>
+        <span className="emo text-[10.5px]" style={{ color: "var(--e-dim)" }}>/</span>
+        <span className="emo text-[10.5px]" style={{ color: "var(--e-mut)" }}>{secao === "testes" ? "Testes" : "Conversa"}</span>
         <span className="emo text-[10.5px]" style={{ color: "var(--e-mut)" }}>{agent.tipo === "acao" ? "ação" : "sdr"}{rod ? ` · v${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}</span>
         <span style={{ width: 6, height: 6, borderRadius: 99, background: estado === "pausado" ? "#7d8694" : "var(--e-green)" }} />
         <div className="ml-auto flex items-center gap-4">
@@ -280,7 +284,7 @@ export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
       </div>
 
       {/* ── faixa de resultado (vício honesto) ── */}
-      <div className="flex items-center gap-5 px-6 flex-wrap" style={{ minHeight: 38, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
+      <div className="flex items-center gap-5 px-6 flex-wrap flex-none" style={{ minHeight: 38, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
         <span className="text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>SUAS MUDANÇAS</span>
         {agent.real ? (
           <>
@@ -299,9 +303,10 @@ export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
         )}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "218px minmax(0,1fr) 380px", minHeight: 560 }}>
+      {/* colunas até o rodapé — a página não rola; o CENTRO rola por dentro */}
+      <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: "218px minmax(0,1fr) 400px" }}>
         {/* ── rail: as PARTES ── */}
-        <div style={{ borderRight: "1px solid var(--e-line)", padding: "14px 0" }}>
+        <div className="overflow-y-auto scroll-thin" style={{ borderRight: "1px solid var(--e-line)", padding: "14px 0" }}>
           <div className="px-5 pb-2 text-[10px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>MÓDULOS</div>
           <button onClick={() => setSecao("conversa")} className="w-full flex items-center gap-2.5 px-5 py-2 text-left" style={secao === "conversa" ? { background: "var(--e-surface)", borderRight: "2px solid var(--e-amber)" } : undefined}>
             <span style={{ width: 6, height: 6, borderRadius: 99, background: "var(--e-green)" }} />
@@ -335,8 +340,8 @@ export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
           )}
         </div>
 
-        {/* ── centro ── */}
-        <div style={{ padding: "18px 24px", minWidth: 0 }}>
+        {/* ── centro (rola por dentro, como um editor) ── */}
+        <div className="overflow-y-auto scroll-thin" style={{ padding: "18px 24px", minWidth: 0 }}>
           {secao === "conversa" ? (
             <>
               {/* composer */}
@@ -609,7 +614,7 @@ export default function Estudio({ agent, estado, onToggle, onAoVivo, seed }: {
               <button onClick={() => (emRev || !agent.real) && setModoTeste("ensaio")} title={emRev ? `aplica: ${emRev.intent}` : "sem mudança em revisão"} className="emo text-[9px] px-2 py-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 700 } : { color: "var(--e-dim)", opacity: emRev || !agent.real ? 1 : 0.4 }}>+ revisão</button>
             </div>
           </div>
-          <div className="flex-1 px-4 py-4 space-y-2.5 overflow-y-auto" style={{ background: "#0b141a", minHeight: 300, maxHeight: 520 }}>
+          <div className="flex-1 px-4 py-4 space-y-2.5 overflow-y-auto" style={{ background: "#0b141a", minHeight: 0 }}>
             {msgs.length === 0 && (
               <div className="text-center text-[11px] py-8" style={{ color: "#8696a0" }}>
                 Escreve como um lead escreveria — ou toca numa sugestão.

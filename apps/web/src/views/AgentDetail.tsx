@@ -56,26 +56,43 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
     }
   };
 
+  // faixa de estado (pausa) — no Estúdio vira tira full-width; no Ao vivo, card
+  const pausaStrip = (pausaMsg || state === "pausado") && (
+    <div
+      className={tela === "estudio" ? "flex-none border-b px-5 py-2 text-[12px] flex items-center gap-2" : "rounded-xl px-4 py-2.5 text-[12.5px] flex items-center gap-2"}
+      style={{
+        ...(tela === "estudio"
+          ? { borderColor: "var(--line)" }
+          : { border: `1px solid ${state === "pausado" ? "#fbbf2440" : "#3fb95040"}` }),
+        background: state === "pausado" ? "rgba(251,191,36,.08)" : "rgba(63,185,80,.08)",
+        color: state === "pausado" ? "#fbbf24" : "#3fb950",
+      }}
+    >
+      {state === "pausado" ? <Clock size={14} /> : <Check size={14} />}
+      {pausaMsg ?? "Este agente está pausado — a IA não está respondendo os leads."}
+    </div>
+  );
+
+  // ESTÚDIO = a tela inteira (workspace): sem coluna centrada, colunas até o rodapé
+  if (tela === "estudio") {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col">
+        {pausaStrip}
+        <motion.div key="estudio" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="flex-1 min-h-0 flex flex-col">
+          <Estudio agent={agent} estado={state} onBack={onBack} onToggle={() => void alternarEstado()} onAoVivo={() => setTela("aovivo")} seed={seed} />
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto scroll-thin">
+      <div className="max-w-[1180px] mx-auto px-4 md:px-7 py-6 pb-24 md:pb-6 space-y-4">
       <button onClick={onBack} className="btn btn-ghost btn-sm !px-2"><ArrowLeft size={15} /> Agentes</button>
 
-      {(pausaMsg || state === "pausado") && (
-        <div className="rounded-xl px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{
-          border: `1px solid ${state === "pausado" ? "#fbbf2440" : "#3fb95040"}`,
-          background: state === "pausado" ? "rgba(251,191,36,.08)" : "rgba(63,185,80,.08)",
-          color: state === "pausado" ? "#fbbf24" : "#3fb950",
-        }}>
-          {state === "pausado" ? <Clock size={14} /> : <Check size={14} />}
-          {pausaMsg ?? "Este agente está pausado — a IA não está respondendo os leads."}
-        </div>
-      )}
+      {pausaStrip}
 
-      {tela === "estudio" ? (
-        <motion.div key="estudio" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-          <Estudio agent={agent} estado={state} onToggle={() => void alternarEstado()} onAoVivo={() => setTela("aovivo")} seed={seed} />
-        </motion.div>
-      ) : (
+      {(
         <motion.div key="aovivo" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="rounded-xl p-1 flex-none" style={{ background: `${agent.color}0f`, border: `1px solid ${agent.color}2e` }}>
@@ -97,6 +114,7 @@ export default function AgentDetail({ agent, onBack, initialSub }: { agent: Agen
           <AoVivoTab agent={agent} onMelhorar={irEstudio} irModulos={() => setTela("estudio")} />
         </motion.div>
       )}
+      </div>
     </div>
   );
 }

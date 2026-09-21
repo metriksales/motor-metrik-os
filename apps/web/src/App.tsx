@@ -77,8 +77,6 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex overflow-hidden relative">
-      <div className="aurora" />
-      <div className="absolute inset-0 grid-bg pointer-events-none" />
 
       {/* SIDEBAR */}
       <aside className="relative z-10 w-[248px] flex-none hidden md:flex flex-col glass border-r border-[var(--line)] p-3.5">
@@ -231,17 +229,36 @@ export default function App() {
           </div>
         </header>
 
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto scroll-thin px-4 md:px-7 py-6 pb-24 md:pb-6">
+        {/* agente aberto = MODO WORKSPACE: a tela É o app (sem coluna centrada,
+            sem scroll de página — o Estúdio gerencia o scroll por dentro) */}
+        <div
+          ref={scrollRef}
+          className={
+            agent
+              ? "flex-1 min-h-0 flex flex-col overflow-hidden"
+              : "flex-1 min-h-0 overflow-y-auto scroll-thin px-4 md:px-7 py-6 pb-24 md:pb-6"
+          }
+        >
           {/* modo DEMO: deixa claro que é EXEMPLO — a conta real começa limpa */}
           {auth.demo && (
-            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ borderColor: "rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)", color: "var(--txt-2)" }}>
-              <Sparkles size={14} style={{ color: "#e8b04b" }} className="flex-none" />
+            <div
+              className={
+                agent
+                  ? "flex-none border-b px-5 py-1.5 text-[11.5px] flex items-center gap-2"
+                  : "max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2"
+              }
+              style={{ borderColor: agent ? "var(--line)" : "rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)", color: "var(--txt-2)" }}
+            >
+              <Sparkles size={13} style={{ color: "#e8b04b" }} className="flex-none" />
               <span><b className="text-[var(--txt)]">Isto é um exemplo</b> — números e conversas de demonstração. A sua conta começa limpa e vai enchendo sozinha conforme a IA trabalha.</span>
             </div>
           )}
           {/* modo LOGADO: falha real da API nunca vira maquete — vira aviso claro */}
           {!auth.demo && erro && (
-            <div className="max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]" style={{ borderColor: "rgba(248,81,73,.4)", background: "rgba(248,81,73,.08)", color: "#f85149" }}>
+            <div
+              className={agent ? "flex-none border-b px-5 py-2 text-[12.5px]" : "max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]"}
+              style={{ borderColor: "rgba(248,81,73,.4)", background: "rgba(248,81,73,.08)", color: "#f85149" }}
+            >
               Não consegui falar com o motor agora: <span className="font-mono">{erro}</span>. A Metrik já enxerga isso do outro lado — se persistir, chama a gente.
             </div>
           )}
@@ -253,7 +270,7 @@ export default function App() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: [0.2, 0.7, 0.2, 1] }}
-            className="max-w-[1180px] mx-auto"
+            className={agent ? "flex-1 min-h-0 flex flex-col" : "max-w-[1180px] mx-auto"}
           >
               {!auth.demo && !erro && !agentsLoading && agents.length === 0 ? (
                 <div className="card !rounded-2xl px-6 py-10 text-center">
