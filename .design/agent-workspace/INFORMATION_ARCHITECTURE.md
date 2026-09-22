@@ -27,17 +27,17 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 
 1. Identidade, função e estado do agente.
 2. Trabalho de hoje e personalizações no ar, como resumo compacto.
-3. Caminho do Agente, porque explica a composição e orienta a navegação.
-4. Documento da peça selecionada, começando pelo que ela faz.
+3. Documento da peça selecionada, começando pelo que ela faz.
+4. Caminho do Agente como índice lateral da composição.
 5. Configuração profunda e histórico, por divulgação progressiva.
 
 ### Como funciona
 
 1. Função da peça selecionada.
-2. Papel da peça no caminho completo.
-3. Como fala e o que oferece.
-4. Regras e fatos do cliente.
-5. Evidência da última mudança publicada.
+2. Como fala e o que oferece.
+3. Regras e fatos do cliente.
+4. Caminho lateral, para trocar de peça sem sair do documento.
+5. Evidência da última mudança publicada, por divulgação progressiva.
 
 ## Fluxos críticos
 
@@ -45,9 +45,8 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 
 1. Abre o Estúdio.
 2. Lê função e estado no cabeçalho.
-3. Vê o Caminho do Agente.
-4. Seleciona uma peça.
-5. Lê função, contexto e regras sem sair da tela.
+3. Lê função, contexto e regras da peça atual.
+4. Usa o Caminho lateral quando precisa trocar de peça.
 
 ### Corrigir comportamento
 
@@ -77,8 +76,8 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 
 ## Crescimento
 
-- Até quatro peças: trilho horizontal completo.
-- Cinco ou mais: trilho com rolagem horizontal, início e fim preservados.
+- Até quatro peças: espinha vertical completa no rail lateral.
+- Cinco ou mais: rail com rolagem vertical independente; peça selecionada preservada.
 - Regras: agrupamento e busca quando ultrapassarem dez itens.
 - Execuções: filtros e paginação/virtualização acima de cinquenta linhas.
 - Mudanças: agrupamento por data e estado; pendências sempre antes do histórico.

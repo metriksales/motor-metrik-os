@@ -155,13 +155,13 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   // A bancada funciona como um editor: no desktop o mestre pode dar mais
   // espaço ao chat ou ao artefato arrastando o divisor. Persistimos a escolha.
   const [chatWidth, setChatWidth] = useState(() => {
-    if (typeof window === "undefined") return 352;
-    const saved = Number(window.localStorage.getItem("metrik:studio-chat-width"));
-    return Number.isFinite(saved) && saved >= 300 && saved <= 520 ? saved : 352;
+    if (typeof window === "undefined") return 320;
+    const saved = Number(window.localStorage.getItem("metrik:studio-chat-width-v4"));
+    return Number.isFinite(saved) && saved >= 296 && saved <= 440 ? saved : 320;
   });
   const [resizing, setResizing] = useState(false);
   const resizeRef = useRef<{ x: number; width: number; pointerId: number } | null>(null);
-  const clampChatWidth = (value: number) => Math.min(520, Math.max(300, value));
+  const clampChatWidth = (value: number) => Math.min(440, Math.max(296, value));
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     resizeRef.current = { x: event.clientX, width: chatWidth, pointerId: event.pointerId };
@@ -181,10 +181,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const resizeWithKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home") return;
     event.preventDefault();
-    setChatWidth((width) => event.key === "Home" ? 352 : clampChatWidth(width + (event.key === "ArrowLeft" ? -24 : 24)));
+    setChatWidth((width) => event.key === "Home" ? 320 : clampChatWidth(width + (event.key === "ArrowLeft" ? -24 : 24)));
   };
   useEffect(() => {
-    window.localStorage.setItem("metrik:studio-chat-width", String(Math.round(chatWidth)));
+    window.localStorage.setItem("metrik:studio-chat-width-v4", String(Math.round(chatWidth)));
   }, [chatWidth]);
   // qual PEÇA do cérebro está aberta no artefato (o mapa fica à direita)
   const [peca, setPeca] = useState<string>("conversa");
@@ -213,7 +213,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const publicadas = cs.filter((r) => String(r.status) === "published");
   const seguradas = cs.filter((r) => ["rejected"].includes(String(r.status)));
   const execsHoje = agent.real ? (stats?.porAgente?.[agent.id]?.execucoes ?? 0) : agent.metrics.execucoes;
-  const personalizacoesNoAr = agent.real ? publicadas.length : 4;
   const naFila = agent.work?.kind === "followups" ? (agent.work.followups?.filter((f) => f.status !== "feito").length ?? 0) : null;
 
   // ── composer (a porta única) ──
@@ -376,31 +375,24 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         <div className="est-agentbar-main">
           <button onClick={onBack} title="voltar pra frota" aria-label="voltar pra frota" className="est-icon-btn"><ArrowLeft size={17} /></button>
           <div className="est-agent-avatar"><Robot state={estado} color={agent.color} size={30} /></div>
-          <div className="min-w-0">
+          <div className="min-w-0 est-agent-identity">
             <div className="flex items-center gap-2">
               <strong className="text-[16px] truncate">{agent.name}</strong>
               <span className="est-status-dot" data-on={estado !== "pausado" ? "true" : "false"} />
             </div>
-            <div className="emo text-[12px] truncate" style={{ color: "var(--e-dim)" }}>
-              {agent.tipo === "acao" ? "agente de ação" : "agente de resposta"}{rod ? ` · versão ${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}
+            <div className="text-[11.5px] truncate" style={{ color: "var(--e-dim)" }}>
+              {agent.tipo === "acao" ? "Executa tarefas" : "Conversa com leads"} · {estado === "pausado" ? "pausado" : "no ar"}
             </div>
           </div>
 
-          <div className="hidden lg:flex est-agentbar-stats">
-            <div><b>{personalizacoesNoAr}</b><span>ajustes seus<br />no ar</span></div>
-            <div><b>{execsHoje}</b><span>atendimentos<br />hoje</span></div>
-          </div>
+          <div className="est-agentbar-today" role="status" aria-label={`${execsHoje} atendimentos hoje`}><b>{execsHoje}</b><span>hoje</span></div>
 
-          <div className="ml-auto flex items-center gap-1">
-            <button onClick={onAoVivo} title="abrir atividade ao vivo" aria-label="abrir atividade ao vivo" className="est-icon-btn"><Radio size={16} /><span className="hidden xl:inline">Ao vivo</span></button>
+          <div className="flex items-center gap-1">
+            <button onClick={onAoVivo} title="abrir atividade ao vivo" aria-label="abrir atividade ao vivo" className="est-icon-btn"><Radio size={16} /></button>
             <button onClick={onToggle} title={estado === "pausado" ? "ligar agente" : "pausar agente"} aria-label={estado === "pausado" ? "ligar agente" : "pausar agente"} className="est-switch">
               <span data-on={estado === "pausado" ? "false" : "true"}><i /></span>
             </button>
           </div>
-        </div>
-        <div className="lg:hidden est-agentbar-mobile-stats">
-          <span><b>{personalizacoesNoAr}</b> ajustes seus no ar</span>
-          <span><b>{execsHoje}</b> atendimentos hoje</span>
         </div>
       </header>
 
@@ -425,34 +417,24 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
         <div className={`${mobilePane === "editar" ? "flex" : "hidden"} xl:flex flex-col min-h-0 w-full min-w-0 flex-none est-improve`}>
           <div className="est-improve-head">
-            <div>
-              <span className="emo">MELHORAR</span>
-              <p>Peça uma mudança. Eu mostro o antes e o depois.</p>
-            </div>
+            <span>Melhorar · {agent.name}</span>
           </div>
 
-          <div ref={feedRef} className="flex-1 overflow-y-auto scroll-thin px-5 py-5 space-y-5">
+          <div ref={feedRef} className="flex-1 overflow-y-auto scroll-thin est-improve-feed space-y-5">
             {/* boas-vindas do motor + pontos de partida (ninguém fica olhando pro vazio) */}
-            <div className={bolhaMotor}>
-              <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>
-                  Descreva o que precisa mudar. Eu localizo a peça certa, mostro o antes e o depois e <b style={{ color: "var(--e-txt)" }}>só publico depois do teste.</b>
-                </p>
+            <div className="est-improve-intro">
+              <h2>O que deve mudar?</h2>
+              <p>Diga do seu jeito. Eu encontro a peça, testo e mostro antes de publicar.</p>
                 {trocas.length === 0 && envio.fase === "idle" && (
-                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  <div className="est-suggestions">
                     {[
                       "Ensina que o parcelamento é em até 3x sem juros",
                       "Quando o lead sumir, espera 1 dia e manda só 1 follow",
-                      "Nunca prometa resultado — fala em acompanhamento",
                     ].map((s) => (
-                      <button key={s} onClick={() => setTexto(s)} className="text-[12.5px] rounded-full px-3 py-1.5 text-left" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
-                        {s}
-                      </button>
+                      <button key={s} onClick={() => setTexto(s)}><Plus size={13} />{s}</button>
                     ))}
                   </div>
                 )}
-              </div>
             </div>
 
             {/* trocas já fechadas nesta visita */}
@@ -572,7 +554,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           </div>
 
           {/* a caixinha */}
-          <div className="flex-none" style={{ borderTop: "1px solid var(--e-line)", padding: "12px 18px" }}>
+          <div className="flex-none est-composer-wrap">
             <div className="melhorar-campo rounded-xl" style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", padding: "13px 15px 11px", transition: "border-color .2s, box-shadow .2s" }}>
               <div className="flex items-start gap-2.5">
                 <span className="emo text-[15px] mt-0.5" style={{ color: "var(--e-amber)" }}>❯</span>
@@ -581,7 +563,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(); } }}
-                  placeholder="pede qualquer mudança na sua IA…"
+                  placeholder={`O que ${agent.name} deve fazer diferente?`}
                   className="flex-1 bg-transparent resize-none outline-none text-[15px] py-0.5"
                   style={{ color: "var(--e-txt)" }}
                 />
@@ -603,12 +585,12 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           role="separator"
           aria-label="Redimensionar painel Melhorar"
           aria-orientation="vertical"
-          aria-valuemin={300}
-          aria-valuemax={520}
+          aria-valuemin={296}
+          aria-valuemax={440}
           aria-valuenow={Math.round(chatWidth)}
           tabIndex={0}
           title="Arraste para aumentar ou diminuir o chat"
-          onDoubleClick={() => setChatWidth(352)}
+          onDoubleClick={() => setChatWidth(320)}
           onPointerDown={startResize}
           onPointerMove={moveResize}
           onPointerUp={stopResize}
@@ -623,24 +605,24 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           {/* abas do artefato */}
           <div className="hidden xl:grid est-workspace-tabs">
             {([
-              { id: "artefato" as const, icone: FileText, rotulo: "Como funciona", apoio: "peças e regras" },
-              { id: "testar" as const, icone: FlaskConical, rotulo: "Testar", apoio: "fale como lead" },
-              { id: "exec" as const, icone: Activity, rotulo: "Ao vivo", apoio: "execuções agora" },
-              { id: "historico" as const, icone: History, rotulo: "Mudanças", apoio: "revisar e publicar" },
+              { id: "artefato" as const, icone: FileText, rotulo: "Como funciona" },
+              { id: "testar" as const, icone: FlaskConical, rotulo: "Testar" },
+              { id: "exec" as const, icone: Activity, rotulo: "Ao vivo" },
+              { id: "historico" as const, icone: History, rotulo: "Mudanças" },
             ]).map((t) => {
               const ativo = aba === t.id;
               const Icone = t.icone;
               return (
-                <button key={t.id} onClick={() => abrirAba(t.id)} aria-current={ativo ? "page" : undefined} className="est-tab">
+                <button key={t.id} onClick={() => abrirAba(t.id)} aria-current={ativo ? "page" : undefined} className="est-tab" title={t.rotulo}>
                   <span className="est-tab-icon"><Icone size={16} />{t.id === "exec" && <i className="live-dot" />}</span>
-                  <span className="est-tab-copy"><b>{t.rotulo}</b><small>{t.apoio}</small></span>
+                  <b>{t.rotulo}</b>
                   {t.id === "historico" && emRev && <span className="est-tab-badge" aria-label="uma mudança pendente">1</span>}
                 </button>
               );
             })}
           </div>
 
-          {/* ── COMO FUNCIONA — caminho primeiro, peça selecionada abaixo ── */}
+          {/* ── COMO FUNCIONA — documento primeiro, caminho como índice lateral ── */}
           {aba === "artefato" && (() => {
             type Peca = BrainPiece & { upg?: Upgrade };
             const temFollow = agent.work?.kind === "followups";
@@ -678,8 +660,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <header className="est-piece-head">
                       <div className="est-piece-icon" style={{ color: aberta.cor }} aria-hidden="true">{aberta.glifo}</div>
                       <div className="min-w-0">
-                        <span className="emo est-kicker">PEÇA SELECIONADA</span>
-                        <h2 id="selected-piece-title">{aberta.nome} — como {agent.name} {aberta.id === "conversa" ? "conversa" : "trabalha"}</h2>
+                        <span className="est-piece-context">Como {agent.name} funciona</span>
+                        <h2 id="selected-piece-title">{aberta.nome}</h2>
                       </div>
                       {aberta.estado !== "off" ? (
                         <span className="emo est-piece-status" data-state="live">
@@ -693,7 +675,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <div className="est-piece-body">
                       {aberta.id === "conversa" && (
                         <section className="est-piece-intro" aria-labelledby="piece-purpose-title">
-                          <span className="emo est-kicker">O PAPEL DESTA PEÇA</span>
                           <h3 id="piece-purpose-title">{funcao}</h3>
                           <div className="flex flex-wrap gap-2">
                             {jobs.map((job, index) => <span key={index} className="est-chip"><span style={{ background: job.cor }} />{job.rot}</span>)}
@@ -705,18 +686,18 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         <>
                           <div className="est-facts-grid">
                             <section>
-                              <span className="emo est-kicker">COMO ELA FALA</span>
+                              <h4>Jeito de falar</h4>
                               <p>{c?.identidade ?? "Identidade ainda não descrita."}</p>
                             </section>
                             <section>
-                              <span className="emo est-kicker">O QUE ELA OFERECE</span>
+                              <h4>O que oferece</h4>
                               <p>{c?.oferta ?? "Oferta ainda não descrita."}</p>
                             </section>
                           </div>
 
                           <section className="est-rules" aria-labelledby="agent-rules-title">
                             <div className="est-section-head">
-                              <div><span className="emo est-kicker">DECISÕES DO NÚCLEO</span><h3 id="agent-rules-title">Regras que guiam a conversa</h3></div>
+                              <h3 id="agent-rules-title">Regras em vigor</h3>
                               <span>{regras.length} {regras.length === 1 ? "regra" : "regras"}</span>
                             </div>
                             <div className="est-card overflow-hidden">
@@ -755,7 +736,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
                       {aberta.id !== "conversa" && aberta.estado !== "off" && (
                         <section className="est-module-detail">
-                          <span className="emo est-kicker">O PAPEL DESTA PEÇA</span>
                           <h3>{aberta.resumo}.</h3>
                           {aberta.meta && <div className="est-module-now"><span className="emo">AGORA</span><b>{aberta.meta}</b></div>}
                           <p>Para mudar como esta peça age, descreva o ajuste em Melhorar. O guardião testa antes de publicar.</p>
@@ -764,14 +744,12 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
                       {aberta.estado === "off" && (
                         <section className="est-module-detail">
-                          <span className="emo est-kicker">DISPONÍVEL PARA LIGAR</span>
+                          <span className="est-piece-context">Disponível para ligar</span>
                           <h3>{aberta.resumo}.</h3>
                           {aberta.upg?.resultado && <div className="est-upgrade-result">{aberta.upg.resultado}</div>}
                           {aberta.upg ? <button onClick={() => setModal(aberta.upg!)} className="est-btn"><Plus size={14} /> Ligar esta peça</button> : <p>Na sua conta, a Metrik liga esta peça e ela entra no caminho depois de ensaio e aprovação.</p>}
                         </section>
                       )}
-
-                      <footer className="est-truth-note">Esta visão é montada com o cérebro atual do agente. Melhorias só aparecem aqui depois de publicadas.</footer>
                     </div>
                   </article>
 
