@@ -52,9 +52,9 @@ export function ChangeEvidenceLedger({ changes, relativeTime, publishing, publis
   }
 
   return (
-    <section className="change-history">
+    <section className="change-history" aria-label="Histórico de mudanças">
       <header className="change-history-head">
-        <div><h2>Mudanças</h2><p>O que você pediu e o que entrou no agente.</p></div>
+        <p>O que você pediu e o que entrou no agente.</p>
         <span>{live} no ar{pending ? ` · ${pending} em revisão` : ""}</span>
       </header>
 
