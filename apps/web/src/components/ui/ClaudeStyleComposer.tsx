@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, FileText, Image as ImageIcon, Mic, Paperclip, Plus, ShieldCheck, X } from "lucide-react";
+import { ArrowUp, FileText, Image as ImageIcon, Mic, Plus, ShieldCheck, X } from "lucide-react";
 
 export type ComposerAttachment = {
   id: string;
@@ -142,7 +142,7 @@ export function ClaudeStyleComposer({
         ref={fileInputRef}
         type="file"
         className="sr-only"
-        aria-label="Anexar arquivos de contexto"
+        aria-label="Anexar documentos"
         multiple
         accept="image/*,.pdf,.txt,.md,.csv,.json,.yaml,.yml"
         onChange={(event) => {
@@ -152,7 +152,7 @@ export function ClaudeStyleComposer({
       />
 
       {(files.length > 0 || pastedContent.length > 0) ? (
-        <div className="claude-composer-assets" aria-label="Conteúdo anexado">
+        <div className="claude-composer-assets" aria-label="Documentos anexados">
           {files.map((attachment) => (
             <article className="claude-attachment" key={attachment.id}>
               {attachment.preview ? (
@@ -207,12 +207,8 @@ export function ClaudeStyleComposer({
       </div>
 
       <div className="claude-composer-toolbar">
-        <button type="button" className="claude-tool-button" onClick={() => fileInputRef.current?.click()} aria-label="Adicionar arquivo" title="Adicionar arquivo">
+        <button type="button" className="claude-tool-button" onClick={() => fileInputRef.current?.click()} aria-label="Adicionar documento" title="Adicionar documento">
           <Plus size={16} />
-        </button>
-        <button type="button" className="claude-tool-button" onClick={() => fileInputRef.current?.click()} aria-label="Anexar contexto" title="Anexar contexto">
-          <Paperclip size={15} />
-          <span>Contexto</span>
         </button>
         <button type="button" className={`claude-tool-button${isRecording ? " is-recording" : ""}`} onClick={onVoice} aria-label={isRecording ? "Parar de gravar" : "Falar em vez de escrever"}>
           <Mic size={15} />
@@ -233,7 +229,7 @@ export function ClaudeStyleComposer({
       </div>
 
       {voiceError ? <p className="claude-composer-error" role="status">{voiceError}</p> : null}
-      {isDragging ? <div className="claude-composer-drop">Solte para adicionar ao contexto</div> : null}
+      {isDragging ? <div className="claude-composer-drop">Solte para adicionar o documento</div> : null}
     </div>
   );
 }

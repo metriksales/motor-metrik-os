@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Camera, CheckCheck, CircleCheck, CircleX, Loader2, Mic, MoreVertical, Paperclip, Phone, ShieldCheck, Smile, Video } from "lucide-react";
+import { Camera, CheckCheck, CircleCheck, CircleX, Loader2, MoreVertical, Paperclip, Phone, SendHorizontal, ShieldCheck, Smile, Video } from "lucide-react";
 
 export type TestChatMessage = {
   de: "voce" | "ia";
@@ -223,9 +223,10 @@ export function WhatsAppTestChat({
           type="button"
           onClick={onSubmit}
           disabled={!input.trim() || thinking}
-          aria-label={input.trim() ? "Enviar mensagem de teste" : "Microfone indisponível no teste"}
+          aria-label="Enviar mensagem de teste"
         >
-          {input.trim() ? <ArrowUp size={18} /> : <Mic size={18} />}
+          <SendHorizontal size={16} />
+          <span>Enviar</span>
         </button>
       </footer>
     </motion.section>

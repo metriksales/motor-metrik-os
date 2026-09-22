@@ -762,15 +762,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           {/* ── ABA TESTAR ── */}
           {aba === "testar" && (
             <div className="flex-1 min-h-0 flex flex-col est-entra est-test-page">
-              <header className="est-test-page-head">
-                <div>
-                  <span className="est-kicker">LABORATÓRIO ISOLADO</span>
-                  <h2>Converse como um lead</h2>
-                  <p>Veja a resposta no ambiente em que ela realmente trabalha, sem tocar no CRM.</p>
-                </div>
-                <span className="est-test-session-status"><i /> sessão de teste</span>
-              </header>
-
               <div className="est-test-layout scroll-thin">
                 <WhatsAppTestChat
                   agentName={agent.name}
