@@ -53,7 +53,7 @@ export function AgentBrainMap({
               className="est-module-card"
               data-selected={selectedId === piece.id ? "true" : "false"}
             >
-              <span className="est-step-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+              <span className="est-step-node" aria-hidden="true" />
               <span className="est-module-body">
                 <span className="est-module-topline">
                   <span>{piece.estado === "nucleo" ? "Núcleo" : "Módulo"}</span>
@@ -74,7 +74,7 @@ export function AgentBrainMap({
           <div className="est-path-item est-path-next" role="listitem" aria-label="Próxima peça">
             <div className="est-path-connector" aria-hidden="true"><i /><span className="emo">depois</span></div>
             <div className="est-module-card est-module-card-ghost">
-              <span className="est-step-index" aria-hidden="true">02</span>
+              <span className="est-step-node" aria-hidden="true" />
               <span className="est-module-body">
                 <span className="est-module-add"><Plus size={14} /> Ligar próxima peça</span>
                 <small>Follow-up, agenda ou outro módulo.</small>

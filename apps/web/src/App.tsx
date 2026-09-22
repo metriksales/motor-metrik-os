@@ -61,6 +61,9 @@ export default function App() {
   // o resto (Módulos/Conexões/Admin) entra no "Mais". Sempre há como voltar.
   const NAV_MOBILE = NAV.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
   const NAV_MAIS = NAV.filter((n) => !["inicio", "agentes", "aovivo"].includes(n.id));
+  const NAV_OPERAR = NAV.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
+  const NAV_CONSTRUIR = NAV.filter((n) => ["modulos", "conexoes"].includes(n.id));
+  const NAV_GESTAO = NAV.filter((n) => n.id === "admin");
 
   const nav = NAV.find((n) => n.id === view)!;
   const agent = agentId ? byId(agentId) : null;
@@ -90,43 +93,42 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex overflow-hidden relative">
 
-      {/* SIDEBAR (recolhível) */}
-      <aside className={cx("relative z-10 flex-none hidden md:flex flex-col glass border-r border-[var(--line)] transition-[width] duration-200", compactSide ? "w-[68px] p-2" : "w-[248px] p-3.5")}>
-        <div className={cx("flex items-center py-2 mb-1", compactSide ? "justify-center" : "gap-2.5 px-1.5")}>
-          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 34, height: 34, background: "var(--grad)", boxShadow: "0 8px 22px -10px #e8b04b" }}>
-            <Gauge size={19} style={{ color: "#0a0714" }} strokeWidth={2.2} />
-          </span>
+      {/* SIDEBAR — a coluna estrutural do Motor OS */}
+      <aside className={cx("app-sidebar relative z-20 flex-none hidden md:flex flex-col", compactSide ? "app-sidebar--compact" : "app-sidebar--expanded")}>
+        <div className="app-sidebar-brand-row">
+          <button type="button" className="app-brand" onClick={() => go("inicio")} aria-label="Ir para o Início" title={compactSide ? "Metrik · Início" : undefined}>
+            <span className="app-brand-mark" aria-hidden="true"><Gauge size={19} strokeWidth={2.2} /></span>
+            {!compactSide && (
+              <span className="app-brand-copy">
+                <strong>Metrik</strong>
+                <small>Motor OS</small>
+              </span>
+            )}
+          </button>
           {!compactSide && (
-            <>
-              <div className="leading-none">
-                <div className="font-display font-bold text-[16px] tracking-tight">Metrik</div>
-                <div className="mono-label !text-[9px] mt-1">Motor OS</div>
-              </div>
-              <button onClick={toggleSide} className="btn-ghost btn !p-1.5 !rounded-lg ml-auto" aria-label="Recolher menu" title="Recolher menu">
-                <PanelLeftClose size={16} />
-              </button>
-            </>
+            <button onClick={toggleSide} className="app-sidebar-toggle" aria-label="Recolher menu" title="Recolher menu">
+              <PanelLeftClose size={16} />
+            </button>
           )}
         </div>
 
         {compactSide && !agent && (
-          <button onClick={toggleSide} className="btn-ghost btn !p-2 !rounded-lg mb-2 mx-auto" aria-label="Expandir menu" title="Expandir menu">
+          <button onClick={toggleSide} className="app-sidebar-toggle app-sidebar-toggle--compact" aria-label="Expandir menu" title="Expandir menu">
             <PanelLeftOpen size={17} />
           </button>
         )}
 
         {!compactSide && (auth.demo ? (
-          <button className="w-full flex items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors p-2.5 mb-4">
-            <span className="grid place-items-center rounded-lg flex-none text-[12px] font-bold font-display" style={{ width: 30, height: 30, background: "var(--deep)", color: "#fff" }}>{auth.orgInitial}</span>
-            <div className="text-left min-w-0 flex-1">
-              <div className="text-[13px] font-medium truncate">{auth.orgName}</div>
-              <div className="text-[10.5px] text-[var(--txt-3)] truncate">{auth.orgDesc}</div>
-            </div>
-            <ChevronsUpDown size={14} className="text-[var(--txt-4)] flex-none" />
+          <button className="app-org-card">
+            <span className="app-org-avatar">{auth.orgInitial}</span>
+            <span className="app-org-copy">
+              <strong>{auth.orgName}</strong>
+              <small>{auth.orgDesc}</small>
+            </span>
+            <ChevronsUpDown size={14} aria-hidden="true" />
           </button>
         ) : (
-          <div className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1.5">
-            {/* visual vem do tema global (clerkTheme.ts) — aqui só o layout */}
+          <div className="app-org-card app-org-card--clerk">
             <OrganizationSwitcher
               hidePersonal
               afterCreateOrganizationUrl="/"
@@ -136,43 +138,64 @@ export default function App() {
           </div>
         ))}
 
-        <nav className="space-y-0.5 flex-1">
-          {NAV.map((n) => (
-            <button key={n.id} onClick={() => go(n.id)} title={compactSide ? n.label : undefined} aria-label={n.label} className={cx("nav-item w-full", compactSide && "!justify-center !px-0 relative", view === n.id && "active")}>
-              <n.icon size={17} strokeWidth={1.9} className="flex-none" />
-              {!compactSide && <span className="flex-1 text-left">{n.label}</span>}
-              {n.id === "agentes" && !compactSide && (
-                <span className="grid place-items-center text-[10px] font-mono rounded-full text-[var(--txt-3)]" style={{ minWidth: 17, height: 17, background: "var(--surface-hi)", border: "1px solid var(--line)" }}>{agents.length}</span>
-              )}
-              {n.id === "aovivo" && <span className={cx("live-dot", compactSide && "absolute top-1.5 right-2")} style={{ width: 7, height: 7 }} />}
-            </button>
+        <nav className="app-nav" aria-label="Navegação principal">
+          {[
+            { label: "Operar", items: NAV_OPERAR },
+            { label: "Construir", items: NAV_CONSTRUIR },
+            { label: "Gestão", items: NAV_GESTAO },
+          ].map((group) => (
+            <div className="app-nav-group" key={group.label}>
+              {!compactSide && <span className="app-nav-group-label">{group.label}</span>}
+              {group.items.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => go(n.id)}
+                  aria-label={n.label}
+                  aria-current={view === n.id ? "page" : undefined}
+                  className={cx("app-nav-item", view === n.id && "active")}
+                >
+                  <span className="app-nav-icon"><n.icon size={18} strokeWidth={view === n.id ? 2.15 : 1.85} /></span>
+                  {!compactSide && (
+                    <span className="app-nav-copy">
+                      <strong>{n.label}</strong>
+                      <small>{n.hint}</small>
+                    </span>
+                  )}
+                  {n.id === "agentes" && <span className="app-nav-badge">{agents.length}</span>}
+                  {n.id === "aovivo" && <span className="app-nav-live" aria-label="Atividade ao vivo" />}
+                  {compactSide && (
+                    <span className="app-nav-tooltip" aria-hidden="true">
+                      <strong>{n.label}</strong>
+                      <small>{n.hint}</small>
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
 
         {compactSide ? (
-          <div className="pt-3 mt-2 border-t border-[var(--line)] flex flex-col items-center gap-2">
-            <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="btn-ghost btn !p-1.5 !rounded-lg" aria-label="Alternar tema" title="Alternar tema">
-              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          <div className="app-sidebar-footer app-sidebar-footer--compact">
+            <span className="app-operation-beacon" title={`${ativos} agentes trabalhando`}><i /></span>
+            <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="app-sidebar-theme" aria-label="Alternar tema" title="Alternar tema">
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <span className="live-dot" style={{ width: 8, height: 8 }} title={`${ativos} agentes no ar`} />
           </div>
         ) : (
-          <div className="pt-3 mt-2 border-t border-[var(--line)] space-y-2.5">
-            <div className="flex items-center justify-between px-1.5">
-              <div className="flex items-center gap-2 text-[11px] text-[var(--txt-3)]">
-                <span className="dot" style={{ background: "#3fb950" }} /> Claude Code
-                <span className="dot ml-1" style={{ background: "#3fb950" }} /> Codex
-              </div>
-              <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="btn-ghost btn !p-1.5 !rounded-lg" aria-label="Alternar tema">
+          <div className="app-sidebar-footer">
+            <div className="app-operation-status">
+              <span className="app-operation-beacon"><i /></span>
+              <span>
+                <strong>Operação ativa</strong>
+                <small>{ativos} {ativos === 1 ? "agente trabalhando" : "agentes trabalhando"}</small>
+              </span>
+            </div>
+            <div className="app-sidebar-meta">
+              <span>Motor conectado</span>
+              <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="app-sidebar-theme" aria-label="Alternar tema" title="Alternar tema">
                 {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
               </button>
-            </div>
-            <div className="rounded-xl bg-[var(--surface)] border border-[var(--line)] px-3 py-2.5 flex items-center justify-between">
-              <div>
-                <div className="text-[11.5px] font-medium">{ativos} agentes no ar</div>
-                <div className="text-[10px] text-[var(--txt-4)]">motor blindado</div>
-              </div>
-              <span className="live-dot" style={{ width: 7, height: 7 }} />
             </div>
           </div>
         )}

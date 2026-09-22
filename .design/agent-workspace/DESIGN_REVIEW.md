@@ -112,3 +112,26 @@ A V3 acertou a posição das áreas, mas manteve quatro fontes de ruído: menu g
 - **Próxima ação:** o placeholder vira “Ligar próxima peça”, visualmente subordinado mas legível.
 - **Responsividade:** sem overflow horizontal em 375, 768, 1280 e 1440px.
 - **Acessibilidade:** auditoria axe WCAG 2 A/AA com zero violações depois do ajuste de contraste da próxima peça.
+
+## V6 — revisão do menu lateral
+
+### Capturas
+
+| Arquivo | Breakpoint | Estado |
+|---|---:|---|
+| `screenshots/sidebar-v6-expanded-desktop-1280.png` | 1280×900 | Menu aberto na visão geral |
+| `screenshots/sidebar-v6-focus-desktop-1280.png` | 1280×800 | Rail compacto dentro do agente |
+| `screenshots/sidebar-v6-focus-desktop-1440.png` | 1440×1000 | Rail e Caminho completo |
+| `screenshots/sidebar-v6-tooltip-desktop.png` | 1440×1000 | Tooltip contextual no rail |
+| `screenshots/sidebar-v6-tablet-768.png` | 768×1024 | Rail compacto e conteúdo empilhado |
+| `screenshots/sidebar-v6-mobile-375.png` | 375×812 | Navegação móvel preservada |
+
+### Resultado
+
+- **Estrutura:** navegação dividida em Operar, Construir e Gestão; o menu deixou de ser uma lista uniforme.
+- **Conexão com o app:** a rota ativa usa uma ponte âmbar que toca a borda do conteúdo.
+- **Modo foco:** rail de 76px com tooltips de título e função; abrir e recolher preservam 248/76px.
+- **Rodapé:** status interno Claude/Codex saiu; ficou uma leitura única de operação e quantidade de agentes trabalhando.
+- **Caminho:** marcadores `01/02` removidos; pontos e conectores preservam a sequência.
+- **Responsividade:** sem overflow horizontal em 375, 768, 1280 e 1440px.
+- **Acessibilidade:** auditoria axe WCAG 2 A/AA com zero violações nos estados aberto e compacto.
