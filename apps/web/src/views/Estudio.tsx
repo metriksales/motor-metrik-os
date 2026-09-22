@@ -144,6 +144,13 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   // a experiência Claude: chat de edições à esquerda + ARTEFATO à direita.
   // O artefato é renderizado do spec do motor — custa ZERO token desenhar.
   const [aba, setAba] = useState<"artefato" | "testar" | "exec" | "historico">("artefato");
+  // No celular, chat e artefato não cabem lado a lado. Esta chave transforma
+  // as duas colunas num workspace navegável sem duplicar nenhuma tela.
+  const [mobilePane, setMobilePane] = useState<"editar" | "resultado">("editar");
+  const abrirAba = (proxima: "artefato" | "testar" | "exec" | "historico") => {
+    setAba(proxima);
+    setMobilePane("resultado");
+  };
   // qual PEÇA do cérebro está aberta no artefato (o mapa fica à direita)
   const [peca, setPeca] = useState<string>("conversa");
   const [trocas, setTrocas] = useState<{ pedido: string; status: "no ar" | "guardada" }[]>([]);
@@ -264,7 +271,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   useEffect(() => { if (!emRev && modoTeste === "ensaio") setModoTeste("ar"); }, [emRev, modoTeste]);
   useEffect(() => {
     if (!seed) return;
-    if (seed.tipo === "pergunta") { setInput(seed.texto); setAba("testar"); }
+    if (seed.tipo === "pergunta") { setInput(seed.texto); abrirAba("testar"); }
     else setTexto(seed.texto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed?.n]);
@@ -327,18 +334,18 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const bolhaVoce = "ml-auto max-w-[85%] rounded-xl px-4 py-2.5 text-[14.5px] leading-relaxed";
 
   return (
-    <div className="est flex-1 min-h-0 flex flex-col">
+    <div className="est flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0">
       {/* ── topo ── */}
-      <div className="flex items-center gap-3 px-5 flex-none" style={{ height: 58, borderBottom: "1px solid var(--e-line)" }}>
+      <div className="flex items-center gap-2 md:gap-3 px-3 md:px-5 flex-none" style={{ height: 58, borderBottom: "1px solid var(--e-line)" }}>
         <button onClick={onBack} title="voltar pra frota" aria-label="voltar pra frota" className="flex items-center gap-1 -ml-1 px-1 py-1" style={{ color: "var(--e-mut)" }}><ArrowLeft size={17} /></button>
         <div className="rounded-lg p-0.5" style={{ border: "1px solid rgba(232,176,75,.5)", background: "#0e1116" }}><Robot state={estado} color={agent.color} size={30} /></div>
         <span className="text-[15px] font-semibold">{agent.name}</span>
-        <span className="emo text-[12px]" style={{ color: "var(--e-dim)" }}>/</span>
-        <span className="emo text-[12px]" style={{ color: "var(--e-mut)" }}>Conversa</span>
-        <span className="emo text-[12px]" style={{ color: "var(--e-mut)" }}>{agent.tipo === "acao" ? "ação" : "sdr"}{rod ? ` · v${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}</span>
+        <span className="emo text-[12px] hidden sm:inline" style={{ color: "var(--e-dim)" }}>/</span>
+        <span className="emo text-[12px] hidden sm:inline" style={{ color: "var(--e-mut)" }}>Conversa</span>
+        <span className="emo text-[12px] hidden min-[520px]:inline whitespace-nowrap" style={{ color: "var(--e-mut)" }}>{agent.tipo === "acao" ? "ação" : "sdr"}{rod ? ` · v${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}</span>
         <span style={{ width: 7, height: 7, borderRadius: 99, background: estado === "pausado" ? "#7d8694" : "var(--e-green)" }} />
         <div className="ml-auto flex items-center gap-4">
-          <button onClick={onAoVivo} className="flex items-center gap-1.5 text-[13px]" style={{ color: "var(--e-mut)" }}><Radio size={14} /> Ao vivo</button>
+          <button onClick={onAoVivo} aria-label="abrir ao vivo" className="flex items-center gap-1.5 text-[13px]" style={{ color: "var(--e-mut)" }}><Radio size={14} /> <span className="hidden sm:inline">Ao vivo</span></button>
           <button onClick={onToggle} title={estado === "pausado" ? "ligar" : "pausar"} className="relative" style={{ width: 36, height: 20, borderRadius: 99, background: estado === "pausado" ? "#2a3138" : "var(--e-green)" }}>
             <span style={{ position: "absolute", top: 2, ...(estado === "pausado" ? { left: 2 } : { right: 2 }), width: 16, height: 16, borderRadius: 99, background: "#08090d" }} />
           </button>
@@ -346,23 +353,23 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       </div>
 
       {/* ── AGORA: o placar (personalizações escancaradas) ── */}
-      <div className="flex items-center gap-5 px-6 flex-wrap flex-none" style={{ minHeight: 54, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 px-3 md:flex md:gap-5 md:px-6 md:flex-wrap flex-none" style={{ minHeight: 54, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
         <span className="text-[12.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-dim)" }}>AGORA</span>
         {agent.real ? (
           <>
             {/* placar enxuto — versão e "em revisão" NÃO repetem aqui:
                 a versão vive no cabeçalho do artefato; o em-revisão no
                 bloco ESPERANDO VOCÊ + na aba Histórico. */}
-            <div className="flex items-center gap-2.5 py-2 pr-5" style={{ borderRight: "1px solid var(--e-line)" }}>
-              <span className="emo text-[26px] font-bold leading-none" style={{ color: "var(--e-amber)" }}>{publicadas.length}</span>
-              <span className="text-[12px] leading-tight" style={{ color: "var(--e-txt2)" }}>personalizações<br />suas no ar</span>
+            <div className="flex items-center gap-2 py-2 pr-2 md:gap-2.5 md:pr-5" style={{ borderRight: "1px solid var(--e-line)" }}>
+              <span className="emo text-[22px] md:text-[26px] font-bold leading-none" style={{ color: "var(--e-amber)" }}>{publicadas.length}</span>
+              <span className="text-[10.5px] md:text-[12px] leading-tight" style={{ color: "var(--e-txt2)" }}>personalizações<br />suas no ar</span>
             </div>
             {(agent.upgrades ?? []).map((u) => (
-              <button key={u.name} onClick={() => setModal(u)} className="emo text-[12px] rounded-md px-2.5 py-1" style={{ color: "var(--e-mut)", border: "1px dashed var(--e-line-hi, #2a3138)" }}>+ {u.name}</button>
+              <button key={u.name} onClick={() => setModal(u)} className="hidden md:inline-flex emo text-[12px] rounded-md px-2.5 py-1" style={{ color: "var(--e-mut)", border: "1px dashed var(--e-line-hi, #2a3138)" }}>+ {u.name}</button>
             ))}
-            <div className="flex items-center gap-2.5 py-2 ml-auto pl-5" style={{ borderLeft: "1px solid var(--e-line)" }}>
-              <span className="emo text-[26px] font-bold leading-none">{execsHoje}</span>
-              <span className="text-[12px] leading-tight" style={{ color: "var(--e-dim)" }}>atendimentos<br />hoje</span>
+            <div className="flex items-center justify-end gap-2 py-2 pl-2 md:gap-2.5 md:ml-auto md:pl-5" style={{ borderLeft: "1px solid var(--e-line)" }}>
+              <span className="emo text-[22px] md:text-[26px] font-bold leading-none">{execsHoje}</span>
+              <span className="text-[10.5px] md:text-[12px] leading-tight" style={{ color: "var(--e-dim)" }}>atendimentos<br />hoje</span>
             </div>
           </>
         ) : (
@@ -375,9 +382,23 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         )}
       </div>
 
+      {/* Mobile: as duas colunas viram cinco destinos explícitos. O cliente
+          sempre sabe se está pedindo uma mudança ou conferindo a prova. */}
+      <div className="md:hidden flex-none grid grid-cols-5 overflow-x-auto" style={{ height: 46, borderBottom: "1px solid var(--e-line)", background: "#0a0c10" }}>
+        <button onClick={() => setMobilePane("editar")} className="est-tab px-2 text-[11.5px]" style={mobilePane === "editar" ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>Editar</button>
+        {([
+          { id: "artefato" as const, rotulo: "Artefato" },
+          { id: "testar" as const, rotulo: "Testar" },
+          { id: "exec" as const, rotulo: "Execuções" },
+          { id: "historico" as const, rotulo: "Histórico" },
+        ]).map((t) => (
+          <button key={t.id} onClick={() => abrirAba(t.id)} className="est-tab px-1 text-[11.5px]" style={mobilePane === "resultado" && aba === t.id ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>{t.rotulo}</button>
+        ))}
+      </div>
+
       <div className="flex flex-1 min-h-0">
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
-        <div className="flex flex-col min-h-0 w-[380px] min-w-[340px] flex-none" style={{ borderRight: "1px solid var(--e-line)" }}>
+        <div className={`${mobilePane === "editar" ? "flex" : "hidden"} md:flex flex-col min-h-0 w-full min-w-0 md:w-[380px] md:min-w-[340px] flex-none`} style={{ borderRight: "1px solid var(--e-line)" }}>
           <div className="flex items-center gap-2.5 px-5 flex-none" style={{ height: 42, borderBottom: "1px solid var(--e-line)" }}>
             <span className="text-[12.5px] font-semibold" style={{ letterSpacing: ".1em", color: "var(--e-amber)" }}>EDIÇÕES</span>
             <span className="text-[12px]" style={{ color: "var(--e-dim)" }}>fala que eu mudo — e marco no artefato ao lado</span>
@@ -507,7 +528,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     </span>
                     {envio.ensaio?.modo !== "real" && <span className="emo text-[12.5px]" style={{ color: "var(--e-amber)" }}>sem cérebro — registrado pra Metrik</span>}
                     {envio.fase === "publicado" ? (
-                      <button onClick={() => setAba("testar")} className="est-btn ml-auto">Testar na prática →</button>
+                      <button onClick={() => abrirAba("testar")} className="est-btn ml-auto">Testar na prática →</button>
                     ) : (
                       <div className="ml-auto flex items-center gap-2">
                         <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">deixar de fora</button>
@@ -552,9 +573,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         </div>
 
         {/* ══ DIREITA · O ARTEFATO (doc vivo do spec — zero token pra desenhar) ══ */}
-        <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ background: "#0a0c10" }}>
+        <div className={`${mobilePane === "resultado" ? "flex" : "hidden"} md:flex flex-1 min-w-0 flex-col min-h-0`} style={{ background: "#0a0c10" }}>
           {/* abas do artefato */}
-          <div className="flex items-center gap-1 px-4 flex-none" style={{ height: 46, borderBottom: "1px solid var(--e-line)" }}>
+          <div className="hidden md:flex items-center gap-1 px-4 flex-none" style={{ height: 46, borderBottom: "1px solid var(--e-line)" }}>
             {([
               { id: "artefato" as const, icone: FileText, rotulo: "Artefato" },
               { id: "testar" as const, icone: FlaskConical, rotulo: "Testar" },
@@ -564,7 +585,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               const ativo = aba === t.id;
               const Icone = t.icone;
               return (
-                <button key={t.id} onClick={() => setAba(t.id)} className="est-tab flex items-center gap-2 px-3.5 h-full text-[13.5px]" style={ativo ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>
+                <button key={t.id} onClick={() => abrirAba(t.id)} className="est-tab flex items-center gap-2 px-3.5 h-full text-[13.5px]" style={ativo ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>
                   <Icone size={15} /> {t.rotulo}
                   {t.id === "exec" && <span className="live-dot" style={{ width: 6, height: 6 }} />}
                   {t.id === "historico" && agent.real && publicadas.length > 0 && <span className="emo text-[12px]" style={{ color: "var(--e-dim)" }}>{publicadas.length + seguradas.length}</span>}
@@ -624,12 +645,12 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             );
 
             return (
-              <div className="flex-1 min-h-0 flex est-entra">
+              <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden est-entra">
                 {/* ═══ ESQUERDA · o documento da peça aberta ═══ */}
-                <div className="flex-1 min-w-0 overflow-y-auto scroll-thin">
-                  <div className="px-6 py-6">
+                <div className="flex-1 min-w-0 overflow-visible md:overflow-y-auto scroll-thin">
+                  <div className="px-3 py-4 md:px-6 md:py-6">
                     <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--e-line)", background: "#08090d", boxShadow: "0 20px 50px -30px rgba(0,0,0,.7)" }}>
-                      <div className="flex items-center gap-3 px-6 py-3 flex-wrap" style={{ borderBottom: "1px solid var(--e-line)", background: "var(--e-surface)" }}>
+                      <div className="flex items-center gap-3 px-4 md:px-6 py-3 flex-wrap" style={{ borderBottom: "1px solid var(--e-line)", background: "var(--e-surface)" }}>
                         <span className="grid place-items-center rounded-md flex-none" style={{ width: 24, height: 24, background: aberta.cor === "#7d8694" ? "#12161d" : aberta.cor + "22", color: aberta.cor }}>{aberta.glifo}</span>
                         <span className="text-[15.5px] font-semibold">{aberta.nome} — como a {agent.name} {aberta.id === "conversa" ? "fala" : "trabalha"}</span>
                         {aberta.estado !== "off" ? (
@@ -642,7 +663,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         
                       </div>
 
-                      <div className="px-8 py-6">
+                      <div className="px-5 py-5 md:px-8 md:py-6">
                         {/* PEÇA: CONVERSA (o núcleo — abre com A FUNÇÃO, depois o detalhe) */}
                         {aberta.id === "conversa" && (
                           <>
@@ -662,7 +683,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                             {/* aviso FINO: a mudança pendente NÃO mora no artefato — mora
                                 no chat (quando fresca) e no Histórico. Aqui só o ponteiro. */}
                             {emRev && (
-                              <button onClick={() => setAba("historico")} className="w-full flex items-center gap-2.5 rounded-[10px] px-4 py-2.5 mb-7 text-left transition-colors" style={{ border: "1px solid rgba(232,176,75,.4)", background: "rgba(232,176,75,.06)" }}>
+                              <button onClick={() => abrirAba("historico")} className="w-full flex items-center gap-2.5 rounded-[10px] px-4 py-2.5 mb-7 text-left transition-colors" style={{ border: "1px solid rgba(232,176,75,.4)", background: "rgba(232,176,75,.06)" }}>
                                 <span className="live-dot flex-none" style={{ width: 7, height: 7, background: "var(--e-amber)" }} />
                                 <span className="text-[13px] flex-1 min-w-0" style={{ color: "var(--e-txt2)" }}><b style={{ color: "var(--e-amber)" }}>1 mudança sua</b> esperando você publicar</span>
                                 <span className="text-[12.5px] flex-none whitespace-nowrap" style={{ color: "var(--e-amber)" }}>ver no Histórico →</span>
@@ -691,7 +712,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                                     <span className="emo text-[12px] font-bold rounded px-1.5 mt-1 flex-none" style={{ color: b.c, border: `1px solid ${b.c}44`, background: `${b.c}12` }}>{b.t}</span>
                                     <span className="text-[14.5px] flex-1 leading-relaxed" style={{ color: sua ? "var(--e-txt)" : "var(--e-txt2)" }}>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
                                     {nova && <span className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>✨ novo</span>}
-                                    <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); setAba("testar"); }} className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>testar</button>
+                                    <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); abrirAba("testar"); }} className="emo text-[12px] flex-none mt-0.5" style={{ color: "var(--e-amber)" }}>testar</button>
                                   </div>
                                 );
                               })}
@@ -754,7 +775,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 </div>
 
                 {/* ═══ DIREITA · O CÉREBRO (as peças como o caminho do lead) ═══ */}
-                <div className="w-[312px] flex-none overflow-y-auto scroll-thin" style={{ borderLeft: "1px solid var(--e-line)", background: "#0a0c10" }}>
+                <div className="w-full md:w-[312px] flex-none overflow-visible md:overflow-y-auto scroll-thin border-t md:border-t-0 md:border-l border-[var(--e-line)]" style={{ background: "#0a0c10" }}>
                   <div className="px-4 py-5">
                     <div className="text-[12px] font-bold mb-1" style={{ letterSpacing: ".12em", color: "var(--e-dim)" }}>O CÉREBRO DA {agent.name.toUpperCase()}</div>
                     <div className="text-[12px] mb-4 leading-snug" style={{ color: "var(--e-mut)" }}>o caminho que todo lead percorre — clica numa peça pra abrir e mudar</div>
@@ -981,7 +1002,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                             {it.estado === "rev" && agent.real && (
                               <div className="flex items-center gap-2.5 mt-3 flex-wrap">
                                 <button onClick={() => void publicarEmRev()} disabled={revIndo} className="est-btn">{revIndo ? <Loader2 size={12} className="animate-spin" /> : null} Publicar</button>
-                                <button onClick={() => { setAba("testar"); }} className="est-btn2"><FlaskConical size={12} /> Testar antes</button>
+                                <button onClick={() => abrirAba("testar")} className="est-btn2"><FlaskConical size={12} /> Testar antes</button>
                                 {revErro && <span className="text-[12px]" style={{ color: "var(--e-red)" }}>{revErro}</span>}
                               </div>
                             )}

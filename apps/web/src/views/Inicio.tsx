@@ -16,6 +16,9 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
   const auth = useMotorAuth();
   const { agents } = useAgents();
   const { logs, stats, carregando } = useLive();
+  // A vitrine pode usar atividade viva como amostra, mas nunca deve chamá-la
+  // de "dados da sua conta": sem login, continua sendo demonstração.
+  const dadosDaConta = !auth.demo && !!stats;
   // logado, ainda buscando a verdade → skeleton (nunca zeros/mock piscando)
   const carregandoReal = !auth.demo && carregando && !stats;
   const ativos = agents.filter((a) => a.state === "ativo").length;
@@ -45,7 +48,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
   const kpis = stats && dinheiro
     ? [
         { label: "Agentes no ar", value: String(ativos), delta: `de ${agents.length}`, up: true },
-        { label: "Atendimentos hoje", value: String(stats.execucoes), delta: "dado real ✓", up: true },
+        { label: "Atendimentos hoje", value: String(stats.execucoes), delta: dadosDaConta ? "dado real ✓" : "demonstração", up: true },
         { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : "—", delta: `${stats.erros} erros`, up: stats.erros === 0 },
         { label: dinheiro.label, value: dinheiro.value, delta: dinheiro.delta, up: true },
       ]
@@ -61,7 +64,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               <span className="live-dot" />
               <span className="mono-label">Hoje · {ativos} de {agents.length} no ar</span>
             </div>
-            {stats && fora.length > 0 ? (
+            {dadosDaConta && fora.length > 0 ? (
               <span className="text-[12px] text-[var(--txt-3)]">
                 enquanto você esteve fora <span className="text-[var(--txt-4)]">(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
                 {fora.length === 1 ? "atendimento" : "atendimentos"}
@@ -70,7 +73,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               </span>
             ) : (
               <span className="text-[12px] text-[var(--txt-4)]">
-                {stats ? "dados reais da sua conta" : "números de demonstração"}
+                {auth.demo ? "números de demonstração" : stats ? "dados reais da sua conta" : "sem atividade ainda"}
               </span>
             )}
           </div>
