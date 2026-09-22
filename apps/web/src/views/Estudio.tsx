@@ -4,9 +4,11 @@
 // progresso = log de terminal. Tudo lido do MOTOR (spec, ledger, evals,
 // chat-sandbox) — zero vitrine vestida em agente real.
 import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, ArrowUp, Check, Clock, FileText, FlaskConical, GripVertical, History, Loader2, Lock, Mic, Plus, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Activity, ArrowLeft, ArrowUp, Check, Clock, FileText, FlaskConical, GripVertical, History, Loader2, Lock, Plus, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
 import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
+import { ClaudeStyleComposer, type ComposerPayload } from "../components/ui/ClaudeStyleComposer";
+import { TechnicalBeamField } from "../components/ui/TechnicalBeamField";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, tempoRelativo } from "../lib/live";
@@ -16,7 +18,7 @@ import { AgentBrainMap, type BrainPiece } from "./estudio/AgentBrainMap";
 export type Destino = "fato" | "regra" | "doc";
 export const DESTINO_META: Record<Destino, { rotulo: string; cor: string; desc: string }> = {
   fato: { rotulo: "Lista · fato exato", cor: "#3fb950", desc: "ela passa a responder sempre igual — entra depois do ensaio rápido." },
-  regra: { rotulo: "Motor · comportamento", cor: "#e8b04b", desc: "muda o jeito dela agir — o guardião testa antes de valer." },
+  regra: { rotulo: "Motor · comportamento", cor: "#3b82f6", desc: "muda o jeito dela agir — o guardião testa antes de valer." },
   doc: { rotulo: "Biblioteca · documento", cor: "#58aae4", desc: "conteúdo longo — fica guardado; a busca inteligente é a próxima fatia da Metrik." },
 };
 export function destinoDe(t: string): Destino {
@@ -59,7 +61,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
 
   return (
     <div className="est fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(4,5,8,.66)", backdropFilter: "blur(6px)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl p-6" style={{ background: "var(--e-surface)", border: "1px solid rgba(232,176,75,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-xl p-6" style={{ background: "var(--e-surface)", border: "1px solid rgba(59,130,246,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-1">
           <div>
             <div className="emo text-[11.5px]" style={{ color: "var(--e-amber)", letterSpacing: ".1em" }}>LIGAR · {u.name.toUpperCase()}</div>
@@ -78,7 +80,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
                     {c.opcoes.map((o) => {
                       const sel = escolhas[i] === o;
                       return (
-                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[12.5px] rounded-lg px-3 py-1.5" style={sel ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 600 } : { border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
+                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[12.5px] rounded-lg px-3 py-1.5" style={sel ? { background: "var(--e-amber)", color: "#ffffff", fontWeight: 600 } : { border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
                           {o}{sel ? " ✓" : ""}
                         </button>
                       );
@@ -87,7 +89,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
                 </div>
               ))}
             </div>
-            <div className="rounded-lg px-3.5 py-3 mt-4" style={{ background: "rgba(232,176,75,.07)", border: "1px solid rgba(232,176,75,.3)" }}>
+            <div className="rounded-lg px-3.5 py-3 mt-4" style={{ background: "rgba(59,130,246,.07)", border: "1px solid rgba(59,130,246,.3)" }}>
               <p className="text-[12.5px] leading-relaxed m-0">{u.resultado ?? u.blurb}</p>
             </div>
             {fase === "erro" && <div className="text-[12.5px] mt-3" style={{ color: "var(--e-red)" }}>{erro}</div>}
@@ -218,11 +220,21 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   // ── composer (a porta única) ──
   const [texto, setTexto] = useState("");
   const [envio, setEnvio] = useState<EnvioE>({ fase: "idle" });
-  const mandar = () => {
-    const t = texto.trim();
+  const mandar = (valor = texto) => {
+    const t = valor.trim();
     if (!t || envio.fase === "rodando") return;
+    setTexto("");
     if (pedidoVago(t)) return setEnvio({ fase: "clarificar", pedido: t });
     setEnvio({ fase: "confirmar", pedido: t, destino: destinoDe(t) });
+  };
+  const enviarComposer = ({ message, files, pastedContent }: ComposerPayload) => {
+    const contexto = [
+      ...pastedContent.map((item) => `Texto colado:\n${item.content}`),
+      ...files.map((item) => item.content
+        ? `Arquivo ${item.file.name}:\n${item.content}`
+        : `Anexo: ${item.file.name}`),
+    ];
+    mandar([message, ...contexto].filter(Boolean).join("\n\n"));
   };
 
   // ── VOZ DE VERDADE (Web Speech, pt-BR): toca pra falar, o texto nasce na
@@ -416,6 +428,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       <div className="flex flex-1 min-h-0">
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
         <div className={`${mobilePane === "editar" ? "flex" : "hidden"} xl:flex flex-col min-h-0 w-full min-w-0 flex-none est-improve`}>
+          <TechnicalBeamField />
           <div className="est-improve-head">
             <span>Melhorar · {agent.name}</span>
           </div>
@@ -553,30 +566,18 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             )}
           </div>
 
-          {/* a caixinha */}
+          {/* composer no padrão Claude: contexto, voz, texto colado e envio */}
           <div className="flex-none est-composer-wrap">
-            <div className="melhorar-campo rounded-xl" style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", padding: "13px 15px 11px", transition: "border-color .2s, box-shadow .2s" }}>
-              <div className="flex items-start gap-2.5">
-                <span className="emo text-[15px] mt-0.5" style={{ color: "var(--e-amber)" }}>❯</span>
-                <textarea
-                  rows={1}
-                  value={texto}
-                  onChange={(e) => setTexto(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(); } }}
-                  placeholder={`O que ${agent.name} deve fazer diferente?`}
-                  className="flex-1 bg-transparent resize-none outline-none text-[15px] py-0.5"
-                  style={{ color: "var(--e-txt)" }}
-                />
-              </div>
-              <div className="flex items-center gap-2.5 mt-2 pt-2" style={{ borderTop: "1px solid var(--e-line-soft)" }}>
-                <button onClick={falar} aria-label={gravando ? "parar de gravar" : "falar em vez de escrever"} className={"flex items-center gap-2" + (gravando ? " est-mic-on" : "")} style={{ color: "var(--e-mut)" }}>
-                  <Mic size={15} />
-                  <span className="emo text-[12.5px]" style={{ color: gravando ? "var(--e-red)" : "var(--e-dim)" }}>{gravando ? "ouvindo… toca pra parar" : "toca pra falar"}</span>
-                </button>
-                {vozErro && <span className="text-[12.5px]" style={{ color: "var(--e-amber)" }}>{vozErro}</span>}
-                <button onClick={mandar} disabled={!texto.trim() || envio.fase === "rodando"} aria-label="enviar o pedido" className="est-btn ml-auto">Enviar <ArrowUp size={13} /></button>
-              </div>
-            </div>
+            <ClaudeStyleComposer
+              value={texto}
+              onChange={setTexto}
+              onSend={enviarComposer}
+              onVoice={falar}
+              isRecording={gravando}
+              voiceError={vozErro}
+              placeholder={`Peça uma mudança para ${agent.name}…`}
+              disabled={envio.fase === "rodando"}
+            />
           </div>
         </div>
 
@@ -705,7 +706,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                                 const fato = /^fato:/i.test(r);
                                 const sua = fato || suasIntents.has(r.trim().toLowerCase());
                                 const nova = publicadas.length > 0 && r.trim().toLowerCase() === String(publicadas[0].intent ?? "").trim().toLowerCase();
-                                const badge = fato ? { t: "FATO", c: "#3fb950" } : sua ? { t: "SEU AJUSTE", c: "#e8b04b" } : { t: "NÚCLEO", c: "#7d8694" };
+                                const badge = fato ? { t: "FATO", c: "#3fb950" } : sua ? { t: "SEU AJUSTE", c: "#3b82f6" } : { t: "NÚCLEO", c: "#7d8694" };
                                 return (
                                   <div key={i} className="est-rule-row" data-authored={sua ? "true" : "false"} style={sua ? { "--rule-color": badge.c } as CSSProperties : undefined}>
                                     <span className="emo est-rule-origin" style={{ color: badge.c, borderColor: `${badge.c}55`, background: `${badge.c}12` }}>{badge.t}</span>
@@ -778,7 +779,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <span className="text-[12px]" style={{ color: "var(--e-mut)" }}>conversar com:</span>
                     <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid #26303a" }}>
                       <button onClick={() => setModoTeste("ar")} className="text-[12px] px-3 py-1.5" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>a versão no ar hoje</button>
-                      <button onClick={() => setModoTeste("ensaio")} className="text-[12px] px-3 py-1.5 flex items-center gap-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>com a mudança nova <Sparkles size={11} /></button>
+                      <button onClick={() => setModoTeste("ensaio")} className="text-[12px] px-3 py-1.5 flex items-center gap-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#ffffff", fontWeight: 600 } : { color: "var(--e-mut)" }}>com a mudança nova <Sparkles size={11} /></button>
                     </div>
                     <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>{modoTeste === "ensaio" ? "prévia da mudança que ainda não foi pro ar" : "o que os leads recebem agora"}</span>
                   </div>
@@ -812,8 +813,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     </div>
                   ) : (
                     <div key={i} className="max-w-[88%]">
-                      <div className="rounded-lg px-3.5 py-2" style={{ background: m.aviso ? "rgba(232,176,75,.12)" : "#1b242b", borderTopLeftRadius: 3, border: m.aviso ? "1px solid rgba(232,176,75,.35)" : undefined }}>
-                        <div className="text-[14px] leading-relaxed" style={{ color: m.aviso ? "#e8b04b" : "#e9edef" }}>{m.texto}</div>
+                      <div className="rounded-lg px-3.5 py-2" style={{ background: m.aviso ? "rgba(59,130,246,.12)" : "#1b242b", borderTopLeftRadius: 3, border: m.aviso ? "1px solid rgba(59,130,246,.35)" : undefined }}>
+                        <div className="text-[14px] leading-relaxed" style={{ color: m.aviso ? "#3b82f6" : "#e9edef" }}>{m.texto}</div>
                       </div>
                       {!m.aviso && (
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -852,7 +853,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", color: "var(--e-txt)" }}
                   />
                   <button onClick={() => void perguntar()} disabled={!input.trim() || pensando} className="grid place-items-center rounded-lg flex-none" style={{ width: 36, height: 36, background: "var(--e-amber)" }}>
-                    {pensando ? <Loader2 size={14} className="animate-spin" style={{ color: "#08090d" }} /> : <ArrowUp size={16} style={{ color: "#08090d" }} />}
+                    {pensando ? <Loader2 size={14} className="animate-spin" style={{ color: "#ffffff" }} /> : <ArrowUp size={16} style={{ color: "#ffffff" }} />}
                   </button>
                 </div>
                 <div className="flex items-center gap-3 mt-2 pt-2 emo text-[12px]" style={{ borderTop: "1px solid var(--e-line-soft)", color: "var(--e-dim)" }}>
@@ -910,7 +911,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   { texto: "25% de desconto — passa do teto do núcleo", estado: "seg", quando: "há 4 dias" },
                 ];
             const META = {
-              rev: { cor: "var(--e-amber)", rot: "EM REVISÃO", pill: { color: "var(--e-amber)", border: "1px solid rgba(232,176,75,.5)" } },
+              rev: { cor: "var(--e-amber)", rot: "EM REVISÃO", pill: { color: "var(--e-amber)", border: "1px solid rgba(59,130,246,.5)" } },
               ar: { cor: "var(--e-green)", rot: "✓ NO AR", pill: { color: "#08090d", background: "var(--e-green)" } },
               seg: { cor: "var(--e-red)", rot: "✗ SEGURADA", pill: { color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" } },
             } as const;

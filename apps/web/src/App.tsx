@@ -210,7 +210,7 @@ export default function App() {
         <header className="flex-none flex items-center justify-between gap-3 px-4 md:px-7 h-[62px] border-b border-[var(--line)] glass">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* celular: logo = voltar pro Início (âncora de "casa" sempre visível) */}
-            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #e8b04b" }} aria-label="Início">
+            <button onClick={() => go("inicio")} className="md:hidden grid place-items-center rounded-[10px] flex-none" style={{ width: 32, height: 32, background: "var(--grad)", boxShadow: "0 8px 22px -12px #3b82f6" }} aria-label="Início">
               <Gauge size={17} style={{ color: "#08090d" }} strokeWidth={2.2} />
             </button>
             <div className="min-w-0">
@@ -309,9 +309,9 @@ export default function App() {
                   ? "flex-none border-b px-5 py-1.5 text-[11.5px] flex items-center gap-2"
                   : "max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-2.5 text-[12.5px] flex items-center gap-2"
               }
-              style={{ borderColor: agent ? "var(--line)" : "rgba(232,176,75,.35)", background: "rgba(232,176,75,.08)", color: "var(--txt-2)" }}
+              style={{ borderColor: agent ? "var(--line)" : "rgba(59,130,246,.35)", background: "rgba(59,130,246,.08)", color: "var(--txt-2)" }}
             >
-              <Sparkles size={13} style={{ color: "#e8b04b" }} className="flex-none" />
+              <Sparkles size={13} style={{ color: "#3b82f6" }} className="flex-none" />
               <span><b className="text-[var(--txt)]">Isto é um exemplo</b> — números e conversas de demonstração. A sua conta começa limpa e vai enchendo sozinha conforme a IA trabalha.</span>
             </div>
           )}

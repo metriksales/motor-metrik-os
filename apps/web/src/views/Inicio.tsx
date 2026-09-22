@@ -166,7 +166,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               />
               <Pilar
                 icon={GraduationCap}
-                color="#e8b04b"
+                color="#3b82f6"
                 titulo="Escola"
                 texto="A IA errou? Você corrige apontando, como faria com uma pessoa. O motor aprende sem você tocar em nada por dentro."
               />

@@ -33,7 +33,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
             <span className="text-[11px] text-[var(--txt-4)] flex-none">a fala é literal: é o que chega pro seu cliente</span>
           </div>
           {mudancas.length > 0 && (
-            <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#e8b04b" }}>
+            <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#3b82f6" }}>
               <Sparkles size={13} />
               {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ abaixo · a prova está em “O que mudou”, ao lado
             </div>
@@ -47,7 +47,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
               <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{frase(mapa.entrada)}</p>
             </Passo>
 
-            <Passo n={2} titulo="Ele descobre o caso" cor="#e8b04b">
+            <Passo n={2} titulo="Ele descobre o caso" cor="#3b82f6">
               <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{frase(mapa.triagem.faz)}</p>
               {mapa.triagem.coleta && (
                 <p className="text-[13px] text-[var(--txt-3)] leading-relaxed mt-1">
@@ -168,7 +168,7 @@ function Situacao({ regra, cor, mudanca, ultima }: { regra: Regra; cor: string; 
           )}
           {(destino || regra.aviso) && mudanca && <span className="mx-1.5 text-[var(--txt-4)]">·</span>}
           {mudanca && (
-            <span className="inline-flex items-center gap-1" style={{ color: "#e8b04b" }}>
+            <span className="inline-flex items-center gap-1" style={{ color: "#3b82f6" }}>
               <Sparkles size={12} /> alterado {mudanca.quando}
             </span>
           )}

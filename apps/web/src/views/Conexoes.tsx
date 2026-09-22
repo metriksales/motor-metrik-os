@@ -1,71 +1,105 @@
-// CONEXÕES — as ligações da operação, na LÍNGUA DO CLIENTE: onde a IA dele
-// trabalha (WhatsApp, CRM, agenda). A parte técnica (Claude Code/Codex/MCP) é
-// dos bastidores da Metrik — aparece como nota honesta, sem terminal nem jargão.
-import { Plug, Check, Wrench } from "lucide-react";
+import { useRef } from "react";
+import { CalendarDays, Check, CircuitBoard, ContactRound, Database, MessageCircle, Plug, Wrench } from "lucide-react";
+import { AnimatedBeam } from "../components/ui/AnimatedBeam";
 import { CONEXOES_CANAIS } from "../data";
 import { Reveal, SectionHeader } from "../ui";
 
+const CHANNEL_ICONS = {
+  ghl: Database,
+  kommo: ContactRound,
+  wa: MessageCircle,
+  cal: CalendarDays,
+};
+
 export default function Conexoes() {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const ghlRef = useRef<HTMLDivElement>(null);
+  const kommoRef = useRef<HTMLDivElement>(null);
+  const waRef = useRef<HTMLDivElement>(null);
+  const calRef = useRef<HTMLDivElement>(null);
+  const hubRef = useRef<HTMLDivElement>(null);
+  const refs = { ghl: ghlRef, kommo: kommoRef, wa: waRef, cal: calRef };
+
+  const channelNode = (id: keyof typeof refs) => {
+    const channel = CONEXOES_CANAIS.find((item) => item.id === id)!;
+    const Icon = CHANNEL_ICONS[id];
+    return (
+      <div ref={refs[id]} className="connection-node" key={id}>
+        <span><Icon size={16} /></span>
+        <div><strong>{channel.name}</strong><small>{channel.tipo} · ligado</small></div>
+        <i aria-label="conectado" />
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Reveal>
-        <div className="grad-border overflow-hidden">
-          <div className="relative p-6 md:p-7">
-            <div className="aurora !opacity-30" />
-            <div className="relative max-w-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Plug size={16} style={{ color: "#e8b04b" }} />
-                <span className="mono-label">As conexões da sua operação</span>
-              </div>
-              <h2 className="font-display text-[22px] md:text-[26px] font-semibold tracking-tight">
-                Onde a sua IA <span className="grad-text">trabalha</span> — e quem liga tudo.
-              </h2>
-              <p className="text-[var(--txt-2)] mt-2.5 text-[14px] leading-relaxed">
-                O WhatsApp, o seu CRM e a agenda ficam ligados aqui. <b className="text-[var(--txt)]">A Metrik conecta e cuida
-                dos bastidores</b> — você acompanha o que está no ar e, pra mudar algo, é pelo Melhorar.
-              </p>
+        <div className="connection-hero">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Plug size={16} className="text-[var(--violet)]" />
+              <span className="mono-label">As conexões da sua operação</span>
             </div>
+            <h2 className="font-display text-[22px] md:text-[26px] font-semibold tracking-tight">
+              Tudo conversa com o <span className="grad-text">motor Metrik</span>.
+            </h2>
+            <p className="text-[var(--txt-2)] mt-2.5 text-[14px] leading-relaxed">
+              CRM, WhatsApp e agenda chegam ao mesmo núcleo. Você vê o fluxo; a Metrik cuida da parte técnica.
+            </p>
           </div>
         </div>
       </Reveal>
 
-      {/* canais — o que o cliente entende: WhatsApp, CRM, agenda */}
+      <Reveal delay={0.04}>
+        <section className="connection-map-shell" aria-labelledby="connection-map-title">
+          <div className="connection-map-head">
+            <div>
+              <span className="mono-label">Fluxo operacional</span>
+              <h3 id="connection-map-title">Uma operação, quatro pontos ligados</h3>
+            </div>
+            <span className="connection-map-status"><i /> sincronizado agora</span>
+          </div>
+          <div ref={mapRef} className="connection-map">
+            <div className="connection-map-column">{channelNode("ghl")}{channelNode("kommo")}</div>
+            <div ref={hubRef} className="connection-hub">
+              <span><CircuitBoard size={22} /></span>
+              <strong>Motor Metrik</strong>
+              <small>decide · executa · registra</small>
+            </div>
+            <div className="connection-map-column">{channelNode("wa")}{channelNode("cal")}</div>
+            <AnimatedBeam containerRef={mapRef} fromRef={ghlRef} toRef={hubRef} duration={4.2} />
+            <AnimatedBeam containerRef={mapRef} fromRef={kommoRef} toRef={hubRef} delay={0.7} duration={4.8} curvature={-24} />
+            <AnimatedBeam containerRef={mapRef} fromRef={waRef} toRef={hubRef} reverse delay={0.35} duration={4.5} />
+            <AnimatedBeam containerRef={mapRef} fromRef={calRef} toRef={hubRef} reverse delay={1.05} duration={5} curvature={24} />
+          </div>
+        </section>
+      </Reveal>
+
       <div>
-        <SectionHeader label="Onde a IA atende e registra" title="WhatsApp, CRM e agenda" />
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {CONEXOES_CANAIS.map((c, i) => (
-            <Reveal key={c.id} delay={0.04 * i}>
-              <div className="card card-hover p-5 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="mono-label">{c.tipo}</span>
-                  <span className="pill flex-none" style={{ color: c.ok ? "#3fb950" : "var(--txt-4)", borderColor: c.ok ? "#3fb95040" : "var(--line)", background: c.ok ? "#3fb95012" : "var(--surface-2)" }}>
-                    {c.ok ? <><Check size={11} /> ligado</> : "a ligar"}
-                  </span>
+        <SectionHeader label="Estado das pontas" title="Canais e sistemas" />
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {CONEXOES_CANAIS.map((channel, index) => {
+            const Icon = CHANNEL_ICONS[channel.id as keyof typeof CHANNEL_ICONS];
+            return (
+              <Reveal key={channel.id} delay={0.03 * index}>
+                <div className="connection-status-card">
+                  <span className="connection-status-icon">{Icon ? <Icon size={16} /> : <Plug size={16} />}</span>
+                  <div><span>{channel.tipo}</span><strong>{channel.name}</strong></div>
+                  <span className="connection-ok"><Check size={11} /> ligado</span>
                 </div>
-                <div className="font-display font-semibold text-[16px]">{c.name}</div>
-                {c.ok ? (
-                  <div className="text-[12.5px] text-[var(--txt-3)]">no ar e funcionando</div>
-                ) : (
-                  <div className="text-[12.5px] text-[var(--txt-4)]">a Metrik liga pra você</div>
-                )}
-              </div>
-            </Reveal>
-          ))}
+              </Reveal>
+            );
+          })}
         </div>
       </div>
 
-      {/* bastidores — honesto, sem npx/terminal: a Metrik opera por aqui */}
       <Reveal delay={0.1}>
-        <div className="card p-5 flex items-start gap-3">
-          <span className="grid place-items-center rounded-[11px] flex-none" style={{ width: 38, height: 38, background: "rgba(232,176,75,.14)", border: "1px solid rgba(232,176,75,.3)" }}>
-            <Wrench size={18} style={{ color: "#e8b04b" }} />
-          </span>
+        <div className="connection-backstage">
+          <span><Wrench size={17} /></span>
           <div>
-            <div className="text-[13.5px] font-medium text-[var(--txt)]">Bastidores da Metrik</div>
-            <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed mt-0.5">
-              É por aqui que a Metrik monta e ajusta o seu motor (as ferramentas Claude Code e Codex). Tudo o que
-              elas fazem vira uma mudança testada e reversível — você não precisa mexer nesta parte.
-            </p>
+            <strong>Bastidores da Metrik</strong>
+            <p>Claude Code e Codex operam por trás do motor. Para você, toda alteração chega como mudança testada, rastreável e reversível.</p>
           </div>
         </div>
       </Reveal>

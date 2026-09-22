@@ -46,7 +46,7 @@ export default function Agentes({
               </p>
             </div>
             <div className="relative flex flex-col items-start md:items-end gap-2">
-              <Pill color={source === "neon" ? "#e8b04b" : "#83879a"}>
+              <Pill color={source === "neon" ? "#3b82f6" : "#83879a"}>
                 <Database size={12} /> {source === "neon" ? "dados reais ✓" : "Demo"}
               </Pill>
               <Pill color="#3fb950"><span className="live-dot" style={{ width: 7, height: 7 }} /> {ativos} trabalhando agora</Pill>
@@ -73,7 +73,7 @@ export default function Agentes({
               style={{ border: "1.5px dashed var(--line-hi)" }}
             >
               <span className="grid place-items-center rounded-[13px]" style={{ width: 42, height: 42, background: "var(--surface-2)", border: "1px solid var(--line)" }}>
-                <Plus size={20} style={{ color: "#e8b04b" }} />
+                <Plus size={20} style={{ color: "#3b82f6" }} />
               </span>
               <div>
                 <div className="font-display font-semibold text-[15px] mb-1">Novo agente</div>
@@ -81,7 +81,7 @@ export default function Agentes({
                   Instale uma habilidade da loja ou traga a sua pelo Claude Code — vira um robô seu.
                 </p>
               </div>
-              <span className="text-[12.5px] flex items-center gap-1.5 mt-1" style={{ color: "#e8b04b" }}>
+              <span className="text-[12.5px] flex items-center gap-1.5 mt-1" style={{ color: "#3b82f6" }}>
                 <Plug size={13} /> Conectar <ArrowRight size={13} />
               </span>
             </button>
@@ -115,7 +115,7 @@ function AgentCard({ a, vivo, onOpen }: { a: Agent; vivo: Vivo; onOpen: () => vo
             )}
             <span className="text-[11.5px]" style={{ color: sm.color }}>{sm.label}</span>
             {a.tipo && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ color: a.tipo === "acao" ? "#ecc06a" : "#58aae4", background: (a.tipo === "acao" ? "#ecc06a" : "#58aae4") + "14", border: `1px solid ${(a.tipo === "acao" ? "#ecc06a" : "#58aae4")}30` }}>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ color: a.tipo === "acao" ? "#60a5fa" : "#58aae4", background: (a.tipo === "acao" ? "#60a5fa" : "#58aae4") + "14", border: `1px solid ${(a.tipo === "acao" ? "#60a5fa" : "#58aae4")}30` }}>
                 {a.tipo === "acao" ? "Ação" : "Resposta"}
               </span>
             )}

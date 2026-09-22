@@ -14,10 +14,10 @@ import { Reveal } from "../ui";
 
 const ALVO_META: Record<string, { icon: any; label: string; cor: string }> = {
   etapa: { icon: Columns3, label: "etapa", cor: "#58aae4" },
-  campo: { icon: TextCursorInput, label: "campo", cor: "#e8b04b" },
+  campo: { icon: TextCursorInput, label: "campo", cor: "#3b82f6" },
   integracao: { icon: Plug, label: "integração", cor: "#7c9fe0" },
   canal: { icon: MessageCircle, label: "canal", cor: "#3fb950" },
-  documento: { icon: FileText, label: "documento", cor: "#ecc06a" },
+  documento: { icon: FileText, label: "documento", cor: "#60a5fa" },
 };
 
 const ST_META: Record<Passo["status"], { icon: any; cor: string; label: string }> = {
