@@ -15,6 +15,10 @@ Data: 21/09/2026
 | `screenshots/redesign-agent-desktop-1280.png` | 1280×900 | Nova hierarquia no desktop mínimo |
 | `screenshots/redesign-agent-tablet-768.png` | 768×900 | Como funciona em superfície única |
 | `screenshots/redesign-agent-mobile-375.png` | 375×812 | Caminho com trilho horizontal |
+| `screenshots/visual-v2-desktop-1280.png` | 1280×800 | Motor Vivo, composição mínima de desktop |
+| `screenshots/visual-v2-desktop-1440.png` | 1440×900 | Motor Vivo, composição expandida |
+| `screenshots/visual-v2-tablet-768.png` | 768×900 | Circuito e documento no tablet |
+| `screenshots/visual-v2-mobile-375.png` | 375×812 | Circuito reorganizado no celular |
 
 ## Resumo
 
@@ -62,3 +66,27 @@ O Estúdio já tem uma tese forte, pedir em linguagem natural e ver a verdade do
 2. Documento espremido: resolvido ao incorporar o Caminho no fluxo superior.
 3. Hierarquia rasa: resolvida com abertura editorial, fatos em dupla, regras operacionais e evidência final.
 4. Pendência dominante: resolvida com contador compacto em Mudanças.
+
+## Segunda revisão — Visual V2 “Motor Vivo”
+
+### Por que a v77 não passou
+
+A captura `redesign-agent-desktop-1440.png` prova que a mudança anterior foi majoritariamente estrutural. Cabeçalho, Melhorar, Caminho e documento continuavam usando a mesma unidade visual — retângulo escuro, hairline, raio de 11–14px e eyebrow mono. O usuário precisava ler para perceber a mudança; visualmente ela não tinha contraste suficiente.
+
+### Resultado da nova direção
+
+- **Hierarquia:** em `visual-v2-desktop-1280.png`, o olho encontra Bia → circuito → peça aberta. O nome do agente deixou de ser breadcrumb e o propósito da tela ganhou escala.
+- **Fisionomias distintas:** Melhorar usa câmara quente e lista editorial; Como funciona usa grafite e circuito; a peça usa bancada aberta. Não são mais três cards equivalentes.
+- **Assinatura:** a peça ativa é um nó circular energizado, conectado à próxima capacidade. A relação é compreendida pela forma antes da leitura.
+- **Tablet:** `visual-v2-tablet-768.png` mantém a narrativa inteira em 520px sem reduzir o circuito a cards comprimidos.
+- **Mobile:** `visual-v2-mobile-375.png` reorganiza título, nós e peça aberta; não há overflow global e os cinco destinos cabem em 375px.
+
+### Must fix encontrados e corrigidos
+
+1. **Microdados comprimidos em 1280:** estado e métricas do primeiro passe V2 ficaram pequenos e quebraram linha. A largura da missão foi reequilibrada e os rótulos subiram para 10–10,5px; títulos e corpo permanecem acima disso.
+2. **Captura da animação:** o documento continua sem animação de opacidade; o único movimento novo é o sinal entre peças, removido em `prefers-reduced-motion`.
+
+### Should fix futuro
+
+1. Quando o motor real tiver cinco ou mais peças, validar a affordance da rolagem horizontal com fade de continuidade.
+2. O shell global (sidebar e banner de demonstração) ainda pertence à geração visual anterior; esta entrega redesenha o Estúdio. Uma evolução global deve ser tratada como etapa própria para não misturar produto e navegação.

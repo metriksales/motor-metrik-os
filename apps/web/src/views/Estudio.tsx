@@ -341,15 +341,16 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       <header className="est-agentbar flex-none">
         <div className="est-agentbar-main">
           <button onClick={onBack} title="voltar pra frota" aria-label="voltar pra frota" className="est-icon-btn"><ArrowLeft size={17} /></button>
-          <div className="est-agent-avatar"><Robot state={estado} color={agent.color} size={30} /></div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <strong className="text-[16px] truncate">{agent.name}</strong>
-              <span className="est-status-dot" data-on={estado !== "pausado" ? "true" : "false"} />
-            </div>
-            <div className="emo text-[12px] truncate" style={{ color: "var(--e-dim)" }}>
-              {agent.tipo === "acao" ? "agente de ação" : "agente de resposta"}{rod ? ` · versão ${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}
-            </div>
+          <div className="est-agent-avatar"><Robot state={estado} color={agent.color} size={38} /></div>
+          <div className="est-agent-title min-w-0">
+            <span className="emo"><i className="est-status-dot" data-on={estado !== "pausado" ? "true" : "false"} /> {estado === "pausado" ? "AGENTE PAUSADO" : "AGENTE EM OPERAÇÃO"}</span>
+            <h1>{agent.name}</h1>
+            <p className="emo">{agent.tipo === "acao" ? "ação" : "resposta"}{rod ? ` · versão ${rod.versao}` : ""}</p>
+          </div>
+
+          <div className="hidden xl:block est-agent-mission">
+            <span className="emo">MISSÃO NO AR</span>
+            <p>{agent.papel?.trim() || "Atender cada lead e conduzir a conversa até o próximo passo."}</p>
           </div>
 
           <div className="hidden lg:flex est-agentbar-stats">
@@ -391,29 +392,30 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
         <div className={`${mobilePane === "editar" ? "flex" : "hidden"} xl:flex flex-col min-h-0 w-full min-w-0 xl:w-[352px] xl:min-w-[330px] flex-none est-improve`}>
           <div className="est-improve-head">
+            <span className="emo est-improve-index">01</span>
             <div>
-              <span className="emo">MELHORAR</span>
-              <p>Peça uma mudança. Eu mostro o antes e o depois.</p>
+              <span className="emo">MELHORAR O AGENTE</span>
+              <p>Você aponta. O motor encontra, testa e mostra.</p>
             </div>
           </div>
 
           <div ref={feedRef} className="flex-1 overflow-y-auto scroll-thin px-5 py-5 space-y-5">
             {/* boas-vindas do motor + pontos de partida (ninguém fica olhando pro vazio) */}
-            <div className={bolhaMotor}>
+            <div className={bolhaMotor + " est-improve-intro"}>
               <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>
                   Descreva o que precisa mudar. Eu localizo a peça certa, mostro o antes e o depois e <b style={{ color: "var(--e-txt)" }}>só publico depois do teste.</b>
                 </p>
                 {trocas.length === 0 && envio.fase === "idle" && (
-                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  <div className="est-suggestions mt-4">
                     {[
                       "Ensina que o parcelamento é em até 3x sem juros",
                       "Quando o lead sumir, espera 1 dia e manda só 1 follow",
                       "Nunca prometa resultado — fala em acompanhamento",
                     ].map((s) => (
-                      <button key={s} onClick={() => setTexto(s)} className="text-[12.5px] rounded-full px-3 py-1.5 text-left" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
-                        {s}
+                      <button key={s} onClick={() => setTexto(s)}>
+                        <span>{s}</span><i aria-hidden="true">↗</i>
                       </button>
                     ))}
                   </div>
@@ -565,9 +567,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         </div>
 
         {/* ══ DIREITA · O ARTEFATO (doc vivo do spec — zero token pra desenhar) ══ */}
-        <div className={`${mobilePane === "resultado" ? "flex" : "hidden"} xl:flex flex-1 min-w-0 flex-col min-h-0`} style={{ background: "#0a0c10" }}>
+        <div className={`${mobilePane === "resultado" ? "flex" : "hidden"} xl:flex flex-1 min-w-0 flex-col min-h-0 est-stage`}>
           {/* abas do artefato */}
-          <div className="hidden xl:flex items-center gap-1 px-4 flex-none" style={{ height: 46, borderBottom: "1px solid var(--e-line)" }}>
+          <div className="hidden xl:flex est-workspace-tabs">
             {([
               { id: "artefato" as const, icone: FileText, rotulo: "Como funciona" },
               { id: "testar" as const, icone: FlaskConical, rotulo: "Testar" },

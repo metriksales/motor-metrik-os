@@ -76,3 +76,6 @@ O elemento memorável é o **Caminho do Agente**: um trilho vivo de peças reais
 - Sem overflow em 375px, 768px, 1280px e 1440px.
 - Todos os controles de navegação têm alvo mínimo de 44px, foco visível e estado ativo textual.
 
+## Correção de direção — Visual V2
+
+A implementação v77 cumpriu a arquitetura, mas foi reprovada visualmente: continuou parecendo o mesmo dashboard dark de cards. A direção visual canônica passa a ser `VISUAL_V2_PLAN.md`: **Motor Vivo**, com presença do agente, intervenção humana em câmara quente, circuito de nós e documento aberto. A arquitetura acima continua válida; a antiga representação do caminho como cards deixa de ser referência.

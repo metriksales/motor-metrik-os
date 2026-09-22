@@ -1,4 +1,5 @@
-import { ArrowRight, Plus } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Plus } from "lucide-react";
 
 export type BrainPiece = {
   id: string;
@@ -31,13 +32,13 @@ export function AgentBrainMap({
     <section className="est-brain" aria-labelledby="agent-path-title">
       <header className="est-brain-head">
         <div>
-          <div className="emo est-kicker">CÉREBRO · {agentName.toUpperCase()}</div>
-          <h2 id="agent-path-title">Caminho do agente</h2>
-          <p>Cada peça assume uma parte do trabalho. Selecione para entender e ajustar.</p>
+          <div className="emo est-kicker">MOTOR · {agentName.toUpperCase()}</div>
+          <h2 id="agent-path-title">O circuito que faz o agente agir</h2>
+          <p>A energia passa por estas peças, nesta ordem. Toque em um nó para abrir o que acontece dentro dele.</p>
         </div>
         <div className="est-brain-count" aria-label={`${active.length} peças no ar`}>
           <b>{active.length}</b>
-          <span>{active.length === 1 ? "peça no ar" : "peças no ar"}</span>
+          <span>{active.length === 1 ? "peça trabalhando" : "peças trabalhando"}</span>
         </div>
       </header>
 
@@ -52,15 +53,19 @@ export function AgentBrainMap({
               className="est-path-node"
               data-selected={selectedId === piece.id ? "true" : "false"}
             >
-              <span className="est-path-step" style={{ background: selectedId === piece.id ? "var(--e-amber)" : piece.cor }}>{index + 1}</span>
+              <span className="est-path-orb" style={{ "--piece-color": piece.cor } as CSSProperties}>
+                <span className="emo est-path-step">{String(index + 1).padStart(2, "0")}</span>
+                <span className="est-path-glyph" aria-hidden="true">{piece.glifo}</span>
+                <i aria-hidden="true" />
+              </span>
               <span className="est-path-copy">
-                <span className="est-path-title"><span aria-hidden="true">{piece.glifo}</span> {piece.nome}</span>
+                <span className="est-path-title">{piece.nome}</span>
                 <span className="est-path-summary">{piece.resumo}</span>
                 {piece.meta && <span className="emo est-path-meta">{piece.meta}</span>}
+                <span className="emo est-path-state">{piece.estado === "nucleo" ? "núcleo" : "no ar"}</span>
               </span>
-              <span className="emo est-path-state">{piece.estado === "nucleo" ? "núcleo" : "no ar"}</span>
             </button>
-            {index < active.length - 1 && <span className="est-path-connector" aria-hidden="true"><ArrowRight size={16} /></span>}
+            {index < active.length - 1 && <span className="est-path-connector" aria-hidden="true"><i /></span>}
           </div>
         ))}
 
@@ -68,7 +73,7 @@ export function AgentBrainMap({
           <div className="est-path-item est-path-next" role="listitem" aria-label="Próxima peça">
             <span className="est-path-condition emo">depois →</span>
             <div className="est-path-node est-path-node-ghost">
-              <span className="est-path-step"><Plus size={14} /></span>
+              <span className="est-path-orb est-path-orb-ghost"><Plus size={20} /></span>
               <span className="est-path-copy">
                 <span className="est-path-title">Próxima peça</span>
                 <span className="est-path-summary">Follow-up, agenda ou outro trabalho entra aqui quando for ligado.</span>
@@ -93,4 +98,3 @@ export function AgentBrainMap({
     </section>
   );
 }
-
