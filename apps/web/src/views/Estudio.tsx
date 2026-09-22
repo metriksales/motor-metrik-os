@@ -790,7 +790,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   onAccept={(index) => setFeedback((state) => ({ ...state, [index]: "sim" }))}
                   onCorrect={corrigir}
                   onFixCase={(testCase) => setTexto(`A trava "${testCase.nome}" quebrou no teste (${testCase.falhas?.[0] ?? ""}). Reforça: `)}
-                  onOpenChanges={() => abrirAba("historico")}
                 />
 
                 <aside className="est-test-console scroll-thin" aria-label="Controles do laboratório de teste">

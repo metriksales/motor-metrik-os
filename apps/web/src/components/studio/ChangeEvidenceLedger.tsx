@@ -1,12 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Check, CircleCheck, CircleX, Clock3, Database, FlaskConical, History, Loader2, Rocket, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, CircleCheck, CircleX, FlaskConical, History, Loader2, Rocket, ShieldCheck } from "lucide-react";
 
-type ProofCase = {
-  caseId?: string;
-  nome?: string;
-  passou?: boolean;
-  falhas?: string[];
-};
+type ProofCase = { caseId?: string; nome?: string; passou?: boolean; falhas?: string[] };
 
 export type ChangeEvidence = {
   id: string;
@@ -42,145 +37,84 @@ function meta(status: string) {
 }
 
 export function ChangeEvidenceLedger({ changes, relativeTime, publishing, publishError, onTest, onPublish }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(changes[0]?.id ?? null);
-  const [scenarioIndex, setScenarioIndex] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const live = changes.filter((change) => change.status === "published").length;
+  const pending = changes.filter((change) => ["draft", "evaluated", "approved"].includes(change.status)).length;
 
-  useEffect(() => {
-    if (!changes.length) return setSelectedId(null);
-    setSelectedId((current) => changes.some((change) => change.id === current) ? current : changes[0].id);
-  }, [changes]);
-
-  const selected = useMemo(() => changes.find((change) => change.id === selectedId) ?? changes[0], [changes, selectedId]);
-  const proof = selected?.impact;
-  const evals = proof?.evals;
-  const scenarios = proof?.ensaio?.situacoes ?? [];
-  const scenario = scenarios[scenarioIndex] ?? scenarios[0];
-  const selectedMeta = selected ? meta(selected.status) : meta("draft");
-  const canPublish = selected && ["draft", "evaluated", "approved"].includes(selected.status);
-  const liveCount = changes.filter((change) => change.status === "published").length;
-  const protectedCount = changes.reduce((total, change) => total + (change.impact?.evals?.passaram ?? 0), 0);
-
-  useEffect(() => setScenarioIndex(0), [selectedId]);
-
-  if (!selected) {
+  if (!changes.length) {
     return (
-      <div className="change-ledger-empty">
-        <span><History size={20} /></span>
-        <strong>A primeira mudança ainda vai nascer aqui</strong>
-        <p>Quando você pedir uma correção, esta área vai ligar o pedido à prova, ao antes e depois e ao que entrou no ar.</p>
+      <div className="change-history-empty">
+        <History size={18} />
+        <strong>Nenhuma mudança ainda</strong>
+        <span>Quando você melhorar o agente, ela aparece aqui.</span>
       </div>
     );
   }
 
   return (
-    <section className="change-ledger">
-      <header className="change-ledger-head">
-        <div>
-          <span className="change-eyebrow">REGISTRO DE DECISÕES</span>
-          <h2>Mudanças com prova, não promessa.</h2>
-          <p>Cada pedido fica ligado ao que mudou, ao teste que tentou quebrá-lo e ao estado real da publicação.</p>
-        </div>
-        <div className="change-ledger-metrics">
-          <span><strong>{changes.length}</strong> mudanças</span>
-          <span><strong>{protectedCount}</strong> ataques vencidos</span>
-          <span><strong>{liveCount}</strong> no ar</span>
-        </div>
+    <section className="change-history">
+      <header className="change-history-head">
+        <div><h2>Mudanças</h2><p>O que você pediu e o que entrou no agente.</p></div>
+        <span>{live} no ar{pending ? ` · ${pending} em revisão` : ""}</span>
       </header>
 
-      <div className="change-ledger-shell">
-        <aside className="change-ledger-list" aria-label="Mudanças registradas">
-          <span className="change-eyebrow">LINHA DE MUDANÇAS</span>
-          <div>
-            {changes.map((change) => {
-              const state = meta(change.status);
-              const score = change.impact?.evals;
-              return (
-                <button key={change.id} type="button" aria-current={change.id === selected.id ? "true" : undefined} onClick={() => setSelectedId(change.id)}>
-                  <i data-tone={state.tone} />
-                  <span>
-                    <small data-tone={state.tone}>{state.label}</small>
-                    <strong>{change.intent}</strong>
-                    <em>{change.createdAt ? `há ${relativeTime(change.createdAt)}` : "agora"}{score?.total ? ` · ${score.passaram ?? 0}/${score.total} passaram` : ""}</em>
-                  </span>
-                  <ArrowRight size={13} />
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+      <div className="change-history-list">
+        {changes.map((change) => {
+          const state = meta(change.status);
+          const proof = change.impact;
+          const evals = proof?.evals;
+          const scenario = proof?.ensaio?.situacoes?.[0];
+          const failed = evals?.casos?.filter((item) => !item.passou) ?? [];
+          const canPublish = ["draft", "evaluated", "approved"].includes(change.status);
+          const open = openId === change.id;
 
-        <article className="change-ledger-detail">
-          <header>
-            <div>
-              <span className="change-status" data-tone={selectedMeta.tone}><i /> {selectedMeta.label}</span>
-              <h3>{selected.intent}</h3>
-            </div>
-            <div className="change-detail-actions">
-              {canPublish ? <button type="button" className="est-btn2" onClick={() => onTest(selected)}><FlaskConical size={13} /> Testar esta prévia</button> : null}
-              {canPublish ? <button type="button" className="est-btn" disabled={publishing} onClick={() => onPublish(selected)}>{publishing ? <Loader2 size={13} className="animate-spin" /> : <Rocket size={13} />} Publicar</button> : null}
-            </div>
-          </header>
-
-          {publishError ? <p className="change-publish-error">{publishError}</p> : null}
-
-          <section className="change-proof-flow" aria-label="Caminho da mudança">
-            <span data-active><Check size={12} /> Pedido registrado</span><i />
-            <span data-active={Boolean(proof) || undefined}><FlaskConical size={12} /> Prova executada</span><i />
-            <span data-active={selected.status === "published" || undefined}><Rocket size={12} /> No atendimento</span>
-          </section>
-
-          <div className="change-proof-grid">
-            <section className="change-before-after">
-              <header>
-                <div><span className="change-eyebrow">IMPACTO NA CONVERSA</span><h4>{scenario ? "A mesma situação, duas respostas" : "Comparação ainda não executada"}</h4></div>
-                {scenarios.length > 1 ? (
-                  <div className="change-scenario-tabs">
-                    {scenarios.map((item, index) => <button type="button" key={`${item.nome}-${index}`} aria-pressed={index === scenarioIndex} onClick={() => setScenarioIndex(index)}>{index + 1}</button>)}
-                  </div>
-                ) : null}
-              </header>
-
-              {scenario ? (
-                <>
-                  <div className="change-proof-question"><span>LEAD</span><p>{scenario.pergunta}</p></div>
-                  <div className="change-proof-compare">
-                    <article><small>ANTES</small><p>{scenario.antes}</p></article>
-                    <ArrowRight size={16} />
-                    <article data-now><small>AGORA, COM A MUDANÇA</small><p>{scenario.agora}</p></article>
-                  </div>
-                </>
-              ) : (
-                <div className="change-proof-pending">
-                  <Clock3 size={17} />
-                  <span><strong>Falta gerar o antes e depois</strong><p>Teste a mudança para registrar como ela responde na prática.</p></span>
+          return (
+            <article key={change.id} className="change-history-item" data-tone={state.tone}>
+              <div className="change-history-row">
+                <i />
+                <div className="change-history-copy">
+                  <span><b>{state.label}</b>{change.createdAt ? ` · há ${relativeTime(change.createdAt)}` : ""}</span>
+                  <strong>{change.intent}</strong>
                 </div>
-              )}
-            </section>
-
-            <aside className="change-guardian-card" data-approved={evals?.aprovado ? "true" : "false"}>
-              <header>
-                <span><ShieldCheck size={16} /></span>
-                <div><small>GUARDIÃO AUTOMÁTICO</small><strong>{evals?.total ? `${evals.passaram ?? 0}/${evals.total} protegidos` : "Aguardando prova"}</strong></div>
-                {evals?.taxa != null ? <b>{Math.round(evals.taxa * 100)}%</b> : null}
-              </header>
-              <div className="change-guardian-cases">
-                {(evals?.casos ?? []).map((testCase) => (
-                  <span key={testCase.caseId ?? testCase.nome} data-state={testCase.passou ? "ok" : "fail"}>
-                    {testCase.passou ? <CircleCheck size={13} /> : <CircleX size={13} />}
-                    <strong>{testCase.nome}</strong>
-                    {testCase.falhas?.[0] ? <small>{testCase.falhas[0]}</small> : null}
-                  </span>
-                ))}
-                {!evals?.casos?.length ? <p>Ao iniciar a prova, cada ataque e seu veredito aparecem aqui.</p> : null}
+                {evals?.total ? <span className="change-history-score" data-ok={evals.aprovado ? "true" : "false"}><ShieldCheck size={12} /> {evals.passaram ?? 0}/{evals.total}</span> : null}
+                <div className="change-history-actions">
+                  {canPublish ? <button type="button" className="est-btn2" onClick={() => onTest(change)}><FlaskConical size={12} /> Testar</button> : null}
+                  {canPublish ? <button type="button" className="est-btn" disabled={publishing} onClick={() => onPublish(change)}>{publishing ? <Loader2 size={12} className="animate-spin" /> : <Rocket size={12} />} Publicar</button> : null}
+                  {proof ? (
+                    <button type="button" className="change-history-toggle" aria-expanded={open} onClick={() => setOpenId(open ? null : change.id)}>
+                      {open ? "Fechar" : "Ver resultado"}<ChevronDown size={13} />
+                    </button>
+                  ) : null}
+                </div>
               </div>
-              <footer>
-                <span><Database size={11} /> {proof?.suite ? `suíte ${proof.suite}` : "sem suíte registrada"}</span>
-                <span>{proof?.ensaio?.modo === "real" ? "cérebro real" : proof ? "roteiro" : "não testada"}</span>
-              </footer>
-            </aside>
-          </div>
-        </article>
+
+              {open && proof ? (
+                <div className="change-history-proof">
+                  {scenario ? (
+                    <div className="change-history-compare">
+                      <p><b>Lead</b>{scenario.pergunta}</p>
+                      <div>
+                        <article><small>ANTES</small><p>{scenario.antes}</p></article>
+                        <article><small>AGORA</small><p>{scenario.agora}</p></article>
+                      </div>
+                    </div>
+                  ) : <p className="change-history-no-compare">Esta mudança ainda não tem comparação antes e depois.</p>}
+
+                  <div className="change-history-guard">
+                    <span>{evals?.aprovado ? <CircleCheck size={14} /> : <CircleX size={14} />}</span>
+                    <div>
+                      <strong>{evals?.total ? `Guardião: ${evals.passaram ?? 0} de ${evals.total} passaram` : "Guardião ainda não executado"}</strong>
+                      {failed[0] ? <small>{failed[0].nome}: {failed[0].falhas?.[0]}</small> : <small>{proof.suite ? `Suíte ${proof.suite}` : "Teste concluído"}{proof.ensaio?.modo === "real" ? " · cérebro real" : ""}</small>}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
+
+      {publishError ? <p className="change-history-error">{publishError}</p> : null}
     </section>
   );
 }

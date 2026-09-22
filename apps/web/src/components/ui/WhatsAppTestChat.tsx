@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Bot, Camera, Check, CheckCheck, CircleCheck, CircleX, Database, FlaskConical, Loader2, MessageCircle, MoreVertical, Paperclip, Phone, SendHorizontal, ShieldCheck, Smile, Wrench, Video } from "lucide-react";
+import { Camera, Check, CheckCheck, ChevronDown, CircleCheck, CircleX, Loader2, MoreVertical, Paperclip, Phone, SendHorizontal, ShieldCheck, Smile, Wrench, Video } from "lucide-react";
 
 export type TestChatMessage = {
   de: "voce" | "ia";
@@ -47,7 +47,6 @@ type WhatsAppTestChatProps = {
   onAccept: (index: number) => void;
   onCorrect: (index: number) => void;
   onFixCase: (testCase: TestRunCase) => void;
-  onOpenChanges?: () => void;
 };
 
 export function WhatsAppTestChat({
@@ -63,7 +62,6 @@ export function WhatsAppTestChat({
   onAccept,
   onCorrect,
   onFixCase,
-  onOpenChanges,
 }: WhatsAppTestChatProps) {
   const reduceMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
@@ -77,13 +75,9 @@ export function WhatsAppTestChat({
   const runCases = testRun.cases ?? [];
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   useEffect(() => {
-    if (testRun.status !== "pronto" || runCases.length === 0) return;
-    setSelectedCaseId((current) => runCases.some((item) => (item.caseId ?? item.nome) === current) ? current : (runCases[0].caseId ?? runCases[0].nome));
-  }, [runCases, testRun.status]);
-  const selectedCase = useMemo(
-    () => runCases.find((item) => (item.caseId ?? item.nome) === selectedCaseId) ?? runCases[0],
-    [runCases, selectedCaseId],
-  );
+    if (testRun.status === "rodando") setSelectedCaseId(null);
+  }, [testRun.status]);
+  const selectedCase = runCases.find((item) => (item.caseId ?? item.nome) === selectedCaseId);
   const guardScenarios = ["Preço e qualificação", "Pedido de agenda", "Identidade da IA", "Avanço do lead"];
 
   return (
@@ -192,91 +186,49 @@ export function WhatsAppTestChat({
               ) : null}
 
               {testRun.status === "pronto" && runCases.length > 0 ? (
-                <div className="wa-test-proof">
-                  <div className="wa-test-proof-meta">
-                    <span><Database size={11} /> {testRun.testedMode === "ensaio" ? "MUDANÇA NOVA" : "VERSÃO NO AR"}</span>
-                    <span>{testRun.mode === "real" ? "CÉREBRO REAL" : "ROTEIRO"}</span>
-                    {testRun.base ? <span>BASE {testRun.base}</span> : null}
-                    {testRun.suite ? <span>SUÍTE {testRun.suite}</span> : null}
+                <div className="wa-test-run-result">
+                  <div className="wa-test-run-summary">
+                    <span>{testRun.testedMode === "ensaio" ? "mudança nova" : "versão no ar"}</span>
+                    <span>{testRun.mode === "real" ? "cérebro real" : "roteiro"}</span>
                     {testRun.durationMs != null ? <span>{(testRun.durationMs / 1000).toFixed(1)}s</span> : null}
                   </div>
 
-                  {testRun.change ? (
-                    <button type="button" className="wa-test-proof-change" onClick={onOpenChanges}>
-                      <span><small>MUDANÇA SOB PROVA</small><strong>{testRun.change.intent}</strong></span>
-                      <ArrowRight size={14} />
-                    </button>
-                  ) : null}
+                  {testRun.change ? <p className="wa-test-run-change"><b>Testado:</b> {testRun.change.intent}</p> : null}
 
-                  <div className="wa-test-proof-trail" aria-label="Etapas da prova">
-                    <span><MessageCircle size={12} /> Ataque</span><i />
-                    <span><Bot size={12} /> Resposta</span><i />
-                    <span><FlaskConical size={12} /> Critérios</span><i />
-                    <span><Wrench size={12} /> Ações</span><i />
-                    <span><ShieldCheck size={12} /> Veredito</span>
-                  </div>
-
-                  <div className="wa-test-proof-tabs" role="tablist" aria-label="Ataques executados">
-                    {runCases.map((testCase, index) => {
+                  <div className="wa-test-run-list">
+                    {runCases.map((testCase) => {
                       const id = testCase.caseId ?? testCase.nome;
+                      const open = id === selectedCaseId;
                       return (
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={id === (selectedCase?.caseId ?? selectedCase?.nome)}
-                          key={id}
-                          data-state={testCase.passou ? "ok" : "fail"}
-                          onClick={() => setSelectedCaseId(id)}
-                        >
-                          <span>{testCase.passou ? <CircleCheck size={14} /> : <CircleX size={14} />}{String(index + 1).padStart(2, "0")}</span>
-                          <strong>{testCase.nome}</strong>
+                        <button type="button" key={id} data-state={testCase.passou ? "ok" : "fail"} aria-expanded={open} onClick={() => setSelectedCaseId(open ? null : id)}>
+                          {testCase.passou ? <CircleCheck size={15} /> : <CircleX size={15} />}
+                          <span><strong>{testCase.nome}</strong>{testCase.falhas?.[0] ? <small>{testCase.falhas[0]}</small> : null}</span>
                           {testCase.ms != null ? <time>{(testCase.ms / 1000).toFixed(1)}s</time> : null}
+                          <em>{open ? "fechar" : "ver prova"}</em>
+                          <ChevronDown size={13} />
                         </button>
                       );
                     })}
                   </div>
 
                   {selectedCase ? (
-                    <div className="wa-test-proof-detail" role="tabpanel">
-                      <div className="wa-test-proof-dialogue">
-                        <article>
-                          <small>ATAQUE DO LEAD</small>
-                          <p>{selectedCase.entrada?.texto || "Entrada não registrada nesta rodada."}</p>
-                        </article>
-                        <ArrowRight size={15} />
-                        <article data-agent>
-                          <small>RESPOSTA REAL DO AGENTE</small>
-                          <p>{selectedCase.saida?.texto || (selectedCase.falhas?.[0] ?? "Resposta não registrada nesta rodada.")}</p>
-                        </article>
+                    <div className="wa-test-run-detail">
+                      <div>
+                        <article><small>O LEAD DISSE</small><p>{selectedCase.entrada?.texto || "Entrada não registrada."}</p></article>
+                        <article><small>O AGENTE RESPONDEU</small><p>{selectedCase.saida?.texto || selectedCase.falhas?.[0] || "Resposta não registrada."}</p></article>
                       </div>
-
-                      <div className="wa-test-proof-bottom">
-                        <section>
-                          <small>CRITÉRIOS CONFERIDOS</small>
-                          <div className="wa-test-proof-checks">
-                            {(selectedCase.criterios ?? []).map((criterio, index) => (
-                              <span key={`${criterio.tipo}-${criterio.esperado}-${index}`} data-state={criterio.passou ? "ok" : "fail"} title={criterio.falha}>
-                                {criterio.passou ? <Check size={12} /> : <CircleX size={12} />}
-                                <b>{criterio.rotulo}</b> {criterio.esperado}
-                              </span>
-                            ))}
-                            {(selectedCase.criterios ?? []).length === 0 ? <em>Critérios não registrados nesta rodada.</em> : null}
-                          </div>
-                        </section>
-                        <section>
-                          <small>AÇÕES EXECUTADAS</small>
-                          <div className="wa-test-proof-actions">
-                            {(selectedCase.saida?.toolCalls ?? []).map((tool, index) => <span key={`${tool.tool}-${index}`}><Wrench size={11} /> {tool.tool}</span>)}
-                            {selectedCase.saida?.movedStage ? <span><ArrowRight size={11} /> etapa {selectedCase.saida.movedStage}</span> : null}
-                            {(selectedCase.saida?.toolCalls ?? []).length === 0 && !selectedCase.saida?.movedStage ? <em>Nenhuma ação externa necessária.</em> : null}
-                          </div>
-                        </section>
-                      </div>
-
-                      <footer data-state={selectedCase.passou ? "ok" : "fail"}>
-                        <span>{selectedCase.passou ? <CircleCheck size={15} /> : <CircleX size={15} />}<strong>{selectedCase.passou ? "Comportamento protegido" : "Comportamento vulnerável"}</strong></span>
-                        {!selectedCase.passou ? <button type="button" onClick={() => onFixCase(selectedCase)}>Corrigir esta falha</button> : <span className="wa-test-proof-safe">pode seguir</span>}
-                      </footer>
+                      <section>
+                        <small>POR QUE DEU ESSE RESULTADO</small>
+                        <div>
+                          {(selectedCase.criterios ?? []).map((criterio, index) => (
+                            <span key={`${criterio.tipo}-${criterio.esperado}-${index}`} data-state={criterio.passou ? "ok" : "fail"}>
+                              {criterio.passou ? <Check size={11} /> : <CircleX size={11} />}{criterio.rotulo}: {criterio.esperado}
+                            </span>
+                          ))}
+                          {(selectedCase.saida?.toolCalls ?? []).map((tool, index) => <span key={`${tool.tool}-${index}`}><Wrench size={11} /> ação: {tool.tool}</span>)}
+                        </div>
+                      </section>
+                      {!selectedCase.passou ? <button type="button" onClick={() => onFixCase(selectedCase)}>Corrigir esta falha</button> : null}
                     </div>
                   ) : null}
                 </div>
