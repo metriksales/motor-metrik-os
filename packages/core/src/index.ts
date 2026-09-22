@@ -40,6 +40,8 @@ export interface Motor {
   on: boolean;
   quando: string; // gatilho
   faz: string; // ação
+  /** configuração própria da peça; módulos podem sobrescrever estes valores */
+  config?: Record<string, unknown>;
 }
 
 export interface ModuloInstalado {
@@ -47,7 +49,7 @@ export interface ModuloInstalado {
   nome: string;
   /** onde caiu (qual motor/comportamento mudou) */
   onde: string;
-  config?: Record<string, string>;
+  config?: Record<string, unknown>;
   risco: RiskZone;
 }
 
@@ -253,6 +255,8 @@ export interface MotorRegistry {
   all(): MotorEngine[];
   match(event: RuntimeEvent, spec: AgentSpec): MotorEngine[];
 }
+
+export * from "./change-plan";
 
 // ── Evals — o porteiro (custom só sai do sandbox se a taxa ≥ limiar) ──
 export interface EvalCase {

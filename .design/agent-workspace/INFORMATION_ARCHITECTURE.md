@@ -51,17 +51,20 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 ### Corrigir comportamento
 
 1. Escreve ou fala em Melhorar.
-2. O sistema classifica internamente o pedido e confirma o resultado em linguagem humana.
-3. O cliente escolhe apenas entre “Testar essa mudança” e “Ajustar pedido”; nunca escolhe Lista, Motor, Biblioteca ou outro destino técnico.
-4. Mostra o antes/depois.
-5. Usuário abre Testar.
-6. Passando no guardião, publica em Mudanças.
+2. O sistema classifica internamente o pedido como Conversa, Automação, Ferramenta ou Documento e confirma o resultado em linguagem humana.
+3. O cliente nunca escolhe Lista, Motor, Biblioteca ou outro destino técnico; ele confirma o efeito ou ajusta o pedido.
+4. A prova acompanha a natureza da mudança:
+   - Conversa: cenário e resposta antes/depois.
+   - Automação: gatilho, espera, ação e canal, com a conversa preservada.
+   - Ferramenta: direcionamento para Conexões, autenticação e readback; nunca entra como regra do agente.
+   - Documento: recebimento e revisão antes de entrar na base.
+5. Passando na prova correspondente, a configuração pode ser publicada e aparece em Mudanças.
 
 ### Confirmar um pedido em Melhorar
 
 1. Repetir o resultado entendido, não o mecanismo de armazenamento.
 2. Explicar em uma frase o que muda na atuação do agente.
-3. Para follow-up, agenda ou outro módulo reconhecível, nomear a capacidade em linguagem do cliente.
+3. Para follow-up, agenda ou outro módulo reconhecível, nomear a capacidade em linguagem do cliente e mostrar sua configuração operacional.
 4. Se houver documento, explicar honestamente que a Metrik vai prepará-lo antes de entrar nas respostas.
 5. A ação principal descreve o próximo passo: “Testar essa mudança” ou “Enviar documento”.
 6. “Ajustar pedido” devolve o texto original ao campo para edição.
@@ -83,7 +86,8 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 | History / ledger | Mudanças | Revisões, publicações e decisões. |
 | Chat de edições | Melhorar | Verbo e resultado, não mecanismo. |
 | Upgrade | Peça disponível | Só aparece se compatível com o agente. |
-| Fato / regra / doc | Não aparece | Classificação interna; a confirmação mostra apenas o resultado para o cliente. |
+| Conversa / Automação / Ferramenta / Documento | Não aparece como escolha | Classificação interna; a confirmação e a prova mostram apenas o resultado para o cliente. |
+| Configuração de automação | Quando / Espera / Então / Por | Nunca representar cadência como resposta de chat ou regra de prompt. |
 
 ## Crescimento
 

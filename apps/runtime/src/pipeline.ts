@@ -2,21 +2,8 @@
 // Recebe um RuntimeEvent, carrega o spec publicado, casa os motores pelo
 // gatilho (registry.match) e roda cada um com os ports injetados, logando
 // execução por execução. Fail-open: motor que estoura não derruba os outros.
-import type { AgentSpec, MotorResult, RuntimeEvent } from "@motor/core";
+import { resolveMotorConfig, type MotorResult, type RuntimeEvent } from "@motor/core";
 import type { RuntimeDeps } from "./deps";
-
-/**
- * resolveConfig — os "botões" do cliente chegam no motor SEM o motor conhecer o
- * spec. Módulos instalados que caem neste motor (onde === engineId) sobrescrevem
- * os defaults. É como a config por cliente (ex.: publico=humanos) vira comportamento.
- */
-function resolveConfig(spec: AgentSpec, engineId: string): Record<string, unknown> {
-  const cfg: Record<string, unknown> = {};
-  for (const m of spec.modulos ?? []) {
-    if (m.onde === engineId && m.config) Object.assign(cfg, m.config);
-  }
-  return cfg;
-}
 
 export async function runEvent(
   evt: RuntimeEvent,
@@ -51,7 +38,7 @@ export async function runEvent(
     let r: MotorResult;
     try {
       r = await engine.run(
-        { orgId: evt.orgId, agentId: evt.agentId, spec, event: evt, config: resolveConfig(spec, engine.id) },
+        { orgId: evt.orgId, agentId: evt.agentId, spec, event: evt, config: resolveMotorConfig(spec, engine.id) },
         ports,
       );
       deps.log({
