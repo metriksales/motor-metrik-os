@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { Plus } from "lucide-react";
 
 export type BrainPiece = {
@@ -31,53 +30,56 @@ export function AgentBrainMap({
   return (
     <section className="est-brain" aria-labelledby="agent-path-title">
       <header className="est-brain-head">
-        <div>
-          <div className="emo est-kicker">MOTOR · {agentName.toUpperCase()}</div>
-          <h2 id="agent-path-title">O circuito que faz o agente agir</h2>
-          <p>A energia passa por estas peças, nesta ordem. Toque em um nó para abrir o que acontece dentro dele.</p>
-        </div>
-        <div className="est-brain-count" aria-label={`${active.length} peças no ar`}>
+        <div className="emo est-kicker">PEÇAS · {agentName.toUpperCase()}</div>
+        <h2 id="agent-path-title">Caminho do agente</h2>
+        <p>Os módulos trabalham nesta ordem. Abra uma peça para ver como ela funciona.</p>
+        <div className="est-brain-count" role="status" aria-label={`${active.length} peças no ar`}>
           <b>{active.length}</b>
-          <span>{active.length === 1 ? "peça trabalhando" : "peças trabalhando"}</span>
+          <span>{active.length === 1 ? "ativa" : "ativas"}</span>
         </div>
       </header>
 
       <div className="est-path" role="list" aria-label="Peças que trabalham neste agente">
         {active.map((piece, index) => (
           <div className="est-path-item" role="listitem" key={piece.id}>
-            {piece.cond && <span className="emo est-path-condition">{piece.cond}</span>}
+            {index > 0 && (
+              <div className="est-path-connector" aria-hidden="true">
+                <i />
+                <span className="emo">{piece.cond ?? "depois"}</span>
+              </div>
+            )}
             <button
               type="button"
               aria-pressed={selectedId === piece.id}
               onClick={() => onSelect(piece.id)}
-              className="est-path-node"
+              className="est-module-card"
               data-selected={selectedId === piece.id ? "true" : "false"}
             >
-              <span className="est-path-orb" style={{ "--piece-color": piece.cor } as CSSProperties}>
-                <span className="emo est-path-step">{String(index + 1).padStart(2, "0")}</span>
-                <span className="est-path-glyph" aria-hidden="true">{piece.glifo}</span>
-                <i aria-hidden="true" />
+              <span className="est-module-top">
+                <span className="emo est-module-index">{String(index + 1).padStart(2, "0")}</span>
+                <span className="est-module-icon" style={{ color: piece.cor }} aria-hidden="true">{piece.glifo}</span>
+                <span className="emo est-module-state" data-state={piece.estado}>{piece.estado === "nucleo" ? "núcleo" : "no ar"}</span>
               </span>
-              <span className="est-path-copy">
-                <span className="est-path-title">{piece.nome}</span>
-                <span className="est-path-summary">{piece.resumo}</span>
-                {piece.meta && <span className="emo est-path-meta">{piece.meta}</span>}
-                <span className="emo est-path-state">{piece.estado === "nucleo" ? "núcleo" : "no ar"}</span>
+              <strong>{piece.nome}</strong>
+              <span className="est-module-summary">{piece.resumo}</span>
+              <span className="est-module-footer">
+                <span className="emo">{piece.meta ?? "configurada"}</span>
+                <i aria-hidden="true">→</i>
               </span>
             </button>
-            {index < active.length - 1 && <span className="est-path-connector" aria-hidden="true"><i /></span>}
           </div>
         ))}
 
         {real && active.length === 1 && available.length === 0 && (
           <div className="est-path-item est-path-next" role="listitem" aria-label="Próxima peça">
-            <span className="est-path-condition emo">depois →</span>
-            <div className="est-path-node est-path-node-ghost">
-              <span className="est-path-orb est-path-orb-ghost"><Plus size={20} /></span>
-              <span className="est-path-copy">
-                <span className="est-path-title">Próxima peça</span>
-                <span className="est-path-summary">Follow-up, agenda ou outro trabalho entra aqui quando for ligado.</span>
+            <div className="est-path-connector" aria-hidden="true"><i /><span className="emo">depois</span></div>
+            <div className="est-module-card est-module-card-ghost">
+              <span className="est-module-top">
+                <span className="emo est-module-index">02</span>
+                <span className="est-module-icon"><Plus size={16} /></span>
               </span>
+              <strong>Próxima peça</strong>
+              <span className="est-module-summary">Follow-up, agenda ou outro módulo entra neste espaço quando for ligado.</span>
             </div>
           </div>
         )}
@@ -85,7 +87,7 @@ export function AgentBrainMap({
 
       {available.length > 0 && (
         <div className="est-available">
-          <span className="emo">PODE LIGAR</span>
+          <span className="emo">DISPONÍVEIS</span>
           <div>
             {available.map((piece) => (
               <button type="button" key={piece.id} onClick={() => onSelect(piece.id)} aria-pressed={selectedId === piece.id}>

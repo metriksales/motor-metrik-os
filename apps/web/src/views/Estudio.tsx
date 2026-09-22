@@ -3,8 +3,8 @@
 // bancada NA PRÁTICA sempre à direita. Mudança = DIFF (− antes / + agora),
 // progresso = log de terminal. Tudo lido do MOTOR (spec, ledger, evals,
 // chat-sandbox) — zero vitrine vestida em agente real.
-import { type CSSProperties, useEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, ArrowUp, Check, Clock, FileText, FlaskConical, History, Loader2, Lock, Mic, Plus, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
+import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
+import { Activity, ArrowLeft, ArrowUp, Check, Clock, FileText, FlaskConical, GripVertical, History, Loader2, Lock, Mic, Plus, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
 import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
 import { api } from "../lib/api";
@@ -152,6 +152,40 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     setAba(proxima);
     setMobilePane("resultado");
   };
+  // A bancada funciona como um editor: no desktop o mestre pode dar mais
+  // espaço ao chat ou ao artefato arrastando o divisor. Persistimos a escolha.
+  const [chatWidth, setChatWidth] = useState(() => {
+    if (typeof window === "undefined") return 352;
+    const saved = Number(window.localStorage.getItem("metrik:studio-chat-width"));
+    return Number.isFinite(saved) && saved >= 300 && saved <= 520 ? saved : 352;
+  });
+  const [resizing, setResizing] = useState(false);
+  const resizeRef = useRef<{ x: number; width: number; pointerId: number } | null>(null);
+  const clampChatWidth = (value: number) => Math.min(520, Math.max(300, value));
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    resizeRef.current = { x: event.clientX, width: chatWidth, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResizing(true);
+  };
+  const moveResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current) return;
+    setChatWidth(clampChatWidth(resizeRef.current.width + event.clientX - resizeRef.current.x));
+  };
+  const stopResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current) return;
+    try { event.currentTarget.releasePointerCapture(resizeRef.current.pointerId); } catch { /* já solto */ }
+    resizeRef.current = null;
+    setResizing(false);
+  };
+  const resizeWithKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home") return;
+    event.preventDefault();
+    setChatWidth((width) => event.key === "Home" ? 352 : clampChatWidth(width + (event.key === "ArrowLeft" ? -24 : 24)));
+  };
+  useEffect(() => {
+    window.localStorage.setItem("metrik:studio-chat-width", String(Math.round(chatWidth)));
+  }, [chatWidth]);
   // qual PEÇA do cérebro está aberta no artefato (o mapa fica à direita)
   const [peca, setPeca] = useState<string>("conversa");
   const [trocas, setTrocas] = useState<{ pedido: string; status: "no ar" | "guardada" }[]>([]);
@@ -336,21 +370,20 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const bolhaVoce = "ml-auto max-w-[85%] rounded-xl px-4 py-2.5 text-[14.5px] leading-relaxed";
 
   return (
-    <div className="est flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0">
+    <div className={`est flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0${resizing ? " est-is-resizing" : ""}`} style={{ "--est-chat-width": `${chatWidth}px` } as CSSProperties}>
       {/* ── cabeçalho do workspace: identidade + estado + recibo compacto ── */}
       <header className="est-agentbar flex-none">
         <div className="est-agentbar-main">
           <button onClick={onBack} title="voltar pra frota" aria-label="voltar pra frota" className="est-icon-btn"><ArrowLeft size={17} /></button>
-          <div className="est-agent-avatar"><Robot state={estado} color={agent.color} size={38} /></div>
-          <div className="est-agent-title min-w-0">
-            <span className="emo"><i className="est-status-dot" data-on={estado !== "pausado" ? "true" : "false"} /> {estado === "pausado" ? "AGENTE PAUSADO" : "AGENTE EM OPERAÇÃO"}</span>
-            <h1>{agent.name}</h1>
-            <p className="emo">{agent.tipo === "acao" ? "ação" : "resposta"}{rod ? ` · versão ${rod.versao}` : ""}</p>
-          </div>
-
-          <div className="hidden xl:block est-agent-mission">
-            <span className="emo">MISSÃO NO AR</span>
-            <p>{agent.papel?.trim() || "Atender cada lead e conduzir a conversa até o próximo passo."}</p>
+          <div className="est-agent-avatar"><Robot state={estado} color={agent.color} size={30} /></div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <strong className="text-[16px] truncate">{agent.name}</strong>
+              <span className="est-status-dot" data-on={estado !== "pausado" ? "true" : "false"} />
+            </div>
+            <div className="emo text-[12px] truncate" style={{ color: "var(--e-dim)" }}>
+              {agent.tipo === "acao" ? "agente de ação" : "agente de resposta"}{rod ? ` · versão ${rod.versao}` : ""} · {estado === "pausado" ? "pausado" : "no ar"}
+            </div>
           </div>
 
           <div className="hidden lg:flex est-agentbar-stats">
@@ -390,32 +423,31 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
       <div className="flex flex-1 min-h-0">
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
-        <div className={`${mobilePane === "editar" ? "flex" : "hidden"} xl:flex flex-col min-h-0 w-full min-w-0 xl:w-[352px] xl:min-w-[330px] flex-none est-improve`}>
+        <div className={`${mobilePane === "editar" ? "flex" : "hidden"} xl:flex flex-col min-h-0 w-full min-w-0 flex-none est-improve`}>
           <div className="est-improve-head">
-            <span className="emo est-improve-index">01</span>
             <div>
-              <span className="emo">MELHORAR O AGENTE</span>
-              <p>Você aponta. O motor encontra, testa e mostra.</p>
+              <span className="emo">MELHORAR</span>
+              <p>Peça uma mudança. Eu mostro o antes e o depois.</p>
             </div>
           </div>
 
           <div ref={feedRef} className="flex-1 overflow-y-auto scroll-thin px-5 py-5 space-y-5">
             {/* boas-vindas do motor + pontos de partida (ninguém fica olhando pro vazio) */}
-            <div className={bolhaMotor + " est-improve-intro"}>
+            <div className={bolhaMotor}>
               <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
               <div className="min-w-0 flex-1">
                 <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>
                   Descreva o que precisa mudar. Eu localizo a peça certa, mostro o antes e o depois e <b style={{ color: "var(--e-txt)" }}>só publico depois do teste.</b>
                 </p>
                 {trocas.length === 0 && envio.fase === "idle" && (
-                  <div className="est-suggestions mt-4">
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
                     {[
                       "Ensina que o parcelamento é em até 3x sem juros",
                       "Quando o lead sumir, espera 1 dia e manda só 1 follow",
                       "Nunca prometa resultado — fala em acompanhamento",
                     ].map((s) => (
-                      <button key={s} onClick={() => setTexto(s)}>
-                        <span>{s}</span><i aria-hidden="true">↗</i>
+                      <button key={s} onClick={() => setTexto(s)} className="text-[12.5px] rounded-full px-3 py-1.5 text-left" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
+                        {s}
                       </button>
                     ))}
                   </div>
@@ -566,22 +598,42 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           </div>
         </div>
 
+        <div
+          className="hidden xl:flex est-splitter"
+          role="separator"
+          aria-label="Redimensionar painel Melhorar"
+          aria-orientation="vertical"
+          aria-valuemin={300}
+          aria-valuemax={520}
+          aria-valuenow={Math.round(chatWidth)}
+          tabIndex={0}
+          title="Arraste para aumentar ou diminuir o chat"
+          onDoubleClick={() => setChatWidth(352)}
+          onPointerDown={startResize}
+          onPointerMove={moveResize}
+          onPointerUp={stopResize}
+          onPointerCancel={stopResize}
+          onKeyDown={resizeWithKeyboard}
+        >
+          <span><GripVertical size={14} /></span>
+        </div>
+
         {/* ══ DIREITA · O ARTEFATO (doc vivo do spec — zero token pra desenhar) ══ */}
-        <div className={`${mobilePane === "resultado" ? "flex" : "hidden"} xl:flex flex-1 min-w-0 flex-col min-h-0 est-stage`}>
+        <div className={`${mobilePane === "resultado" ? "flex" : "hidden"} xl:flex flex-1 min-w-0 flex-col min-h-0 est-main-workspace`}>
           {/* abas do artefato */}
-          <div className="hidden xl:flex est-workspace-tabs">
+          <div className="hidden xl:grid est-workspace-tabs">
             {([
-              { id: "artefato" as const, icone: FileText, rotulo: "Como funciona" },
-              { id: "testar" as const, icone: FlaskConical, rotulo: "Testar" },
-              { id: "exec" as const, icone: Activity, rotulo: "Ao vivo" },
-              { id: "historico" as const, icone: History, rotulo: "Mudanças" },
+              { id: "artefato" as const, icone: FileText, rotulo: "Como funciona", apoio: "peças e regras" },
+              { id: "testar" as const, icone: FlaskConical, rotulo: "Testar", apoio: "fale como lead" },
+              { id: "exec" as const, icone: Activity, rotulo: "Ao vivo", apoio: "execuções agora" },
+              { id: "historico" as const, icone: History, rotulo: "Mudanças", apoio: "revisar e publicar" },
             ]).map((t) => {
               const ativo = aba === t.id;
               const Icone = t.icone;
               return (
-                <button key={t.id} onClick={() => abrirAba(t.id)} aria-current={ativo ? "page" : undefined} className="est-tab flex items-center gap-2 px-3.5 h-full text-[13.5px]" style={ativo ? { color: "var(--e-txt)", fontWeight: 600, boxShadow: "inset 0 -2px 0 var(--e-amber)" } : { color: "var(--e-mut)" }}>
-                  <Icone size={15} /> {t.rotulo}
-                  {t.id === "exec" && <span className="live-dot" style={{ width: 6, height: 6 }} />}
+                <button key={t.id} onClick={() => abrirAba(t.id)} aria-current={ativo ? "page" : undefined} className="est-tab">
+                  <span className="est-tab-icon"><Icone size={16} />{t.id === "exec" && <i className="live-dot" />}</span>
+                  <span className="est-tab-copy"><b>{t.rotulo}</b><small>{t.apoio}</small></span>
                   {t.id === "historico" && emRev && <span className="est-tab-badge" aria-label="uma mudança pendente">1</span>}
                 </button>
               );
@@ -620,10 +672,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             const funcao = agent.papel?.trim() || (c?.identidade ? `${c.identidade}.` : "Atende cada lead no WhatsApp e conduz a conversa até o próximo passo.");
 
             return (
-              <div className="flex-1 min-h-0 overflow-y-auto scroll-thin">
+              <div className="flex-1 min-h-0 est-artifact-view">
                 <div className="est-artifact-shell">
-                  <AgentBrainMap agentName={agent.name} pieces={pecas} selectedId={aberta.id} onSelect={setPeca} real={!!agent.real} />
-
                   <article className="est-artifact-doc" aria-labelledby="selected-piece-title">
                     <header className="est-piece-head">
                       <div className="est-piece-icon" style={{ color: aberta.cor }} aria-hidden="true">{aberta.glifo}</div>
@@ -724,6 +774,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                       <footer className="est-truth-note">Esta visão é montada com o cérebro atual do agente. Melhorias só aparecem aqui depois de publicadas.</footer>
                     </div>
                   </article>
+
+                  <aside className="est-brain-rail" aria-label="Módulos e peças do agente">
+                    <AgentBrainMap agentName={agent.name} pieces={pecas} selectedId={aberta.id} onSelect={setPeca} real={!!agent.real} />
+                  </aside>
                 </div>
               </div>
             );
