@@ -4,11 +4,11 @@
 // progresso = log de terminal. Tudo lido do MOTOR (spec, ledger, evals,
 // chat-sandbox) — zero vitrine vestida em agente real.
 import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, ArrowUp, Check, Clock, FileText, FlaskConical, GripVertical, History, Loader2, Lock, Plus, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Activity, ArrowLeft, Check, Clock, FileText, FlaskConical, GripVertical, History, Loader2, Lock, Plus, Radio, ShieldCheck, Sparkles, X } from "lucide-react";
 import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
 import { ClaudeStyleComposer, type ComposerPayload } from "../components/ui/ClaudeStyleComposer";
-import { TechnicalBeamField } from "../components/ui/TechnicalBeamField";
+import { WhatsAppTestPhone } from "../components/ui/WhatsAppTestPhone";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, tempoRelativo } from "../lib/live";
@@ -312,8 +312,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const [pensando, setPensando] = useState(false);
   const [feedback, setFeedback] = useState<Record<number, "sim" | "nao">>({});
   const [modoTeste, setModoTeste] = useState<"ar" | "ensaio">("ar");
-  const fimRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { fimRef.current?.scrollIntoView({ block: "end" }); }, [msgs]);
   // sem mudança pendente, testar "com a mudança nova" não faz sentido → volta pro ar
   useEffect(() => { if (!emRev && modoTeste === "ensaio") setModoTeste("ar"); }, [emRev, modoTeste]);
   useEffect(() => {
@@ -428,7 +426,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       <div className="flex flex-1 min-h-0">
         {/* ══ ESQUERDA · CHAT DE EDIÇÕES ══ */}
         <div className={`${mobilePane === "editar" ? "flex" : "hidden"} xl:flex flex-col min-h-0 w-full min-w-0 flex-none est-improve`}>
-          <TechnicalBeamField />
           <div className="est-improve-head">
             <span>Melhorar · {agent.name}</span>
           </div>
@@ -764,104 +761,89 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
           {/* ── ABA TESTAR ── */}
           {aba === "testar" && (
-            <div className="flex-1 min-h-0 flex flex-col est-entra">
-              <div className="flex-none px-5 pt-3 pb-2.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-[13.5px] font-semibold">Testar {agent.name}</span>
-                  <span className="text-[12px]" style={{ color: "var(--e-dim)" }}>você é o lead — veja como ela responde</span>
-                  {run.r?.evals && <span className="emo text-[12px]" style={{ color: run.r.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>{run.r.evals.passaram}/{run.r.evals.total} travas de pé</span>}
-                  <button onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 ml-auto">{run.status === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} {run.r ? "Rodar de novo" : "Rodar os testes"}</button>
+            <div className="flex-1 min-h-0 flex flex-col est-entra est-test-page">
+              <header className="est-test-page-head">
+                <div>
+                  <span className="est-kicker">LABORATÓRIO ISOLADO</span>
+                  <h2>Converse como um lead</h2>
+                  <p>Veja a resposta no ambiente em que ela realmente trabalha, sem tocar no CRM.</p>
                 </div>
-                {/* a escolha da versão SÓ aparece quando há mudança pendente — aí sim
-                    faz sentido: testar como está no ar × com a mudança que você ainda não publicou */}
-                {agent.real && emRev && (
-                  <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
-                    <span className="text-[12px]" style={{ color: "var(--e-mut)" }}>conversar com:</span>
-                    <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid #26303a" }}>
-                      <button onClick={() => setModoTeste("ar")} className="text-[12px] px-3 py-1.5" style={modoTeste === "ar" ? { background: "var(--e-green)", color: "#08090d", fontWeight: 600 } : { color: "var(--e-mut)" }}>a versão no ar hoje</button>
-                      <button onClick={() => setModoTeste("ensaio")} className="text-[12px] px-3 py-1.5 flex items-center gap-1" style={modoTeste === "ensaio" ? { background: "var(--e-amber)", color: "#ffffff", fontWeight: 600 } : { color: "var(--e-mut)" }}>com a mudança nova <Sparkles size={11} /></button>
-                    </div>
-                    <span className="text-[12.5px]" style={{ color: "var(--e-dim)" }}>{modoTeste === "ensaio" ? "prévia da mudança que ainda não foi pro ar" : "o que os leads recebem agora"}</span>
-                  </div>
-                )}
-                {run.status === "rodando" && <div className="flex items-center gap-2 mt-2 text-[12.5px]" style={{ color: "var(--e-mut)" }}><span className="est-spin" /> o robô-lead está conversando com ela…</div>}
-                {run.erro && <div className="text-[12.5px] mt-1.5" style={{ color: "var(--e-red)" }}>{run.erro}</div>}
-                {run.r?.evals?.casos && (
-                  <div className="emo text-[12.5px] mt-2 max-h-[160px] overflow-y-auto scroll-thin">
-                    {run.r.evals.casos.map((caso: any, i: number) => (
-                      <div key={caso.caseId ?? i} className="py-0.5 flex gap-2.5">
-                        <span style={{ color: caso.passou ? "var(--e-green)" : "var(--e-red)" }}>{caso.passou ? "✓" : "✗"}</span>
-                        <span className="flex-1 truncate" style={{ color: caso.passou ? "var(--e-txt2)" : "var(--e-red)" }}>{caso.nome}</span>
-                        {run.r.ms?.[i] != null && <span style={{ color: "var(--e-dim)" }}>{(run.r.ms[i] / 1000).toFixed(1)}s</span>}
-                        {!caso.passou && <button onClick={() => setTexto(`A trava "${caso.nome}" quebrou no teste (${caso.falhas[0] ?? ""}). Reforça: `)} className="emo text-[12px]" style={{ color: "var(--e-amber)" }}>corrigir</button>}
+                <span className="est-test-session-status"><i /> sessão de teste</span>
+              </header>
+
+              <div className="est-test-layout scroll-thin">
+                <aside className="est-test-side est-test-scenarios" aria-label="Cenários e versão do teste">
+                  <section className="est-test-panel">
+                    <span className="est-test-panel-label">VERSÃO TESTADA</span>
+                    {agent.real && emRev ? (
+                      <div className="est-test-version-switch">
+                        <button type="button" onClick={() => setModoTeste("ar")} aria-pressed={modoTeste === "ar"}>No ar</button>
+                        <button type="button" onClick={() => setModoTeste("ensaio")} aria-pressed={modoTeste === "ensaio"}>Mudança nova</button>
                       </div>
-                    ))}
-                    {run.r?.modo === "roteiro" && <div className="text-[12.5px] pt-1" style={{ color: "var(--e-amber)" }}>conferido no roteiro (sem cérebro) — a Metrik liga a chave e vira ataque real</div>}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 px-5 py-4 space-y-2.5 overflow-y-auto" style={{ background: "#0b141a", minHeight: 0 }}>
-                {msgs.length === 0 && (
-                  <div className="text-center text-[13px] py-10" style={{ color: "#8696a0" }}>
-                    Você é o lead — escreve como um cliente escreveria, fora do CRM.
-                  </div>
-                )}
-                {msgs.map((m, i) =>
-                  m.de === "voce" ? (
-                    <div key={i} className="ml-auto max-w-[78%] rounded-lg px-3.5 py-2" style={{ background: "#005c4b", borderTopRightRadius: 3 }}>
-                      <div className="text-[14px]" style={{ color: "#e9edef" }}>{m.texto}</div>
+                    ) : (
+                      <div className="est-test-version-static"><i /> versão no ar agora</div>
+                    )}
+                    <p>{modoTeste === "ensaio" ? "Prévia que ainda não foi publicada." : "É isto que os leads recebem hoje."}</p>
+                  </section>
+
+                  <section className="est-test-panel">
+                    <span className="est-test-panel-label">COMEÇAR POR UM CENÁRIO</span>
+                    <div className="est-test-prompts">
+                      {sugestoes.map((s) => (
+                        <button type="button" key={s} onClick={() => void perguntar(s)}>{s}<span>→</span></button>
+                      ))}
                     </div>
-                  ) : (
-                    <div key={i} className="max-w-[88%]">
-                      <div className="rounded-lg px-3.5 py-2" style={{ background: m.aviso ? "rgba(59,130,246,.12)" : "#1b242b", borderTopLeftRadius: 3, border: m.aviso ? "1px solid rgba(59,130,246,.35)" : undefined }}>
-                        <div className="text-[14px] leading-relaxed" style={{ color: m.aviso ? "#3b82f6" : "#e9edef" }}>{m.texto}</div>
-                      </div>
-                      {!m.aviso && (
-                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                          {m.fonte && <span className="emo text-[12px] rounded-full px-2 py-0.5" style={{ color: "var(--e-green)", background: "rgba(63,185,80,.1)", border: "1px solid rgba(63,185,80,.3)" }}>{m.fonte}</span>}
-                          {feedback[i] === "sim" ? (
-                            <span className="emo text-[12px] font-bold rounded px-2 py-0.5" style={{ background: "var(--e-green)", color: "#08090d" }}>✓ é isso</span>
-                          ) : feedback[i] === "nao" ? (
-                            <span className="emo text-[12px] rounded px-2 py-0.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>corrigindo…</span>
-                          ) : (
-                            <span className="est-feed">
-                              <button onClick={() => setFeedback((s) => ({ ...s, [i]: "sim" }))}>✓ é isso</button>
-                              <button onClick={() => corrigir(i)}>corrigir</button>
-                            </span>
-                          )}
+                  </section>
+
+                  <section className="est-test-panel est-test-session">
+                    <span className="est-test-panel-label">SESSÃO ATUAL</span>
+                    <div><strong>{msgs.filter((m) => m.de === "voce").length}</strong><span>perguntas</span></div>
+                    <div><strong className="is-ok">{nSim}</strong><span>respostas certas</span></div>
+                    <div><strong className={nNao > 0 ? "is-fix" : ""}>{nNao}</strong><span>correções abertas</span></div>
+                    <p>Ao corrigir, o pedido já nasce preenchido no Melhorar.</p>
+                  </section>
+                </aside>
+
+                <WhatsAppTestPhone
+                  agentName={agent.name}
+                  modeLabel={modoTeste === "ensaio" ? "prévia da mudança" : "versão no ar"}
+                  messages={msgs}
+                  feedback={feedback}
+                  thinking={pensando}
+                  input={input}
+                  onInputChange={setInput}
+                  onSubmit={() => void perguntar()}
+                  onAccept={(index) => setFeedback((state) => ({ ...state, [index]: "sim" }))}
+                  onCorrect={corrigir}
+                />
+
+                <aside className="est-test-side est-test-guardian" aria-label="Resultado dos testes automáticos">
+                  <section className="est-test-panel">
+                    <span className="est-test-panel-label">GUARDIÃO AUTOMÁTICO</span>
+                    <h3>{run.r?.evals ? `${run.r.evals.passaram}/${run.r.evals.total} travas de pé` : "Ataque as travas do agente"}</h3>
+                    <p>{run.r?.evals ? "A rodada confere comportamentos críticos antes de qualquer publicação." : "Rode cenários automáticos para provar que preço, segurança e handoff continuam corretos."}</p>
+                    <button type="button" onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 est-test-run">
+                      {run.status === "rodando" ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
+                      {run.r ? "Rodar novamente" : "Rodar os testes"}
+                    </button>
+                    {run.status === "rodando" ? <div className="est-test-running"><span className="est-spin" /> robô-lead atacando as travas…</div> : null}
+                    {run.erro ? <div className="est-test-error">{run.erro}</div> : null}
+                  </section>
+
+                  {run.r?.evals?.casos ? (
+                    <section className="est-test-panel est-test-cases">
+                      <span className="est-test-panel-label">RESULTADO DA RODADA</span>
+                      {run.r.evals.casos.map((caso: any, index: number) => (
+                        <div key={caso.caseId ?? index} className="est-test-case" data-state={caso.passou ? "ok" : "fail"}>
+                          <i>{caso.passou ? "✓" : "×"}</i>
+                          <span><strong>{caso.nome}</strong>{run.r.ms?.[index] != null ? <small>{(run.r.ms[index] / 1000).toFixed(1)}s</small> : null}</span>
+                          {!caso.passou ? <button type="button" onClick={() => setTexto(`A trava "${caso.nome}" quebrou no teste (${caso.falhas[0] ?? ""}). Reforça: `)}>Corrigir</button> : null}
                         </div>
-                      )}
-                    </div>
-                  ),
-                )}
-                {pensando && <div className="text-[12px]" style={{ color: "#8696a0" }}>digitando…</div>}
-                <div ref={fimRef} />
-              </div>
-              <div className="px-5 py-2.5 flex-none" style={{ borderTop: "1px solid var(--e-line)" }}>
-                <div className="flex gap-1.5 flex-wrap mb-2">
-                  {sugestoes.map((s) => (
-                    <button key={s} onClick={() => void perguntar(s)} className="text-[12.5px] rounded-full px-3 py-1" style={{ border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>“{s}”</button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void perguntar(); } }}
-                    placeholder="escreve como um lead…"
-                    className="flex-1 rounded-lg px-3.5 py-2.5 text-[14px] outline-none min-w-0"
-                    style={{ background: "var(--e-surface)", border: "1px solid var(--e-line)", color: "var(--e-txt)" }}
-                  />
-                  <button onClick={() => void perguntar()} disabled={!input.trim() || pensando} className="grid place-items-center rounded-lg flex-none" style={{ width: 36, height: 36, background: "var(--e-amber)" }}>
-                    {pensando ? <Loader2 size={14} className="animate-spin" style={{ color: "#ffffff" }} /> : <ArrowUp size={16} style={{ color: "#ffffff" }} />}
-                  </button>
-                </div>
-                <div className="flex items-center gap-3 mt-2 pt-2 emo text-[12px]" style={{ borderTop: "1px solid var(--e-line-soft)", color: "var(--e-dim)" }}>
-                  <span>{msgs.filter((m) => m.de === "voce").length} perguntas</span>
-                  <span style={{ color: "var(--e-green)" }}>{nSim} é isso ✓</span>
-                  {nNao > 0 && <span style={{ color: "var(--e-red)" }}>{nNao} corrigindo</span>}
-                  <span className="ml-auto">o “corrigir” escreve o pedido por você</span>
-                </div>
+                      ))}
+                      {run.r?.modo === "roteiro" ? <p className="est-test-script-note">Conferido no roteiro. Com o cérebro ligado, a mesma rodada vira ataque real.</p> : null}
+                    </section>
+                  ) : null}
+                </aside>
               </div>
             </div>
           )}

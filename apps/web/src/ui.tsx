@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 export const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -130,18 +129,6 @@ export function SkeletonCard({ lines = 3, h = 130 }: { lines?: number; h?: numbe
         <Skeleton key={i} className="mt-2.5" style={{ width: `${90 - i * 12}%`, height: 11 }} />
       ))}
     </div>
-  );
-}
-
-export function Delta({ up, children }: { up: boolean; children: ReactNode }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 text-[12px] font-medium font-mono"
-      style={{ color: up ? "var(--emerald)" : "var(--rose)" }}
-    >
-      {up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-      {children}
-    </span>
   );
 }
 
