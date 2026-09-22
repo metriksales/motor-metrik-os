@@ -15,17 +15,37 @@ import { useMotorAuth } from "../lib/auth";
 import { useLive, tempoRelativo } from "../lib/live";
 import { AgentBrainMap, type BrainPiece } from "./estudio/AgentBrainMap";
 
-/* ── o DESTINO da informação: 🧾 fato · ⚙️ regra · 📚 doc (canvas Cérebro) ── */
+/* O motor decide internamente onde aplicar o pedido. O cliente confirma o
+   resultado esperado — nunca a arquitetura que existe por baixo. */
 export type Destino = "fato" | "regra" | "doc";
-export const DESTINO_META: Record<Destino, { rotulo: string; cor: string; desc: string }> = {
-  fato: { rotulo: "Lista · fato exato", cor: "#3fb950", desc: "ela passa a responder sempre igual — entra depois do ensaio rápido." },
-  regra: { rotulo: "Motor · comportamento", cor: "#3b82f6", desc: "muda o jeito dela agir — o guardião testa antes de valer." },
-  doc: { rotulo: "Biblioteca · documento", cor: "#58aae4", desc: "conteúdo longo — fica guardado; a busca inteligente é a próxima fatia da Metrik." },
-};
 export function destinoDe(t: string): Destino {
   if (/\.pdf|\.docx?|documento|p[áa]gina|em anexo|cont[eú]do longo/i.test(t)) return "doc";
   if (/r\$|\d+ ?(reais|%)|custa|pre[çc]o|hor[áa]rio|\b\d{1,2}h\b|link|site|endere[çc]o|telefone|pix|parcel|prazo de/i.test(t)) return "fato";
   return "regra";
+}
+function confirmacaoDoPedido(pedido: string, destino: Destino, nome: string) {
+  if (/follow[ -]?up|acompanhamento|quem sumir|par(?:ar|ou) de responder/i.test(pedido)) {
+    return {
+      titulo: "Ativar o acompanhamento automático",
+      descricao: `${nome} vai voltar a chamar quem parar de responder, respeitando os limites de contato do agente.`,
+    };
+  }
+  if (destino === "doc") {
+    return {
+      titulo: "Enviar este conteúdo para a Metrik",
+      descricao: `Vamos preparar o material para ${nome} usar nas respostas. Ele não entra no atendimento antes da revisão.`,
+    };
+  }
+  if (destino === "fato") {
+    return {
+      titulo: "Ensinar esta informação",
+      descricao: `${nome} vai usar essa informação quando ela for necessária na conversa.`,
+    };
+  }
+  return {
+    titulo: `Mudar como ${nome} age`,
+    descricao: `${nome} vai passar a seguir este pedido nas próximas conversas.`,
+  };
 }
 export function pedidoVago(t: string): boolean {
   const palavras = t.split(/\s+/).filter(Boolean);
@@ -226,6 +246,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     setTexto("");
     if (pedidoVago(t)) return setEnvio({ fase: "clarificar", pedido: t });
     setEnvio({ fase: "confirmar", pedido: t, destino: destinoDe(t) });
+  };
+  const ajustarPedido = () => {
+    setTexto(envio.pedido ?? "");
+    setEnvio({ fase: "idle" });
   };
   const enviarComposer = ({ message, files, pastedContent }: ComposerPayload) => {
     const contexto = [
@@ -456,7 +480,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <div className={bolhaMotor}>
                   <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                   <p className="text-[14px] leading-relaxed m-0" style={{ color: t.status === "no ar" ? "var(--e-green)" : "var(--e-txt2)" }}>
-                    {t.status === "no ar" ? "✓ Publicado — já está no ar e marcado no artefato." : "Guardado na Biblioteca — a busca inteligente é a próxima fatia."}
+                    {t.status === "no ar" ? "✓ Publicado — já está no ar e marcado no artefato." : "Documento recebido — a Metrik vai preparar o conteúdo antes de colocá-lo nas respostas."}
                   </p>
                 </div>
               </div>
@@ -478,24 +502,20 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className={bolhaMotor + " est-entra"}>
                 <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>Entendi. Isso vai <b>pra onde</b>?</p>
-                  <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                    {(["fato", "regra", "doc"] as Destino[]).map((d) => {
-                      const m = DESTINO_META[d];
-                      const sel = (envio.destino ?? "regra") === d;
-                      return (
-                        <button key={d} onClick={() => setEnvio((s) => ({ ...s, destino: d }))} className="text-[12px] rounded-md px-3 py-1.5" style={sel ? { background: `${m.cor}1f`, border: `1px solid ${m.cor}66`, color: m.cor, fontWeight: 700 } : { border: "1px solid var(--e-line)", color: "var(--e-dim)" }}>
-                          {m.rotulo}{sel ? " ✓" : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="text-[12px] mt-1.5" style={{ color: "var(--e-dim)" }}>{DESTINO_META[envio.destino ?? "regra"].desc}</div>
+                  {(() => {
+                    const confirmacao = confirmacaoDoPedido(envio.pedido ?? "", envio.destino ?? "regra", agent.name);
+                    return (
+                      <>
+                        <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>Entendi: <b style={{ color: "var(--e-txt)" }}>{confirmacao.titulo}</b>.</p>
+                        <p className="text-[13px] leading-relaxed mt-1.5 mb-0" style={{ color: "var(--e-mut)" }}>{confirmacao.descricao}</p>
+                      </>
+                    );
+                  })()}
                   <div className="flex items-center gap-2.5 mt-3">
-                    <button onClick={() => void rodarEnsaio()} className="est-btn">{envio.destino === "doc" ? "É isso — guardar" : "É isso — roda o ensaio"}</button>
-                    <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">não — escrevo de novo</button>
+                    <button onClick={() => void rodarEnsaio()} className="est-btn">{envio.destino === "doc" ? "Enviar documento" : "Testar essa mudança"}</button>
+                    <button onClick={ajustarPedido} className="est-ghost">Ajustar pedido</button>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-[12px] mt-2" style={{ color: "var(--e-dim)" }}><Lock size={11} /> núcleo blindado — o guardião testa antes de valer</span>
+                  <span className="inline-flex items-center gap-1 text-[12px] mt-2" style={{ color: "var(--e-dim)" }}><Lock size={11} /> Nada muda no atendimento sem teste e aprovação.</span>
                 </div>
               </div>
             )}
@@ -503,7 +523,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className={bolhaMotor + " est-entra"}>
                 <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                 <p className="text-[14px] leading-relaxed m-0 flex items-center gap-2.5" style={{ color: "var(--e-mut)" }}>
-                  <span className="est-spin" /> rodando o ensaio do SEU pedido + as travas do guardião — ~30s, teste de verdade…
+                  <span className="est-spin" /> Testando essa mudança antes de publicar — pode levar até 30 segundos…
                 </p>
               </div>
             )}
@@ -517,7 +537,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className={bolhaMotor + " est-entra"}>
                 <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                 <p className="text-[14px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>
-                  Guardado na <b>Biblioteca</b>. <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost !p-0 !px-1">ok</button>
+                  Documento recebido. A Metrik vai preparar o conteúdo antes de colocá-lo nas respostas. <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost !p-0 !px-1">Ok</button>
                 </p>
               </div>
             )}
