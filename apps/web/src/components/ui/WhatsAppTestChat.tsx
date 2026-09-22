@@ -1,6 +1,6 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Camera, CheckCheck, CircleCheck, CircleX, Loader2, MoreVertical, Paperclip, Phone, SendHorizontal, ShieldCheck, Smile, Video } from "lucide-react";
+import { ArrowRight, Bot, Camera, Check, CheckCheck, CircleCheck, CircleX, Database, FlaskConical, Loader2, MessageCircle, MoreVertical, Paperclip, Phone, SendHorizontal, ShieldCheck, Smile, Wrench, Video } from "lucide-react";
 
 export type TestChatMessage = {
   de: "voce" | "ia";
@@ -15,6 +15,9 @@ export type TestRunCase = {
   passou: boolean;
   falhas?: string[];
   ms?: number;
+  entrada?: { texto?: string; estado?: Record<string, unknown> };
+  saida?: { texto?: string; toolCalls?: { tool: string; args?: Record<string, unknown> }[]; movedStage?: string };
+  criterios?: { tipo: string; rotulo: string; esperado: string; passou: boolean; falha?: string }[];
 };
 
 export type TestRunView = {
@@ -23,6 +26,11 @@ export type TestRunView = {
   total?: number;
   cases?: TestRunCase[];
   mode?: string;
+  testedMode?: "ar" | "ensaio";
+  base?: string;
+  suite?: string;
+  durationMs?: number;
+  change?: { id: string; intent: string } | null;
   error?: string;
 };
 
@@ -39,6 +47,7 @@ type WhatsAppTestChatProps = {
   onAccept: (index: number) => void;
   onCorrect: (index: number) => void;
   onFixCase: (testCase: TestRunCase) => void;
+  onOpenChanges?: () => void;
 };
 
 export function WhatsAppTestChat({
@@ -54,6 +63,7 @@ export function WhatsAppTestChat({
   onAccept,
   onCorrect,
   onFixCase,
+  onOpenChanges,
 }: WhatsAppTestChatProps) {
   const reduceMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
@@ -65,6 +75,15 @@ export function WhatsAppTestChat({
 
   const showTestRun = testRun.status !== "idle" || Boolean(testRun.error);
   const runCases = testRun.cases ?? [];
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  useEffect(() => {
+    if (testRun.status !== "pronto" || runCases.length === 0) return;
+    setSelectedCaseId((current) => runCases.some((item) => (item.caseId ?? item.nome) === current) ? current : (runCases[0].caseId ?? runCases[0].nome));
+  }, [runCases, testRun.status]);
+  const selectedCase = useMemo(
+    () => runCases.find((item) => (item.caseId ?? item.nome) === selectedCaseId) ?? runCases[0],
+    [runCases, selectedCaseId],
+  );
   const guardScenarios = ["Preço e qualificação", "Pedido de agenda", "Identidade da IA", "Avanço do lead"];
 
   return (
@@ -154,7 +173,7 @@ export function WhatsAppTestChat({
                       ? "A rodada não terminou"
                       : testRun.status === "rodando"
                         ? "Tentando quebrar o agente"
-                        : `${testRun.passed ?? runCases.filter((item) => item.passou).length}/${testRun.total ?? runCases.length} travas de pé`}
+                        : `${testRun.passed ?? runCases.filter((item) => item.passou).length}/${testRun.total ?? runCases.length} comportamentos protegidos`}
                   </strong>
                 </span>
                 <i>{testRun.status === "rodando" ? "EM CURSO" : testRun.error ? "INTERROMPIDA" : "CONCLUÍDA"}</i>
@@ -173,15 +192,93 @@ export function WhatsAppTestChat({
               ) : null}
 
               {testRun.status === "pronto" && runCases.length > 0 ? (
-                <div className="wa-test-guard-cases">
-                  {runCases.map((testCase) => (
-                    <div key={testCase.caseId ?? testCase.nome} data-state={testCase.passou ? "ok" : "fail"}>
-                      {testCase.passou ? <CircleCheck size={15} /> : <CircleX size={15} />}
-                      <span><strong>{testCase.nome}</strong>{testCase.falhas?.[0] ? <small>{testCase.falhas[0]}</small> : null}</span>
-                      {testCase.ms != null ? <time>{(testCase.ms / 1000).toFixed(1)}s</time> : null}
-                      {!testCase.passou ? <button type="button" onClick={() => onFixCase(testCase)}>Corrigir</button> : null}
+                <div className="wa-test-proof">
+                  <div className="wa-test-proof-meta">
+                    <span><Database size={11} /> {testRun.testedMode === "ensaio" ? "MUDANÇA NOVA" : "VERSÃO NO AR"}</span>
+                    <span>{testRun.mode === "real" ? "CÉREBRO REAL" : "ROTEIRO"}</span>
+                    {testRun.base ? <span>BASE {testRun.base}</span> : null}
+                    {testRun.suite ? <span>SUÍTE {testRun.suite}</span> : null}
+                    {testRun.durationMs != null ? <span>{(testRun.durationMs / 1000).toFixed(1)}s</span> : null}
+                  </div>
+
+                  {testRun.change ? (
+                    <button type="button" className="wa-test-proof-change" onClick={onOpenChanges}>
+                      <span><small>MUDANÇA SOB PROVA</small><strong>{testRun.change.intent}</strong></span>
+                      <ArrowRight size={14} />
+                    </button>
+                  ) : null}
+
+                  <div className="wa-test-proof-trail" aria-label="Etapas da prova">
+                    <span><MessageCircle size={12} /> Ataque</span><i />
+                    <span><Bot size={12} /> Resposta</span><i />
+                    <span><FlaskConical size={12} /> Critérios</span><i />
+                    <span><Wrench size={12} /> Ações</span><i />
+                    <span><ShieldCheck size={12} /> Veredito</span>
+                  </div>
+
+                  <div className="wa-test-proof-tabs" role="tablist" aria-label="Ataques executados">
+                    {runCases.map((testCase, index) => {
+                      const id = testCase.caseId ?? testCase.nome;
+                      return (
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={id === (selectedCase?.caseId ?? selectedCase?.nome)}
+                          key={id}
+                          data-state={testCase.passou ? "ok" : "fail"}
+                          onClick={() => setSelectedCaseId(id)}
+                        >
+                          <span>{testCase.passou ? <CircleCheck size={14} /> : <CircleX size={14} />}{String(index + 1).padStart(2, "0")}</span>
+                          <strong>{testCase.nome}</strong>
+                          {testCase.ms != null ? <time>{(testCase.ms / 1000).toFixed(1)}s</time> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedCase ? (
+                    <div className="wa-test-proof-detail" role="tabpanel">
+                      <div className="wa-test-proof-dialogue">
+                        <article>
+                          <small>ATAQUE DO LEAD</small>
+                          <p>{selectedCase.entrada?.texto || "Entrada não registrada nesta rodada."}</p>
+                        </article>
+                        <ArrowRight size={15} />
+                        <article data-agent>
+                          <small>RESPOSTA REAL DO AGENTE</small>
+                          <p>{selectedCase.saida?.texto || (selectedCase.falhas?.[0] ?? "Resposta não registrada nesta rodada.")}</p>
+                        </article>
+                      </div>
+
+                      <div className="wa-test-proof-bottom">
+                        <section>
+                          <small>CRITÉRIOS CONFERIDOS</small>
+                          <div className="wa-test-proof-checks">
+                            {(selectedCase.criterios ?? []).map((criterio, index) => (
+                              <span key={`${criterio.tipo}-${criterio.esperado}-${index}`} data-state={criterio.passou ? "ok" : "fail"} title={criterio.falha}>
+                                {criterio.passou ? <Check size={12} /> : <CircleX size={12} />}
+                                <b>{criterio.rotulo}</b> {criterio.esperado}
+                              </span>
+                            ))}
+                            {(selectedCase.criterios ?? []).length === 0 ? <em>Critérios não registrados nesta rodada.</em> : null}
+                          </div>
+                        </section>
+                        <section>
+                          <small>AÇÕES EXECUTADAS</small>
+                          <div className="wa-test-proof-actions">
+                            {(selectedCase.saida?.toolCalls ?? []).map((tool, index) => <span key={`${tool.tool}-${index}`}><Wrench size={11} /> {tool.tool}</span>)}
+                            {selectedCase.saida?.movedStage ? <span><ArrowRight size={11} /> etapa {selectedCase.saida.movedStage}</span> : null}
+                            {(selectedCase.saida?.toolCalls ?? []).length === 0 && !selectedCase.saida?.movedStage ? <em>Nenhuma ação externa necessária.</em> : null}
+                          </div>
+                        </section>
+                      </div>
+
+                      <footer data-state={selectedCase.passou ? "ok" : "fail"}>
+                        <span>{selectedCase.passou ? <CircleCheck size={15} /> : <CircleX size={15} />}<strong>{selectedCase.passou ? "Comportamento protegido" : "Comportamento vulnerável"}</strong></span>
+                        {!selectedCase.passou ? <button type="button" onClick={() => onFixCase(selectedCase)}>Corrigir esta falha</button> : <span className="wa-test-proof-safe">pode seguir</span>}
+                      </footer>
                     </div>
-                  ))}
+                  ) : null}
                 </div>
               ) : null}
 

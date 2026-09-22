@@ -5,9 +5,20 @@ import type {
   AgentRunner,
   EvalCase,
   EvalCaseResult,
+  EvalAssertion,
   EvalRunResult,
 } from "@motor/core";
 import { checkAssertion } from "./assertions";
+
+function descricaoDa(a: EvalAssertion): { rotulo: string; esperado: string } {
+  switch (a.tipo) {
+    case "contem": return { rotulo: "Resposta menciona", esperado: a.valor };
+    case "nao_contem": return { rotulo: "Resposta não menciona", esperado: a.valor };
+    case "chamou_tool": return { rotulo: "Ação executada", esperado: a.tool };
+    case "moveu_etapa": return { rotulo: "Etapa atualizada", esperado: a.stageId };
+    case "regex": return { rotulo: "Padrão de resposta", esperado: a.padrao };
+  }
+}
 
 /**
  * Roda todos os casos e devolve o placar.
@@ -24,21 +35,30 @@ export async function runEvals(
 
   for (const caso of casos) {
     let falhas: string[] = [];
+    let saida: Awaited<ReturnType<AgentRunner>> | undefined;
+    let criterios: EvalCaseResult["criterios"] = [];
     try {
       const out = await runner(caso.entrada);
+      saida = out;
       // cada asserção vira null (passou) ou string (motivo); filtra os motivos
-      falhas = caso.espera
-        .map((a) => checkAssertion(a, out))
-        .filter((m): m is string => m !== null);
+      criterios = caso.espera.map((a) => {
+        const falha = checkAssertion(a, out);
+        return { tipo: a.tipo, ...descricaoDa(a), passou: falha === null, ...(falha ? { falha } : {}) };
+      });
+      falhas = criterios.flatMap((criterio) => criterio.falha ? [criterio.falha] : []);
     } catch (e) {
       // runner que explode = caso falho (nunca deixa vazar pra fora do porteiro)
       falhas = [`erro: ${(e as Error)?.message ?? String(e)}`];
+      criterios = caso.espera.map((a) => ({ tipo: a.tipo, ...descricaoDa(a), passou: false, falha: falhas[0] }));
     }
     resultados.push({
       caseId: caso.id,
       nome: caso.nome,
       passou: falhas.length === 0,
       falhas,
+      entrada: caso.entrada,
+      saida,
+      criterios,
     });
   }
 

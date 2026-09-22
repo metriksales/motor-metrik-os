@@ -272,7 +272,22 @@ export type EvalAssertion =
 export interface AgentUnderTestOutput { texto?: string; toolCalls?: ToolCall[]; movedStage?: string; }
 export type AgentRunner = (entrada: EvalCase["entrada"]) => Promise<AgentUnderTestOutput>;
 
-export interface EvalCaseResult { caseId: string; nome: string; passou: boolean; falhas: string[]; }
+export interface EvalCheckResult {
+  tipo: EvalAssertion["tipo"];
+  rotulo: string;
+  esperado: string;
+  passou: boolean;
+  falha?: string;
+}
+export interface EvalCaseResult {
+  caseId: string;
+  nome: string;
+  passou: boolean;
+  falhas: string[];
+  entrada: EvalCase["entrada"];
+  saida?: AgentUnderTestOutput;
+  criterios: EvalCheckResult[];
+}
 export interface EvalRunResult {
   total: number;
   passaram: number;

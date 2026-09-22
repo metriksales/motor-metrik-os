@@ -9,6 +9,7 @@ import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
 import { ClaudeStyleComposer, type ComposerPayload } from "../components/ui/ClaudeStyleComposer";
 import { WhatsAppTestChat } from "../components/ui/WhatsAppTestChat";
+import { ChangeEvidenceLedger, type ChangeEvidence } from "../components/studio/ChangeEvidenceLedger";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, tempoRelativo } from "../lib/live";
@@ -213,7 +214,6 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const suasIntents = new Set(cs.filter((r) => String(r.status) === "published").map((r) => String(r.intent ?? "").trim().toLowerCase()));
   const emRev = cs.find((r) => ["draft", "evaluated", "approved"].includes(String(r.status)));
   const publicadas = cs.filter((r) => String(r.status) === "published");
-  const seguradas = cs.filter((r) => ["rejected"].includes(String(r.status)));
   const execsHoje = agent.real ? (stats?.porAgente?.[agent.id]?.execucoes ?? 0) : agent.metrics.execucoes;
   const naFila = agent.work?.kind === "followups" ? (agent.work.followups?.filter((f) => f.status !== "feito").length ?? 0) : null;
 
@@ -299,9 +299,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   // publicar direto uma mudança que ficou "em revisão" (do Histórico)
   const [revErro, setRevErro] = useState<string | null>(null);
   const [revIndo, setRevIndo] = useState(false);
-  const publicarEmRev = async () => {
-    if (!emRev || revIndo) return;
-    try { setRevErro(null); setRevIndo(true); await api.publicarMudanca(emRev.id, auth.getToken); setTick((x) => x + 1); }
+  const publicarEmRev = async (changeSetId?: string) => {
+    const alvo = changeSetId ?? emRev?.id;
+    if (!alvo || revIndo) return;
+    try { setRevErro(null); setRevIndo(true); await api.publicarMudanca(alvo, auth.getToken); setTick((x) => x + 1); }
     catch (e) { setRevErro(e instanceof Error ? e.message : "não consegui publicar — retoma pelo chat"); }
     finally { setRevIndo(false); }
   };
@@ -312,8 +313,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const [pensando, setPensando] = useState(false);
   const [feedback, setFeedback] = useState<Record<number, "sim" | "nao">>({});
   const [modoTeste, setModoTeste] = useState<"ar" | "ensaio">("ar");
+  const [mudancaTesteId, setMudancaTesteId] = useState<string | null>(null);
   // sem mudança pendente, testar "com a mudança nova" não faz sentido → volta pro ar
-  useEffect(() => { if (!emRev && modoTeste === "ensaio") setModoTeste("ar"); }, [emRev, modoTeste]);
+  useEffect(() => { if (!emRev && modoTeste === "ensaio") { setModoTeste("ar"); setMudancaTesteId(null); } }, [emRev, modoTeste]);
   useEffect(() => {
     if (!seed) return;
     if (seed.tipo === "pergunta") { setInput(seed.texto); abrirAba("testar"); }
@@ -333,7 +335,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     try {
       setPensando(true);
       const historico = novo.filter((m) => !m.aviso).map((m) => ({ role: m.de === "voce" ? ("user" as const) : ("assistant" as const), content: m.texto }));
-      const r: any = await api.testar(agent.id, historico, modoTeste, auth.getToken);
+      const r: any = await api.testar(agent.id, historico, modoTeste, auth.getToken, mudancaTesteId);
       if (r?.modo === "sem-cerebro") setMsgs([...novo, { de: "ia", texto: "O teste usa o cérebro (chave OpenAI) e ele não está ligado neste ambiente — a Metrik liga e esta conversa vira a IA real.", aviso: true }]);
       else setMsgs([...novo, { de: "ia", texto: String(r?.texto ?? "…"), fonte: r?.fonte ? `usou: ${r.fonte}` : r?.base === "semente" ? "cérebro-semente da vertical" : null }]);
     } catch (e) {
@@ -352,7 +354,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     if (!agent.real) return setRun({ status: "pronto", r: { modo: "demo" } });
     try {
       setRun({ status: "rodando" });
-      const r: any = await api.rodarTestes(agent.id, auth.getToken);
+      const r: any = await api.rodarTestes(agent.id, modoTeste, auth.getToken, mudancaTesteId);
       setRun({ status: "pronto", r });
     } catch (e) { setRun({ status: "idle", erro: e instanceof Error ? e.message : "a rodada falhou" }); }
   };
@@ -776,6 +778,11 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     total: run.r?.evals?.total,
                     cases: run.r?.evals?.casos?.map((testCase: any, index: number) => ({ ...testCase, ms: run.r?.ms?.[index] })),
                     mode: run.r?.modo,
+                    testedMode: run.r?.modoTeste,
+                    base: run.r?.base,
+                    suite: run.r?.suite,
+                    durationMs: run.r?.duracaoMs,
+                    change: run.r?.mudanca,
                     error: run.erro,
                   }}
                   onInputChange={setInput}
@@ -783,6 +790,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   onAccept={(index) => setFeedback((state) => ({ ...state, [index]: "sim" }))}
                   onCorrect={corrigir}
                   onFixCase={(testCase) => setTexto(`A trava "${testCase.nome}" quebrou no teste (${testCase.falhas?.[0] ?? ""}). Reforça: `)}
+                  onOpenChanges={() => abrirAba("historico")}
                 />
 
                 <aside className="est-test-console scroll-thin" aria-label="Controles do laboratório de teste">
@@ -795,8 +803,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <span className="est-test-panel-label">VERSÃO TESTADA</span>
                     {agent.real && emRev ? (
                       <div className="est-test-version-switch">
-                        <button type="button" onClick={() => setModoTeste("ar")} aria-pressed={modoTeste === "ar"}>No ar</button>
-                        <button type="button" onClick={() => setModoTeste("ensaio")} aria-pressed={modoTeste === "ensaio"}>Mudança nova</button>
+                        <button type="button" onClick={() => { setModoTeste("ar"); setMudancaTesteId(null); }} aria-pressed={modoTeste === "ar"}>No ar</button>
+                        <button type="button" onClick={() => { setModoTeste("ensaio"); setMudancaTesteId(emRev.id); }} aria-pressed={modoTeste === "ensaio"}>Mudança nova</button>
                       </div>
                     ) : (
                       <div className="est-test-version-static"><i /> versão no ar agora</div>
@@ -822,11 +830,11 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
                   <section className="est-test-console-section est-test-console-guardian">
                     <span className="est-test-panel-label">GUARDIÃO AUTOMÁTICO</span>
-                    <h3>{run.r?.evals ? `${run.r.evals.passaram}/${run.r.evals.total} travas de pé` : "Ataque as travas do agente"}</h3>
-                    <p>{run.r?.evals ? "A prova completa está registrada na conversa." : "A rodada acontece e aparece visualmente dentro da conversa."}</p>
+                    <h3>{run.r?.evals ? `${run.r.evals.passaram}/${run.r.evals.total} comportamentos protegidos` : modoTeste === "ensaio" ? "Provar a mudança antes de publicar" : "Atacar a versão que atende seus leads"}</h3>
+                    <p>{run.r?.evals ? "Abra cada ataque na conversa para ver resposta, critérios e ações." : `O Guardião vai testar ${modoTeste === "ensaio" ? "a prévia selecionada" : "a versão no ar"} e guardar a prova.`}</p>
                     <button type="button" onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 est-test-run">
                       {run.status === "rodando" ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
-                      {run.r ? "Rodar novamente" : "Rodar os testes"}
+                      {run.r ? "Rodar nova prova" : "Iniciar prova"}
                     </button>
                     {run.erro ? <div className="est-test-error">{run.erro}</div> : null}
                   </section>
@@ -866,69 +874,35 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             </div>
           )}
 
-          {/* ── ABA HISTÓRICO — linha do tempo (trilho + nós), texto em 2 linhas ── */}
-          {aba === "historico" && (() => {
-            type Item = { texto: string; estado: "rev" | "ar" | "seg"; quando?: string; ganho?: string };
-            const itens: Item[] = agent.real
-              ? [
-                  ...(emRev ? [{ texto: emRev.intent, estado: "rev" as const, quando: emRev.createdAt ? `há ${tempoRelativo(emRev.createdAt)}` : undefined }] : []),
-                  ...publicadas.map((r) => ({ texto: r.intent, estado: "ar" as const, quando: r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : undefined })),
-                  ...seguradas.map((r) => ({ texto: r.intent, estado: "seg" as const, quando: r.createdAt ? `há ${tempoRelativo(r.createdAt)}` : undefined })),
-                ]
-              : [
-                  { texto: "ao negar, oferece outro caminho", estado: "ar", quando: "há 3 dias", ganho: "+4 leads voltaram" },
-                  { texto: "25% de desconto — passa do teto do núcleo", estado: "seg", quando: "há 4 dias" },
-                ];
-            const META = {
-              rev: { cor: "var(--e-amber)", rot: "EM REVISÃO", pill: { color: "var(--e-amber)", border: "1px solid rgba(59,130,246,.5)" } },
-              ar: { cor: "var(--e-green)", rot: "✓ NO AR", pill: { color: "#08090d", background: "var(--e-green)" } },
-              seg: { cor: "var(--e-red)", rot: "✗ SEGURADA", pill: { color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" } },
-            } as const;
-            const clamp2 = { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" };
-            return (
-              <div className="flex-1 overflow-y-auto scroll-thin est-entra">
-                <div className="flex items-center gap-2.5 px-6 py-3.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                  <span className="text-[13.5px] font-semibold">Tudo que você já mudou</span>
-                  <span className="text-[12px] ml-auto" style={{ color: "var(--e-dim)" }}>{agent.real ? `${publicadas.length} no ar · ${seguradas.length} seguradas${emRev ? " · 1 em revisão" : ""}` : "demonstração"}</span>
-                </div>
-
-                {itens.length === 0 ? (
-                  <div className="px-6 py-10 text-[14px]" style={{ color: "var(--e-dim)" }}>Sua primeira mudança aparece aqui — com data, status e o texto do pedido.</div>
-                ) : (
-                  <div className="px-6 py-6">
-                    <div className="relative">
-                      {/* o trilho */}
-                      <div className="absolute top-2 bottom-2" style={{ left: 7, width: 1, background: "var(--e-line)" }} />
-                      {itens.map((it, i) => {
-                        const m = META[it.estado];
-                        return (
-                          <div key={i} className="relative pl-9 pb-6 last:pb-0 est-entra" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                            {/* o nó */}
-                            <span className="absolute rounded-full" style={{ left: 0, top: 3, width: 16, height: 16, background: m.cor, border: "3px solid #0a0c10" }}>
-                              {it.estado === "rev" && <span className="est-mic-on absolute inset-0 rounded-full" style={{ background: m.cor }} />}
-                            </span>
-                            <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                              <span className="emo text-[12px] font-bold rounded px-2 py-0.5" style={m.pill}>{m.rot}</span>
-                              {it.ganho && <span className="emo text-[12px]" style={{ color: "var(--e-green)" }}>{it.ganho}</span>}
-                              <span className="emo text-[12.5px]" style={{ color: "var(--e-dim)" }}>{it.quando}</span>
-                            </div>
-                            <p className="text-[14.5px] leading-relaxed m-0" style={{ color: it.estado === "seg" ? "var(--e-mut)" : "var(--e-txt)", ...clamp2 }}>{it.texto}</p>
-                            {it.estado === "rev" && agent.real && (
-                              <div className="flex items-center gap-2.5 mt-3 flex-wrap">
-                                <button onClick={() => void publicarEmRev()} disabled={revIndo} className="est-btn">{revIndo ? <Loader2 size={12} className="animate-spin" /> : null} Publicar</button>
-                                <button onClick={() => abrirAba("testar")} className="est-btn2"><FlaskConical size={12} /> Testar antes</button>
-                                {revErro && <span className="text-[12px]" style={{ color: "var(--e-red)" }}>{revErro}</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {/* ── ABA MUDANÇAS — pedido, impacto, prova e publicação no mesmo lugar ── */}
+          {aba === "historico" && (
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-thin est-entra">
+              <ChangeEvidenceLedger
+                changes={(agent.real ? cs : [
+                  {
+                    id: "demo-provada",
+                    intent: "Ao negar, oferecer um caminho alternativo sem encerrar a conversa",
+                    status: "evaluated",
+                    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+                    impact: {
+                      suite: "comercial",
+                      ensaio: { modo: "real", situacoes: [{ pergunta: "Não consigo nesse horário", antes: "Tudo bem. Se precisar, estamos à disposição.", agora: "Sem problema — prefere amanhã de manhã ou no fim da tarde?" }] },
+                      evals: { taxa: 1, passaram: 4, total: 4, aprovado: true, casos: [
+                        { caseId: "agenda", nome: "Mantém o próximo passo", passou: true },
+                        { caseId: "tom", nome: "Preserva o tom consultivo", passou: true },
+                      ] },
+                    },
+                  },
+                  { id: "demo-live", intent: "Qualificar antes de falar preço", status: "published", createdAt: new Date(Date.now() - 8 * 86400000).toISOString() },
+                ]) as ChangeEvidence[]}
+                relativeTime={tempoRelativo}
+                publishing={revIndo}
+                publishError={revErro}
+                onTest={(change) => { setMudancaTesteId(change.id); setModoTeste("ensaio"); abrirAba("testar"); }}
+                onPublish={(change) => void publicarEmRev(change.id)}
+              />
+            </div>
+          )}
         </div>
       </div>
 

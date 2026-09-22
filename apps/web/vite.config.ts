@@ -87,11 +87,11 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
             case "publicarMudanca":
               return send(200, await control.publicarMudanca(ctx, body.changeSetId));
             case "testar":
-              return send(200, await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo }));
+              return send(200, await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo, changeSetId: body.changeSetId }));
             case "rodando":
               return send(200, await control.specRodando(ctx, url.searchParams.get("agentId") ?? ""));
             case "rodarTestes":
-              return send(200, await control.rodarTestes(ctx, String(body.agentId ?? url.searchParams.get("agentId") ?? "")));
+              return send(200, await control.rodarTestes(ctx, String(body.agentId ?? url.searchParams.get("agentId") ?? ""), body.modoTeste === "ensaio" ? "ensaio" : "ar", body.changeSetId));
             case "members":
               return send(200, await control.listMembers(ctx));
             case "setEstado":

@@ -515,7 +515,7 @@ export async function specRodando(ctx: Ctx, agentId: string) {
  * cada ataque; sem, o FakeBrain roteirizado confere as travas base — e o
  * resultado vem SINALIZADO (modo) pra UI nunca vender roteiro como real.
  */
-export async function rodarTestes(ctx: Ctx, agentId: string) {
+export async function rodarTestes(ctx: Ctx, agentId: string, modoTeste: "ar" | "ensaio" = "ar", changeSetId?: string) {
   const [ag] = await db
     .select()
     .from(agents)
@@ -523,8 +523,29 @@ export async function rodarTestes(ctx: Ctx, agentId: string) {
   if (!ag) throw new Error("agente não encontrado neste tenant");
   const kit = kitParaAgente(ag.name ?? "");
   const publicada = await loadPublishedSpec(ctx, agentId);
-  const spec = publicada ?? kit.spec;
+  let spec = publicada ?? kit.spec;
   const base: "publicada" | "semente" = publicada ? "publicada" : "semente";
+  let mudanca: { id: string; intent: string } | null = null;
+
+  if (modoTeste === "ensaio") {
+    const baseQuery = db
+      .select()
+      .from(changeSets)
+      .where(and(
+        eq(changeSets.agentId, agentId),
+        eq(changeSets.orgId, ctx.orgId),
+        sql`${changeSets.status} in ('draft','evaluated','approved')`,
+        ...(changeSetId ? [eq(changeSets.id, changeSetId)] : []),
+      ));
+    const [cs] = changeSetId ? await baseQuery.limit(1) : await baseQuery.orderBy(desc(changeSets.createdAt)).limit(1);
+    if (cs) {
+      const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+      if (pedido) {
+        spec = compilarSpec(spec, pedido);
+        mudanca = { id: cs.id, intent: cs.intent ?? pedido };
+      }
+    }
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   const modo: "real" | "roteiro" = apiKey ? "real" : "roteiro";
@@ -548,8 +569,8 @@ export async function rodarTestes(ctx: Ctx, agentId: string) {
   };
   const t0 = Date.now();
   const evals = await runEvals(kit.evals, runner, 0.75);
-  await audit(ctx, "agente.testes", agentId, { modo, base, taxa: evals.taxa, passaram: evals.passaram, total: evals.total });
-  return { modo, base, evals, ms, duracaoMs: Date.now() - t0, suite: kit.id };
+  await audit(ctx, "agente.testes", agentId, { modo, modoTeste, base, mudancaId: mudanca?.id ?? null, taxa: evals.taxa, passaram: evals.passaram, total: evals.total });
+  return { modo, modoTeste, base, mudanca, evals, ms, duracaoMs: Date.now() - t0, suite: kit.id };
 }
 
 /**
@@ -566,7 +587,7 @@ export async function rodarTestes(ctx: Ctx, agentId: string) {
  */
 export async function testarConversa(
   ctx: Ctx,
-  input: { agentId: string; historico: { role: "user" | "assistant"; content: string }[]; modo?: "ar" | "ensaio" },
+  input: { agentId: string; historico: { role: "user" | "assistant"; content: string }[]; modo?: "ar" | "ensaio"; changeSetId?: string },
 ) {
   const [ag] = await db
     .select()
@@ -582,12 +603,16 @@ export async function testarConversa(
   // "com o ensaio": o último pedido em preparo entra por cima, como no avaliar
   let ensaioAplicado: string | null = null;
   if (input.modo === "ensaio") {
-    const [cs] = await db
+    const baseQuery = db
       .select()
       .from(changeSets)
-      .where(and(eq(changeSets.agentId, input.agentId), eq(changeSets.orgId, ctx.orgId), sql`${changeSets.status} in ('draft','evaluated','approved')`))
-      .orderBy(desc(changeSets.createdAt))
-      .limit(1);
+      .where(and(
+        eq(changeSets.agentId, input.agentId),
+        eq(changeSets.orgId, ctx.orgId),
+        sql`${changeSets.status} in ('draft','evaluated','approved')`,
+        ...(input.changeSetId ? [eq(changeSets.id, input.changeSetId)] : []),
+      ));
+    const [cs] = input.changeSetId ? await baseQuery.limit(1) : await baseQuery.orderBy(desc(changeSets.createdAt)).limit(1);
     if (cs) {
       const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
       if (pedido) {
