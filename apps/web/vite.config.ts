@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
 
 // Dev-only: serve /api/control local chamando @motor/control direto (stack
 // completo no `npm run dev`, sem precisar de `vercel dev`). NÃO afeta o build de
@@ -122,6 +123,11 @@ export default defineConfig(({ mode }) => {
   }
   return {
     plugins: [react(), localControlApi(env.CLERK_SECRET_KEY)],
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
+      },
+    },
     server: { port: 5175, host: true },
   };
 });

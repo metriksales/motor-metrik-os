@@ -13,6 +13,17 @@
 
 O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo para subníveis para entender o agente.
 
+## Modelo mental do Estúdio
+
+O Estúdio cruza duas dimensões simples:
+
+- **Recurso = o que está sendo observado:** Prompt, Follow-up, Base de conhecimento, Campos do lead, Agenda ou outra capacidade instalada.
+- **Aba = como o recurso está sendo observado:** Como funciona, Testar ou Ao vivo.
+
+O recurso selecionado persiste quando o cliente troca de aba. Assim, selecionar Follow-up e abrir Testar mostra a cadência; abrir Ao vivo mostra disparos e fila. Nunca mostra uma conversa comum como se fosse um evento de Follow-up.
+
+Mudanças é a exceção consciente: permanece como histórico geral do agente, porque uma publicação pode tocar mais de um recurso e precisa manter a história completa.
+
 ## Navegação
 
 - **Primária do produto:** Início, Agentes, Ao vivo, Módulos, Conexões, Admin.
@@ -38,6 +49,23 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 3. Regras e fatos do cliente.
 4. Lista lateral de recursos, para trocar de peça sem sair do documento.
 5. Evidência da última mudança publicada, por divulgação progressiva.
+
+### Testar por recurso
+
+- **Prompt:** conversa isolada com cenários e Guardião.
+- **Follow-up:** simulação de gatilho, espera, toque e critérios da cadência; sem disparo real.
+- **Base de conhecimento:** pergunta de teste, fontes consultáveis e rastreabilidade.
+- **Campos do lead:** conversa de exemplo, prévia do card e regra de gravação.
+- **Demais recursos:** cenário, resultado esperado e critérios específicos da capacidade.
+
+### Ao vivo por recurso
+
+- **Prompt:** conversas e decisões do atendimento.
+- **Follow-up:** somente cadências, disparos, retomadas e encerramentos; conversa comum não entra.
+- **Base:** consultas e fontes usadas.
+- **Campos:** alterações realizadas no CRM.
+- **Agenda:** consultas de disponibilidade e reuniões marcadas.
+- Um estado vazio diz que não houve atividade daquele recurso; nunca preenche a tela com evento de outra natureza.
 
 ## Fluxos críticos
 

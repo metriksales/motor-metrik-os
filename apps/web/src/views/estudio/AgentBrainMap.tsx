@@ -36,11 +36,13 @@ export function AgentBrainMap({
   pieces,
   selectedId,
   onSelect,
+  contextLabel,
 }: {
   agentName: string;
   pieces: BrainPiece[];
   selectedId: string;
   onSelect: (id: string) => void;
+  contextLabel?: string;
 }) {
   const active = pieces.filter((piece) => piece.estado !== "off");
 
@@ -49,7 +51,7 @@ export function AgentBrainMap({
       <header className="est-brain-head">
         <div>
           <h2 id="agent-features-title">Recursos</h2>
-          <span>O que faz parte de {agentName}</span>
+          <span>{contextLabel ?? `O que faz parte de ${agentName}`}</span>
         </div>
       </header>
 

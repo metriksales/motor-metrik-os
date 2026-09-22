@@ -15,6 +15,7 @@ import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, tempoRelativo } from "../lib/live";
 import { AgentBrainMap, type BrainPiece } from "./estudio/AgentBrainMap";
+import { ResourceLiveWorkspace, ResourceTestWorkspace } from "./estudio/ResourceWorkspaces";
 
 /* O motor decide internamente onde aplicar o pedido. O cliente confirma o
    resultado esperado — nunca a arquitetura que existe por baixo. */
@@ -193,6 +194,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   }, [chatWidth]);
   // qual PEÇA do cérebro está aberta no artefato (o mapa fica à direita)
   const [peca, setPeca] = useState<string>("conversa");
+  useEffect(() => setPeca("conversa"), [agent.id]);
   const [trocas, setTrocas] = useState<{ pedido: string; status: "no ar" | "guardada" }[]>([]);
   const [modal, setModal] = useState<Upgrade | null>(null);
 
@@ -383,6 +385,65 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   }, [envio.fase, trocas.length]);
 
   const meusLogs = agent.real ? (logs ?? []).filter((l) => l.agentId === agent.id).slice(0, 30) : [];
+
+  // O recurso escolhido é o contexto do estúdio inteiro. Cada aba é apenas
+  // uma lente diferente sobre a mesma peça: configuração, teste ou operação.
+  type ContextPiece = BrainPiece & { upg?: Upgrade };
+  const contextMotors = rod?.spec?.motores ?? [];
+  const contextModules = rod?.spec?.modulos ?? [];
+  const activeFeatures = (agent.features ?? []).filter((feature) => feature.on);
+  const contextFollowMotor = contextMotors.find((motor: any) => motor.id === "followup");
+  const contextFollowConfig = rod?.spec ? resolveMotorConfig(rod.spec, "followup") : {};
+  const contextFollowSteps = Array.isArray(contextFollowConfig.passos) ? contextFollowConfig.passos : [];
+  const contextFollowHours = Number((contextFollowSteps[0] as any)?.atrasoHoras ?? 24);
+  const contextFollowWait = contextFollowHours % 24 === 0
+    ? `${contextFollowHours / 24} ${contextFollowHours === 24 ? "dia" : "dias"}`
+    : `${contextFollowHours} ${contextFollowHours === 1 ? "hora" : "horas"}`;
+  const contextFollowup = {
+    wait: contextFollowWait,
+    touches: Number(contextFollowConfig.maxToques ?? 4),
+    channel: typeof contextFollowConfig.canal === "string" ? contextFollowConfig.canal : "WhatsApp conectado",
+  };
+  const hasFollowup = (!!contextFollowMotor && contextFollowMotor.on !== false)
+    || agent.work?.kind === "followups"
+    || activeFeatures.some((feature) => /follow|cad[eê]ncia/i.test(feature.name));
+  const hasKnowledge = rod?.spec?.work?.kind === "conhecimento"
+    || agent.work?.kind === "conhecimento"
+    || activeFeatures.some((feature) => /base|conhecimento|biblioteca/i.test(feature.name));
+  const hasFields = contextMotors.some((motor: any) => motor.on !== false && /crm|campo|card|lead/i.test(`${motor.id} ${motor.nome}`))
+    || activeFeatures.some((feature) => /crm|campo|card|lead/i.test(feature.name));
+  const hasMedia = activeFeatures.some((feature) => /áudio|audio|imagem|pdf|arquivo|mídia|midia/i.test(feature.name));
+  const contextAgendaMotor = contextMotors.find((motor: any) => /agenda|calendar/i.test(`${motor.id} ${motor.nome}`));
+  const hasAgenda = (!!contextAgendaMotor && contextAgendaMotor.on !== false)
+    || agent.work?.kind === "agenda"
+    || activeFeatures.some((feature) => /agenda|calend/i.test(feature.name));
+  const contextSlug = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const contextCandidates: ContextPiece[] = [
+    { id: "conversa", nome: "Prompt", glifo: "⌘", cor: "#8fb9ee", estado: "nucleo", resumo: "Regras, fatos e jeito de falar." },
+    ...(hasFollowup ? [{ id: "followup", nome: "Follow-up", glifo: "⏱", cor: "#79c889", estado: "no ar" as const, resumo: "Retoma a conversa quando o lead para de responder." }] : []),
+    ...(hasKnowledge ? [{ id: "base", nome: "Base de conhecimento", glifo: "▤", cor: "#8fb9ee", estado: "no ar" as const, resumo: "Materiais que o agente consulta para responder." }] : []),
+    ...(hasFields ? [{ id: "campos", nome: "Campos do lead", glifo: "◇", cor: "#9aa9bb", estado: "no ar" as const, resumo: "Dados que o agente registra no card do CRM." }] : []),
+    ...(hasAgenda ? [{ id: "agenda", nome: "Agenda", glifo: "◫", cor: "#8fb9ee", estado: "no ar" as const, resumo: contextAgendaMotor?.faz || "Consulta horários e marca reuniões." }] : []),
+    ...(hasMedia ? [{ id: "midia", nome: "Áudio e arquivos", glifo: "◉", cor: "#8798ac", estado: "no ar" as const, resumo: "Entende áudio, imagem e PDF enviados pelo lead." }] : []),
+    ...contextMotors
+      .filter((motor: any) => motor.on !== false && !/atendimento|conversa|follow|agenda|calendar|crm|campo|card|lead/i.test(`${motor.id} ${motor.nome}`))
+      .map((motor: any) => ({ id: `motor:${motor.id}`, nome: motor.nome, glifo: "✦", cor: "#7d9fca", estado: "no ar" as const, resumo: motor.faz || "Automação ativa deste agente." })),
+    ...contextModules
+      .filter((modulo: any) => !/follow|agenda|calendar|crm|campo|card|lead|base|conhecimento/i.test(`${modulo.id} ${modulo.nome}`))
+      .map((modulo: any) => ({ id: `modulo:${modulo.id}`, nome: modulo.nome, glifo: "✦", cor: "#7d9fca", estado: "no ar" as const, resumo: "Recurso instalado neste agente." })),
+    ...activeFeatures
+      .filter((feature) => !/base|conhecimento|biblioteca|crm|campo|card|lead|agenda|calend|tom|conversa|resposta|áudio|audio|imagem|pdf|arquivo|mídia|midia|follow|cad[eê]ncia/i.test(feature.name))
+      .map((feature) => ({ id: `feature:${contextSlug(feature.name)}`, nome: feature.name, glifo: "✦", cor: "#7d9fca", estado: "no ar" as const, resumo: "Recurso ativo deste agente." })),
+  ];
+  const contextNames = new Set<string>();
+  const contextPieces = contextCandidates.filter((item) => {
+    const key = item.nome.toLocaleLowerCase("pt-BR");
+    if (contextNames.has(key)) return false;
+    contextNames.add(key);
+    return true;
+  });
+  const selectedPiece = contextPieces.find((item) => item.id === peca) ?? contextCandidates[0]!;
+  const contextLabel = aba === "testar" ? "Escolha o que testar" : aba === "exec" ? "Escolha o que acompanhar" : "O que faz parte do agente";
 
   /* ═══ A EXPERIÊNCIA CLAUDE (ordem do mestre, 21/09): CHAT DE EDIÇÕES à
      esquerda + ARTEFATO grande à direita (o doc vivo de como a feature
@@ -855,7 +916,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           {/* ── ABA TESTAR ── */}
           {aba === "testar" && (
             <div className="flex-1 min-h-0 flex flex-col est-entra est-test-page">
-              <div className="est-test-layout scroll-thin">
+              <div className="est-contextual-shell">
+                <section className="est-contextual-main" aria-label={`Teste de ${selectedPiece.nome}`}>
+                {selectedPiece.id === "conversa" ? (
+                <div className="est-test-layout scroll-thin">
                 <WhatsAppTestChat
                   agentName={agent.name}
                   modeLabel={modoTeste === "ensaio" ? "prévia da mudança" : "versão no ar"}
@@ -929,41 +993,37 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     {run.erro ? <div className="est-test-error">{run.erro}</div> : null}
                   </section>
                 </aside>
+                </div>
+                ) : (
+                  <ResourceTestWorkspace
+                    key={selectedPiece.id}
+                    piece={selectedPiece}
+                    agent={agent}
+                    followup={contextFollowup}
+                    versionLabel={modoTeste === "ensaio" ? "prévia da mudança" : "versão no ar"}
+                  />
+                )}
+                </section>
+                <aside className="est-brain-rail est-contextual-rail" aria-label="Contexto do teste">
+                  <AgentBrainMap agentName={agent.name} pieces={contextPieces} selectedId={selectedPiece.id} onSelect={setPeca} contextLabel={contextLabel} />
+                </aside>
               </div>
             </div>
           )}
 
           {/* ── ABA EXECUÇÕES (ao vivo) ── */}
           {aba === "exec" && (
-            <div className="flex-1 overflow-y-auto scroll-thin est-entra">
-              <div className="flex items-center gap-2.5 px-6 py-3.5" style={{ borderBottom: "1px solid var(--e-line)" }}>
-                <span className="live-dot" style={{ width: 8, height: 8 }} />
-                <span className="text-[13.5px] font-semibold">O que ela está fazendo — ao vivo</span>
-                <span className="text-[12px] ml-auto" style={{ color: "var(--e-dim)" }}>cada linha é uma execução real</span>
+            <div className="flex-1 min-h-0 est-entra">
+              <div className="est-contextual-shell">
+                <section className="est-contextual-main" aria-label={`Atividade de ${selectedPiece.nome}`}>
+                  <ResourceLiveWorkspace piece={selectedPiece} agent={agent} logs={meusLogs} />
+                </section>
+                <aside className="est-brain-rail est-contextual-rail" aria-label="Contexto da atividade ao vivo">
+                  <AgentBrainMap agentName={agent.name} pieces={contextPieces} selectedId={selectedPiece.id} onSelect={setPeca} contextLabel={contextLabel} />
+                </aside>
               </div>
-              {agent.real ? (
-                meusLogs.length > 0 ? (
-                  meusLogs.map((l, i) => (
-                    <div key={l.id} className="est-row est-entra flex items-start gap-3.5 px-6 py-3" style={{ borderBottom: "1px solid var(--e-line-soft)", animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-                      <span className="emo text-[12.5px] w-16 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{tempoRelativo(l.at)}</span>
-                      <span className="text-[14px] flex-1 leading-relaxed" style={{ color: l.ok ? "var(--e-txt2)" : "var(--e-red)" }}>{l.resumo}{!l.ok && l.erro ? ` — ${l.erro}` : ""}</span>
-                      {!l.ok && <span className="emo text-[12px] font-bold flex-none rounded px-1.5" style={{ color: "var(--e-red)", border: "1px solid rgba(248,81,73,.4)" }}>ERRO</span>}
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-6 py-8 text-[14px]" style={{ color: "var(--e-dim)" }}>Ainda sem execuções — quando um lead falar com ela, cada passo aparece aqui na hora.</div>
-                )
-              ) : (
-                agent.live.map((r, i) => (
-                  <div key={i} className="est-row flex items-start gap-3.5 px-6 py-3" style={{ borderBottom: "1px solid var(--e-line-soft)" }}>
-                    <span className="emo text-[12.5px] w-16 flex-none pt-0.5" style={{ color: "var(--e-dim)" }}>{r.t}</span>
-                    <span className="text-[14px] flex-1" style={{ color: r.status === "erro" ? "var(--e-red)" : "var(--e-txt2)" }}>{r.acao}</span>
-                  </div>
-                ))
-              )}
             </div>
           )}
-
           {/* ── ABA MUDANÇAS — pedido, impacto, prova e publicação no mesmo lugar ── */}
           {aba === "historico" && (
             <div className="flex-1 min-h-0 overflow-y-auto scroll-thin est-entra">
