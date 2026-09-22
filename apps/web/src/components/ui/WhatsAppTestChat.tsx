@@ -1,12 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Camera, CheckCheck, Mic, MoreVertical, Paperclip, Phone, ShieldCheck, Smile, Video } from "lucide-react";
+import { ArrowUp, Camera, CheckCheck, CircleCheck, CircleX, Loader2, Mic, MoreVertical, Paperclip, Phone, ShieldCheck, Smile, Video } from "lucide-react";
 
 export type TestChatMessage = {
   de: "voce" | "ia";
   texto: string;
   fonte?: string | null;
   aviso?: boolean;
+};
+
+export type TestRunCase = {
+  caseId?: string;
+  nome: string;
+  passou: boolean;
+  falhas?: string[];
+  ms?: number;
+};
+
+export type TestRunView = {
+  status: "idle" | "rodando" | "pronto";
+  passed?: number;
+  total?: number;
+  cases?: TestRunCase[];
+  mode?: string;
+  error?: string;
 };
 
 type WhatsAppTestChatProps = {
@@ -16,10 +33,12 @@ type WhatsAppTestChatProps = {
   feedback: Record<number, "sim" | "nao">;
   thinking: boolean;
   input: string;
+  testRun: TestRunView;
   onInputChange: (value: string) => void;
   onSubmit: () => void;
   onAccept: (index: number) => void;
   onCorrect: (index: number) => void;
+  onFixCase: (testCase: TestRunCase) => void;
 };
 
 export function WhatsAppTestChat({
@@ -29,18 +48,24 @@ export function WhatsAppTestChat({
   feedback,
   thinking,
   input,
+  testRun,
   onInputChange,
   onSubmit,
   onAccept,
   onCorrect,
+  onFixCase,
 }: WhatsAppTestChatProps) {
   const reduceMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (messages.length === 0 && !thinking) return;
+    if (messages.length === 0 && !thinking && testRun.status === "idle" && !testRun.error) return;
     endRef.current?.scrollIntoView({ block: "end", behavior: reduceMotion ? "auto" : "smooth" });
-  }, [messages.length, reduceMotion, thinking]);
+  }, [messages.length, reduceMotion, testRun.cases?.length, testRun.error, testRun.status, thinking]);
+
+  const showTestRun = testRun.status !== "idle" || Boolean(testRun.error);
+  const runCases = testRun.cases ?? [];
+  const guardScenarios = ["Preço e qualificação", "Pedido de agenda", "Identidade da IA", "Avanço do lead"];
 
   return (
     <motion.section
@@ -66,7 +91,7 @@ export function WhatsAppTestChat({
 
       <div className="wa-test-conversation scroll-thin">
         <span className="wa-test-date">Hoje</span>
-        {messages.length === 0 ? (
+        {messages.length === 0 && !showTestRun ? (
           <div className="wa-test-empty">
             <strong>Comece como um lead</strong>
             <span>Use um cenário ao lado ou escreva uma mensagem. Nada daqui vai para o CRM.</span>
@@ -105,6 +130,68 @@ export function WhatsAppTestChat({
               ) : null}
             </motion.div>
           ))}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {showTestRun ? (
+            <motion.article
+              className="wa-test-guard-event"
+              data-state={testRun.error ? "error" : testRun.status}
+              aria-live="polite"
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 5 }}
+              transition={{ duration: 0.22 }}
+            >
+              <header>
+                <span className="wa-test-guard-icon">
+                  {testRun.status === "rodando" ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                </span>
+                <span>
+                  <small>GUARDIÃO AUTOMÁTICO</small>
+                  <strong>
+                    {testRun.error
+                      ? "A rodada não terminou"
+                      : testRun.status === "rodando"
+                        ? "Tentando quebrar o agente"
+                        : `${testRun.passed ?? runCases.filter((item) => item.passou).length}/${testRun.total ?? runCases.length} travas de pé`}
+                  </strong>
+                </span>
+                <i>{testRun.status === "rodando" ? "EM CURSO" : testRun.error ? "INTERROMPIDA" : "CONCLUÍDA"}</i>
+              </header>
+
+              {testRun.error ? <p className="wa-test-guard-error">{testRun.error}</p> : null}
+
+              {testRun.status === "rodando" ? (
+                <div className="wa-test-guard-running" role="status">
+                  {guardScenarios.map((scenario, index) => (
+                    <span key={scenario} style={{ "--guard-delay": `${index * 160}ms` } as CSSProperties}>
+                      <i /> {scenario}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {testRun.status === "pronto" && runCases.length > 0 ? (
+                <div className="wa-test-guard-cases">
+                  {runCases.map((testCase) => (
+                    <div key={testCase.caseId ?? testCase.nome} data-state={testCase.passou ? "ok" : "fail"}>
+                      {testCase.passou ? <CircleCheck size={15} /> : <CircleX size={15} />}
+                      <span><strong>{testCase.nome}</strong>{testCase.falhas?.[0] ? <small>{testCase.falhas[0]}</small> : null}</span>
+                      {testCase.ms != null ? <time>{(testCase.ms / 1000).toFixed(1)}s</time> : null}
+                      {!testCase.passou ? <button type="button" onClick={() => onFixCase(testCase)}>Corrigir</button> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {testRun.status === "pronto" && runCases.length === 0 ? (
+                <p className="wa-test-guard-note">Roteiro base conferido. Com o cérebro ligado, esta mesma rodada ataca as respostas reais.</p>
+              ) : testRun.mode === "roteiro" ? (
+                <p className="wa-test-guard-note">Conferido no roteiro. Com o cérebro ligado, a mesma rodada vira ataque real.</p>
+              ) : null}
+            </motion.article>
+          ) : null}
         </AnimatePresence>
 
         {thinking ? (
