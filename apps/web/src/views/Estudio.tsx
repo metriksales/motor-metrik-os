@@ -8,7 +8,7 @@ import { Activity, ArrowLeft, Check, Clock, FileText, FlaskConical, GripVertical
 import { type Agent, type Upgrade } from "../data";
 import { Robot } from "../Robot";
 import { ClaudeStyleComposer, type ComposerPayload } from "../components/ui/ClaudeStyleComposer";
-import { WhatsAppTestPhone } from "../components/ui/WhatsAppTestPhone";
+import { WhatsAppTestChat } from "../components/ui/WhatsAppTestChat";
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, tempoRelativo } from "../lib/live";
@@ -804,7 +804,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   </section>
                 </aside>
 
-                <WhatsAppTestPhone
+                <WhatsAppTestChat
                   agentName={agent.name}
                   modeLabel={modoTeste === "ensaio" ? "prévia da mudança" : "versão no ar"}
                   messages={msgs}
