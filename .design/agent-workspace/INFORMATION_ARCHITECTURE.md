@@ -28,7 +28,7 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 1. Identidade, função e estado do agente.
 2. Trabalho de hoje e personalizações no ar, como resumo compacto.
 3. Documento da peça selecionada, começando pelo que ela faz.
-4. Caminho do Agente como índice lateral da composição.
+4. Recursos do agente como índice lateral compacto das capacidades instaladas.
 5. Configuração profunda e histórico, por divulgação progressiva.
 
 ### Como funciona
@@ -36,7 +36,7 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 1. Função da peça selecionada.
 2. Como fala e o que oferece.
 3. Regras e fatos do cliente.
-4. Caminho lateral, para trocar de peça sem sair do documento.
+4. Lista lateral de recursos, para trocar de peça sem sair do documento.
 5. Evidência da última mudança publicada, por divulgação progressiva.
 
 ## Fluxos críticos
@@ -46,7 +46,7 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 1. Abre o Estúdio.
 2. Lê função e estado no cabeçalho.
 3. Lê função, contexto e regras da peça atual.
-4. Usa o Caminho lateral quando precisa trocar de peça.
+4. Usa Recursos quando precisa abrir Prompt, Follow-up, Base de conhecimento, Campos do lead ou outra capacidade instalada.
 
 ### Corrigir comportamento
 
@@ -81,7 +81,7 @@ O Estúdio é a tela em que o cliente passa 80% do tempo. Não deve empurrá-lo 
 | Conceito interno | Rótulo na interface | Regra |
 |---|---|---|
 | Artifact | Como funciona | “Artefato vivo” pode aparecer só como explicação secundária. |
-| Brain | Caminho do Agente | Mostra peças reais e sua ordem. |
+| Brain | Recursos | Mostra somente as capacidades que fazem parte do agente; fechado exibe ícone e nome, hover/foco abre uma frase e o clique troca o documento principal. Não representa ordem. |
 | Executions | Ao vivo | O cliente reconhece atividade, não log. |
 | History / ledger | Mudanças | Revisões, publicações e decisões. |
 | Chat de edições | Melhorar | Verbo e resultado, não mecanismo. |

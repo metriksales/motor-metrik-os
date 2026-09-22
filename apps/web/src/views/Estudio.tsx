@@ -665,21 +665,48 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             const followEspera = followHoras % 24 === 0 ? `${followHoras / 24} ${followHoras === 24 ? "dia" : "dias"}` : `${followHoras} ${followHoras === 1 ? "hora" : "horas"}`;
             const followToques = Number(followConfig.maxToques ?? 4);
             const followCanal = typeof followConfig.canal === "string" ? followConfig.canal : "WhatsApp conectado";
-            const temFollow = !!followMotor;
+            const motores = rod?.spec?.motores ?? [];
+            const modulos = rod?.spec?.modulos ?? [];
+            const featuresAtivas = (agent.features ?? []).filter((feature) => feature.on);
+            const temFollow = !!followMotor && followMotor.on !== false;
+            const temBase = rod?.spec?.work?.kind === "conhecimento"
+              || agent.work?.kind === "conhecimento"
+              || featuresAtivas.some((feature) => /base|conhecimento|biblioteca/i.test(feature.name));
+            const temCampos = motores.some((motor: any) => motor.on !== false && /crm|campo|card|lead/i.test(`${motor.id} ${motor.nome}`))
+              || featuresAtivas.some((feature) => /crm|campo|card|lead/i.test(feature.name));
+            const temMidia = featuresAtivas.some((feature) => /áudio|audio|imagem|pdf|arquivo|mídia|midia/i.test(feature.name));
+            const agendaMotor = motores.find((motor: any) => /agenda|calendar/i.test(`${motor.id} ${motor.nome}`));
+            const temAgenda = (!!agendaMotor && agendaMotor.on !== false)
+              || featuresAtivas.some((feature) => /agenda|calend/i.test(feature.name));
             const ultimaFollow = publicadas.find((r) => (r.impact as any)?.tipo === "motor" && (r.impact as any)?.plano?.motorId === "followup");
-            const pecas: Peca[] = agent.real
-              ? [
-                  { id: "conversa", nome: "Conversa", glifo: "💬", cor: "var(--e-amber)", estado: "nucleo", resumo: "o núcleo — como ela fala com o lead", meta: `${regras.length} regras · ${fatos.length} ${fatos.length === 1 ? "fato" : "fatos"}` },
-                  ...(temFollow ? [{ id: "followup", nome: "Follow-up", glifo: "⏱", cor: "var(--e-green)", estado: (followMotor.on === false ? "off" : "no ar") as "off" | "no ar", resumo: "busca de volta quem sumiu", meta: `${followToques} ${followToques === 1 ? "toque" : "toques"} · ${followEspera}`, cond: "se some →" }] : []),
-                  ...(agent.upgrades ?? []).map((u): Peca => ({ id: `u:${u.name}`, nome: u.name, glifo: "✦", cor: "#7d8694", estado: "off", resumo: u.blurb ?? "disponível pra ligar", upg: u })),
-                ]
-              : [
-                  { id: "conversa", nome: "Conversa", glifo: "💬", cor: "var(--e-amber)", estado: "nucleo", resumo: "o núcleo — como ela fala", meta: "4 regras · 12 fatos" },
-                  { id: "agenda", nome: "Agendamento", glifo: "📅", cor: "#58aae4", estado: "no ar", resumo: "marca a reunião na agenda", meta: "5 marcadas hoje", cond: "se qualifica →" },
-                  { id: "followup", nome: "Follow-up", glifo: "⏱", cor: "var(--e-green)", estado: "no ar", resumo: "busca quem sumiu — 2 toques", meta: "3 na fila", cond: "se some →" },
-                  { id: "avisa", nome: "Avisa no WhatsApp", glifo: "📲", cor: "#7d8694", estado: "off", resumo: "chama um humano na hora", cond: "se trava →" },
-                  { id: "crm", nome: "Preenche o CRM", glifo: "📝", cor: "#7d8694", estado: "off", resumo: "anota origem e resumo no card" },
-                ];
+            const slug = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+            const featuresExtras: Peca[] = featuresAtivas
+              .filter((feature) => !/base|conhecimento|biblioteca|crm|campo|card|lead|agenda|calend|tom|conversa|resposta|áudio|audio|imagem|pdf|arquivo|mídia|midia/i.test(feature.name))
+              .map((feature) => ({ id: `feature:${slug(feature.name)}`, nome: feature.name, glifo: "✦", cor: "#7d9fca", estado: "no ar", resumo: "Recurso ativo deste agente." }));
+            const motoresExtras: Peca[] = motores
+              .filter((motor: any) => motor.on !== false && !/atendimento|conversa|follow|agenda|calendar|crm|campo|card|lead/i.test(`${motor.id} ${motor.nome}`))
+              .map((motor: any) => ({ id: `motor:${motor.id}`, nome: motor.nome, glifo: "✦", cor: "#7d9fca", estado: "no ar", resumo: motor.faz || "Automação ativa deste agente." }));
+            const modulosExtras: Peca[] = modulos
+              .filter((modulo: any) => !/follow|agenda|calendar|crm|campo|card|lead|base|conhecimento/i.test(`${modulo.id} ${modulo.nome}`))
+              .map((modulo: any) => ({ id: `modulo:${modulo.id}`, nome: modulo.nome, glifo: "✦", cor: "#7d9fca", estado: "no ar", resumo: "Recurso instalado neste agente." }));
+            const candidatas: Peca[] = [
+              { id: "conversa", nome: "Prompt", glifo: "⌘", cor: "#8fb9ee", estado: "nucleo", resumo: "Regras, fatos e jeito de falar." },
+              ...(temFollow ? [{ id: "followup", nome: "Follow-up", glifo: "⏱", cor: "#79c889", estado: "no ar" as const, resumo: "Retoma a conversa quando o lead para de responder." }] : []),
+              ...(temBase ? [{ id: "base", nome: "Base de conhecimento", glifo: "▤", cor: "#8fb9ee", estado: "no ar" as const, resumo: "Materiais que o agente consulta para responder." }] : []),
+              ...(temCampos ? [{ id: "campos", nome: "Campos do lead", glifo: "▦", cor: "#9aa9bb", estado: "no ar" as const, resumo: "Dados que o agente registra no card do CRM." }] : []),
+              ...(temAgenda ? [{ id: "agenda", nome: "Agenda", glifo: "◫", cor: "#8fb9ee", estado: "no ar" as const, resumo: agendaMotor?.faz || "Consulta horários e marca reuniões." }] : []),
+              ...(temMidia ? [{ id: "midia", nome: "Áudio e arquivos", glifo: "◉", cor: "#8798ac", estado: "no ar" as const, resumo: "Entende áudio, imagem e PDF enviados pelo lead." }] : []),
+              ...motoresExtras,
+              ...modulosExtras,
+              ...featuresExtras,
+            ];
+            const nomes = new Set<string>();
+            const pecas = candidatas.filter((item) => {
+              const chave = item.nome.toLocaleLowerCase("pt-BR");
+              if (nomes.has(chave)) return false;
+              nomes.add(chave);
+              return true;
+            });
             const ativas = pecas.filter((p) => p.estado !== "off");
             const aberta = pecas.find((p) => p.id === peca) ?? pecas[0];
 
@@ -687,6 +714,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             const VERBO: Record<string, { rot: string; cor: string }> = {
               conversa: { rot: "Atende e conversa", cor: "var(--e-amber)" },
               followup: { rot: "Recupera quem sumiu", cor: "var(--e-green)" },
+              base: { rot: "Consulta a base", cor: "#8fb9ee" },
+              campos: { rot: "Atualiza o lead", cor: "#9aa9bb" },
               agenda: { rot: "Agenda a reunião", cor: "#58aae4" },
               avisa: { rot: "Chama um humano", cor: "#58aae4" },
               crm: { rot: "Preenche o CRM", cor: "var(--e-green)" },
@@ -815,8 +844,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     </div>
                   </article>
 
-                  <aside className="est-brain-rail" aria-label="Módulos e peças do agente">
-                    <AgentBrainMap agentName={agent.name} pieces={pecas} selectedId={aberta.id} onSelect={setPeca} real={!!agent.real} />
+                  <aside className="est-brain-rail" aria-label="Recursos do agente">
+                    <AgentBrainMap agentName={agent.name} pieces={pecas} selectedId={aberta.id} onSelect={setPeca} />
                   </aside>
                 </div>
               </div>

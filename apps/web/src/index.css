@@ -3127,3 +3127,157 @@ html[data-theme="light"] .btn-primary { color: #fff; box-shadow: none; filter: n
   .wa-test-typing span,
   .wa-test-guard-running > span > i { animation: none; }
 }
+
+/* ============================================================
+   V9 · RECURSOS DO AGENTE
+   Lista compacta: nome no repouso, uma frase no hover/foco e o conteúdo
+   completo no documento ao lado. Sem linha de fluxo, seta, status ou placar.
+   ============================================================ */
+.est-artifact-shell { grid-template-columns: minmax(0, 1fr) 226px; }
+.est-brain-rail { background: #0b0d10; }
+.est-brain {
+  min-height: 100%;
+  padding: 19px 12px 24px;
+  border: 0;
+  background: transparent;
+}
+.est-brain-head {
+  display: block;
+  margin: 0 0 11px;
+  padding: 0 7px;
+  border: 0;
+}
+.est-brain-head h2 {
+  margin: 0;
+  color: #edf1f5;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -.018em;
+}
+.est-brain-head > div > span {
+  display: block;
+  margin: 4px 0 0;
+  color: #747e89;
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+.est-feature-list { display: grid; gap: 5px; }
+.est-feature-item {
+  position: relative;
+  width: 100%;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  overflow: hidden;
+  color: #d9dfe5;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  transition: border-color .16s ease, background .16s ease;
+}
+.est-feature-item::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: transparent;
+  transition: background .16s ease;
+}
+.est-feature-item:hover,
+.est-feature-item:focus-visible {
+  border-color: #2c333c;
+  background: #12161b;
+  outline: 0;
+}
+.est-feature-item[data-selected="true"] {
+  color: #f3f6f9;
+  border-color: #293849;
+  background: #101720;
+}
+.est-feature-item[data-selected="true"]::before { background: #4d91e8; }
+.est-feature-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  color: #8fb9ee;
+  border: 1px solid #28313b;
+  border-radius: 7px;
+  background: #11151a;
+}
+.est-feature-item[data-selected="true"] .est-feature-icon {
+  border-color: #315276;
+  background: #122033;
+}
+.est-feature-copy { min-width: 0; display: block; padding-top: 6px; }
+.est-feature-copy strong {
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.est-feature-copy small {
+  max-height: 0;
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  color: #89939e;
+  font-size: 9.5px;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: max-height .18s ease, margin .18s ease, opacity .14s ease, transform .18s ease;
+}
+.est-feature-item:hover .est-feature-copy small,
+.est-feature-item:focus-visible .est-feature-copy small {
+  max-height: 34px;
+  margin-top: 5px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 1279px) {
+  .est-artifact-shell { display: flex; }
+  .est-brain { min-height: 0; padding: 18px clamp(14px, 4vw, 30px) 24px; }
+  .est-feature-list { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}
+
+@media (hover: none) {
+  .est-feature-item[data-selected="true"] .est-feature-copy small {
+    max-height: 34px;
+    margin-top: 5px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 520px) {
+  .est-feature-list { grid-template-columns: 1fr; }
+}
+
+html[data-theme="light"] .est-brain-rail { background: #f7f8fa; }
+html[data-theme="light"] .est-brain-head h2 { color: #20242a; }
+html[data-theme="light"] .est-feature-item { color: #333941; }
+html[data-theme="light"] .est-feature-item:hover,
+html[data-theme="light"] .est-feature-item:focus-visible { border-color: #d9dee5; background: #fff; }
+html[data-theme="light"] .est-feature-item[data-selected="true"] { color: #17202a; border-color: #c7d7e9; background: #eef5fc; }
+html[data-theme="light"] .est-feature-icon { border-color: #d9dee5; background: #fff; }
+html[data-theme="light"] .est-feature-copy small { color: #707985; }
+
+@media (prefers-reduced-motion: reduce) {
+  .est-feature-item,
+  .est-feature-item::before,
+  .est-feature-copy small { transition: none; }
+}
