@@ -92,3 +92,23 @@ A V3 acertou a posição das áreas, mas manteve quatro fontes de ruído: menu g
 - **Interação:** o divisor foi validado de 320 para 388px e `Home` restaurou 320px; preferência persistida.
 - **Responsividade:** sem overflow horizontal em 375, 768, 1280 e 1440px. Tablet e mobile colocam o Caminho depois do documento.
 - **Acessibilidade:** auditoria axe WCAG 2 A/AA com zero violações; navegação e ações preservam alvo mínimo e foco visível.
+
+## V5 — revisão do Caminho
+
+### Capturas
+
+| Arquivo | Breakpoint | Estado |
+|---|---:|---|
+| `screenshots/path-v5-desktop-1440.png` | 1440×1000 | Sequência operacional completa à direita |
+| `screenshots/path-v5-desktop-1280.png` | 1280×900 | Rail de 248px no desktop mínimo |
+| `screenshots/path-v5-tablet-768.png` | 768×900 | Caminho empilhado depois do documento |
+| `screenshots/path-v5-mobile-375.png` | 375×812 | Módulo ativo e próxima peça sem overflow |
+
+### Resultado
+
+- **Leitura de fluxo:** os números ficam numa espinha externa e formam a sequência `01 → depois → 02`.
+- **Estado inequívoco:** âmbar identifica a peça selecionada; verde fica reservado ao estado “No ar”.
+- **Módulo útil:** tipo, nome, função e contagem de regras/fatos aparecem numa única unidade, sem virar outro documento.
+- **Próxima ação:** o placeholder vira “Ligar próxima peça”, visualmente subordinado mas legível.
+- **Responsividade:** sem overflow horizontal em 375, 768, 1280 e 1440px.
+- **Acessibilidade:** auditoria axe WCAG 2 A/AA com zero violações depois do ajuste de contraste da próxima peça.

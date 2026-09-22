@@ -31,10 +31,10 @@ export function AgentBrainMap({
     <section className="est-brain" aria-labelledby="agent-path-title">
       <header className="est-brain-head">
         <div>
-          <span>{agentName}</span>
           <h2 id="agent-path-title">Caminho</h2>
+          <span>Ordem em que {agentName} trabalha</span>
         </div>
-        <p>{active.length} {active.length === 1 ? "peça ativa" : "peças ativas"}</p>
+        <p><b>{active.length}</b> {active.length === 1 ? "ativa" : "ativas"}</p>
       </header>
 
       <div className="est-path" role="list" aria-label="Peças que trabalham neste agente">
@@ -53,15 +53,19 @@ export function AgentBrainMap({
               className="est-module-card"
               data-selected={selectedId === piece.id ? "true" : "false"}
             >
-              <span className="est-module-marker" style={{ color: piece.cor }} aria-hidden="true">
-                <span>{piece.glifo}</span>
-              </span>
-              <span className="est-module-copy">
-                <strong>{piece.nome}</strong>
+              <span className="est-step-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+              <span className="est-module-body">
+                <span className="est-module-topline">
+                  <span>{piece.estado === "nucleo" ? "Núcleo" : "Módulo"}</span>
+                  <span className="est-module-live"><i />{piece.estado === "nucleo" || piece.estado === "no ar" ? "No ar" : "Disponível"}</span>
+                </span>
+                <strong><span style={{ color: piece.cor }} aria-hidden="true">{piece.glifo}</span>{piece.nome}</strong>
                 <small>{piece.resumo}</small>
-                {piece.meta && <em>{piece.meta}</em>}
+                <span className="est-module-footer">
+                  <span>{piece.meta ?? "configurada"}</span>
+                  <i aria-hidden="true">→</i>
+                </span>
               </span>
-              <span className="est-module-dot" role="img" data-state={piece.estado} aria-label={piece.estado === "nucleo" ? "núcleo" : "no ar"} />
             </button>
           </div>
         ))}
@@ -70,9 +74,9 @@ export function AgentBrainMap({
           <div className="est-path-item est-path-next" role="listitem" aria-label="Próxima peça">
             <div className="est-path-connector" aria-hidden="true"><i /><span className="emo">depois</span></div>
             <div className="est-module-card est-module-card-ghost">
-              <span className="est-module-marker" aria-hidden="true"><Plus size={15} /></span>
-              <span className="est-module-copy">
-                <strong>Próxima peça</strong>
+              <span className="est-step-index" aria-hidden="true">02</span>
+              <span className="est-module-body">
+                <span className="est-module-add"><Plus size={14} /> Ligar próxima peça</span>
                 <small>Follow-up, agenda ou outro módulo.</small>
               </span>
             </div>
