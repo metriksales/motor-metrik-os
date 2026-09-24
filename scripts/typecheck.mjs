@@ -10,6 +10,7 @@ const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const projetos = [
   "packages/core",
+  "packages/db", // define o schema: se ele não typa, nada abaixo vale
   "packages/crm",
   "packages/llm",
   "packages/messaging",

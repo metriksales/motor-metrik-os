@@ -13,6 +13,18 @@ import { fileURLToPath } from "node:url";
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+// SÓ A PRODUÇÃO MIGRA. Um build de preview roda o código de uma branch
+// qualquer, mas a DATABASE_URL da Vercel aponta para o MESMO banco: sem esta
+// trava, uma migração meio pronta chega ao banco real antes de qualquer
+// revisão — e chega ANTES do deploy de produção, porque o preview sai primeiro.
+// Fora da Vercel não existe VERCEL_ENV e seguimos em frente: é na CI, contra o
+// Postgres de teste, que a migração precisa ser exercitada.
+const ambiente = process.env.VERCEL_ENV;
+if (ambiente && ambiente !== "production") {
+  console.log(`migrar: ambiente "${ambiente}" — não migro daqui, o banco é o mesmo da produção.`);
+  process.exit(0);
+}
+
 const url =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||

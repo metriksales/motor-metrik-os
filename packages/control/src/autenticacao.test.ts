@@ -1,9 +1,9 @@
 /**
  * Autenticação própria contra um Postgres DE VERDADE (S-045).
  *
- * Testa o comportamento que importa: código de uso único, expiração, trava de
- * tentativas, sessão revogável e convite que só o dono do e-mail aceita.
- * Pulado sem banco (a CI sempre roda).
+ * Testa o comportamento que importa: quem pode entrar, código de uso único,
+ * expiração, trava de tentativas, sessão revogável e convite que só o dono do
+ * e-mail aceita. Pulado sem banco (a CI sempre roda).
  */
 import { beforeAll, describe, expect, test } from "vitest";
 import type { EmailPort, Mensagem } from "./email.js";
@@ -15,7 +15,7 @@ const temBanco = Boolean(urlDeTeste);
 let control: any;
 
 /** E-mail de mentira que guarda o que "enviou" — é daqui que lemos o código. */
-function caixaDeEntrada(): EmailPort & { ultima(): Mensagem | undefined; codigo(): string } {
+function caixaDeEntrada(): EmailPort & { ultima(): Mensagem | undefined; codigo(): string; quantas(): number } {
   const enviadas: Mensagem[] = [];
   return {
     modo: "seco",
@@ -24,8 +24,25 @@ function caixaDeEntrada(): EmailPort & { ultima(): Mensagem | undefined; codigo(
       return { ok: true, id: "teste" };
     },
     ultima: () => enviadas.at(-1),
+    quantas: () => enviadas.length,
     codigo: () => enviadas.at(-1)?.texto.match(/\b(\d{6})\b/)?.[1] ?? "",
   };
+}
+
+/**
+ * Põe a pessoa na plataforma com uma conta própria — o que a Metrik faz ao
+ * assinar um cliente. A entrada é fechada: sem este passo (ou sem convite),
+ * ninguém entra, e é justamente isso que os testes abaixo exercitam.
+ */
+async function fundar(email: string) {
+  const { db, users, organizations, memberships } = await import("@motor/db");
+  const [pessoa] = await db.insert(users).values({ email }).returning();
+  const [org] = await db
+    .insert(organizations)
+    .values({ name: email.split("@")[0] })
+    .returning();
+  await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
+  return { userId: pessoa.id, orgId: org.id };
 }
 
 beforeAll(async () => {
@@ -35,26 +52,68 @@ beforeAll(async () => {
   control = await import("./index.js");
 });
 
-describe.skipIf(!temBanco)("entrar sem senha", () => {
-  test("primeiro acesso cria pessoa, conta e sessão", async () => {
+describe.skipIf(!temBanco)("quem pode entrar", () => {
+  test("e-mail desconhecido não recebe código e não entra", async () => {
     const caixa = caixaDeEntrada();
-    const email = `novo-${Date.now()}@metrik.test`;
+    const email = `estranho-${Date.now()}@metrik.test`;
+
+    const r = await control.pedirCodigo({ email, enviarEmail: caixa });
+    // a resposta é a MESMA de quem tem cadastro: não dá para enumerar clientes
+    expect(r.enviado).toBe(true);
+    // mas nada saiu, e sem código não há entrada possível
+    expect(caixa.quantas()).toBe(0);
+
+    await expect(control.entrarComCodigo({ email, codigo: "123456" })).rejects.toThrow(
+      /código inválido ou expirado/,
+    );
+  });
+
+  test("quem já está na plataforma entra", async () => {
+    const caixa = caixaDeEntrada();
+    const email = `conhecida-${Date.now()}@metrik.test`;
+    const { orgId } = await fundar(email);
 
     await control.pedirCodigo({ email, enviarEmail: caixa });
     expect(caixa.ultima()?.para).toBe(email);
 
     const sessao = await control.entrarComCodigo({ email, codigo: caixa.codigo() });
-    expect(sessao.token).toBeTruthy();
-
     const ctx = await control.resolverSessao(sessao.token);
     expect(ctx.email).toBe(email);
-    expect(ctx.role).toBe("owner"); // é dono da própria conta
+    expect(ctx.orgId).toBe(orgId);
+    expect(ctx.role).toBe("owner");
     expect(ctx.via).toBe("sessao");
   });
 
+  test("pessoa sem conta nenhuma não vira dona de uma conta nova", async () => {
+    // era isto que deixava a plataforma aberta: todo primeiro acesso criava org
+    const { db, users } = await import("@motor/db");
+    const email = `avulsa-${Date.now()}@metrik.test`;
+    await db.insert(users).values({ email });
+
+    const caixa = caixaDeEntrada();
+    await control.pedirCodigo({ email, enviarEmail: caixa });
+    await expect(control.entrarComCodigo({ email, codigo: caixa.codigo() })).rejects.toThrow(
+      /não faz parte de nenhuma conta/,
+    );
+  });
+
+  test("a porta do fundador só abre com o banco vazio", async () => {
+    await fundar(`gente-${Date.now()}@metrik.test`); // garante que há alguém
+    const candidato = `fundador-${Date.now()}@metrik.test`;
+    process.env.DONO_INICIAL = candidato;
+    try {
+      expect(await control.comoPodeEntrar(candidato)).toBeNull();
+    } finally {
+      delete process.env.DONO_INICIAL;
+    }
+  });
+});
+
+describe.skipIf(!temBanco)("entrar sem senha", () => {
   test("o código só serve uma vez", async () => {
     const caixa = caixaDeEntrada();
     const email = `unico-${Date.now()}@metrik.test`;
+    await fundar(email);
     await control.pedirCodigo({ email, enviarEmail: caixa });
     const codigo = caixa.codigo();
 
@@ -65,6 +124,7 @@ describe.skipIf(!temBanco)("entrar sem senha", () => {
   test("código errado não entra, e a mensagem não diz o que estava errado", async () => {
     const caixa = caixaDeEntrada();
     const email = `errado-${Date.now()}@metrik.test`;
+    await fundar(email);
     await control.pedirCodigo({ email, enviarEmail: caixa });
 
     await expect(control.entrarComCodigo({ email, codigo: "000000" })).rejects.toThrow(
@@ -79,6 +139,7 @@ describe.skipIf(!temBanco)("entrar sem senha", () => {
   test("errar demais queima o código", async () => {
     const caixa = caixaDeEntrada();
     const email = `forca-${Date.now()}@metrik.test`;
+    await fundar(email);
     await control.pedirCodigo({ email, enviarEmail: caixa });
     const codigo = caixa.codigo();
 
@@ -92,6 +153,7 @@ describe.skipIf(!temBanco)("entrar sem senha", () => {
   test("pedir código demais é barrado", async () => {
     const caixa = caixaDeEntrada();
     const email = `flood-${Date.now()}@metrik.test`;
+    await fundar(email);
     for (let i = 0; i < 5; i++) await control.pedirCodigo({ email, enviarEmail: caixa });
     await expect(control.pedirCodigo({ email, enviarEmail: caixa })).rejects.toThrow(/muitos pedidos/);
   });
@@ -101,6 +163,7 @@ describe.skipIf(!temBanco)("sessão", () => {
   test("sair revoga de verdade — a mesma sessão não volta", async () => {
     const caixa = caixaDeEntrada();
     const email = `sair-${Date.now()}@metrik.test`;
+    await fundar(email);
     await control.pedirCodigo({ email, enviarEmail: caixa });
     const { token } = await control.entrarComCodigo({ email, codigo: caixa.codigo() });
 
@@ -116,38 +179,38 @@ describe.skipIf(!temBanco)("sessão", () => {
 });
 
 describe.skipIf(!temBanco)("convite", () => {
-  test("só o dono do e-mail convidado aceita, e ele entra na conta certa", async () => {
-    const caixaDona = caixaDeEntrada();
+  test("o convite é a porta de entrada de quem vem de fora", async () => {
     const emailDona = `dona-${Date.now()}@metrik.test`;
+    const caixaDona = caixaDeEntrada();
+    const dona = await fundar(emailDona);
     await control.pedirCodigo({ email: emailDona, enviarEmail: caixaDona });
-    const dona = await control.entrarComCodigo({ email: emailDona, codigo: caixaDona.codigo() });
-    const ctxDona = await control.resolverSessao(dona.token);
+    const sessaoDona = await control.entrarComCodigo({ email: emailDona, codigo: caixaDona.codigo() });
+    const ctxDona = await control.resolverSessao(sessaoDona.token);
 
     const caixaConvite = caixaDeEntrada();
     const emailConvidado = `convidado-${Date.now()}@metrik.test`;
+
+    // antes do convite, este e-mail não passa da porta
+    const caixaAntes = caixaDeEntrada();
+    await control.pedirCodigo({ email: emailConvidado, enviarEmail: caixaAntes });
+    expect(caixaAntes.quantas()).toBe(0);
+
     await control.convidar(ctxDona, { email: emailConvidado, role: "operator", enviarEmail: caixaConvite });
-    const link = caixaConvite.ultima()?.texto ?? "";
-    const tokenConvite = link.match(/convite\?t=([\w-]+)/)?.[1] ?? "";
+    const tokenConvite = (caixaConvite.ultima()?.texto ?? "").match(/convite\?t=([\w-]+)/)?.[1] ?? "";
     expect(tokenConvite).toBeTruthy();
 
-    // outra pessoa, com sessão própria, tenta aceitar
-    const caixaIntrusa = caixaDeEntrada();
-    const emailIntrusa = `intrusa-${Date.now()}@metrik.test`;
-    await control.pedirCodigo({ email: emailIntrusa, enviarEmail: caixaIntrusa });
-    const intrusa = await control.entrarComCodigo({ email: emailIntrusa, codigo: caixaIntrusa.codigo() });
-    const ctxIntrusa = await control.resolverSessao(intrusa.token);
-    await expect(
-      control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
-    ).rejects.toThrow(/de outro e-mail/);
-
-    // o convidado aceita e cai na conta da dona, com o papel do convite
+    // agora o código sai, e a primeira entrada já cai DENTRO da conta certa:
+    // aceitar convite exigiria estar logado, e ele ainda está do lado de fora
     const caixaEntrada = caixaDeEntrada();
     await control.pedirCodigo({ email: emailConvidado, enviarEmail: caixaEntrada });
-    const convidado = await control.entrarComCodigo({ email: emailConvidado, codigo: caixaEntrada.codigo() });
+    expect(caixaEntrada.quantas()).toBe(1);
+    const convidado = await control.entrarComCodigo({
+      email: emailConvidado,
+      codigo: caixaEntrada.codigo(),
+    });
     const ctxConvidado = await control.resolverSessao(convidado.token);
-    const r = await control.aceitarConvite({ token: tokenConvite, userId: ctxConvidado.userId });
-    expect(r.orgId).toBe(ctxDona.orgId);
-    expect(r.role).toBe("operator");
+    expect(ctxConvidado.orgId).toBe(dona.orgId);
+    expect(ctxConvidado.role).toBe("operator");
 
     // e o convite não serve de novo
     await expect(
@@ -155,9 +218,38 @@ describe.skipIf(!temBanco)("convite", () => {
     ).rejects.toThrow(/inválido ou expirado/);
   });
 
+  test("convite de outro e-mail não é aceito por quem não é o dono dele", async () => {
+    const emailDona = `dona2-${Date.now()}@metrik.test`;
+    const caixaDona = caixaDeEntrada();
+    await fundar(emailDona);
+    await control.pedirCodigo({ email: emailDona, enviarEmail: caixaDona });
+    const sessaoDona = await control.entrarComCodigo({ email: emailDona, codigo: caixaDona.codigo() });
+    const ctxDona = await control.resolverSessao(sessaoDona.token);
+
+    const caixaConvite = caixaDeEntrada();
+    await control.convidar(ctxDona, {
+      email: `alvo-${Date.now()}@metrik.test`,
+      role: "operator",
+      enviarEmail: caixaConvite,
+    });
+    const tokenConvite = (caixaConvite.ultima()?.texto ?? "").match(/convite\?t=([\w-]+)/)?.[1] ?? "";
+
+    const emailIntrusa = `intrusa-${Date.now()}@metrik.test`;
+    const caixaIntrusa = caixaDeEntrada();
+    await fundar(emailIntrusa);
+    await control.pedirCodigo({ email: emailIntrusa, enviarEmail: caixaIntrusa });
+    const intrusa = await control.entrarComCodigo({ email: emailIntrusa, codigo: caixaIntrusa.codigo() });
+    const ctxIntrusa = await control.resolverSessao(intrusa.token);
+
+    await expect(
+      control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
+    ).rejects.toThrow(/de outro e-mail/);
+  });
+
   test("quem não gerencia não convida", async () => {
     const caixa = caixaDeEntrada();
     const email = `viewer-${Date.now()}@metrik.test`;
+    await fundar(email);
     await control.pedirCodigo({ email, enviarEmail: caixa });
     const s = await control.entrarComCodigo({ email, codigo: caixa.codigo() });
     const ctx = await control.resolverSessao(s.token);
@@ -172,6 +264,7 @@ describe.skipIf(!temBanco)("trocar de conta", () => {
   test("só troca para conta de que a pessoa participa", async () => {
     const caixa = caixaDeEntrada();
     const email = `troca-${Date.now()}@metrik.test`;
+    await fundar(email);
     await control.pedirCodigo({ email, enviarEmail: caixa });
     const s = await control.entrarComCodigo({ email, codigo: caixa.codigo() });
     const ctx = await control.resolverSessao(s.token);
