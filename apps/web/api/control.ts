@@ -82,57 +82,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = (req.body ?? {}) as any;
   try {
-    switch (action) {
+    /**
+     * TODA ação roda dentro da transação da conta (S-011). É aqui, e só aqui,
+     * que o banco fica sabendo de quem é a query — `comConta` declara a conta
+     * em `app.org_id`, que é o que as políticas de RLS leem.
+     *
+     * A resposta sai DEPOIS do commit, de propósito: com `res.json` dentro da
+     * transação, um erro no commit chegaria tarde demais, com o cliente já
+     * tendo lido 200 para uma escrita que não aconteceu.
+     */
+    const resultado = await control.comConta(ctx.orgId, async () => {
+      switch (action) {
       case "criarToken":
-        return res.json(await control.criarMachineToken(ctx, body));
+        return await control.criarMachineToken(ctx, body);
       case "tokens":
-        return res.json(await control.listarMachineTokens(ctx));
+        return await control.listarMachineTokens(ctx);
       case "revogarToken":
-        return res.json(await control.revogarMachineToken(ctx, String(body.id ?? "")));
+        return await control.revogarMachineToken(ctx, String(body.id ?? ""));
       case "agents":
-        return res.json(await control.listAgents(ctx));
+        return await control.listAgents(ctx);
       case "getAgent":
-        return res.json(await control.getAgent(ctx, String(req.query.agentId ?? "")));
+        return await control.getAgent(ctx, String(req.query.agentId ?? ""));
       case "spec":
-        return res.json(await control.loadPublishedSpec(ctx, String(req.query.agentId ?? "")));
+        return await control.loadPublishedSpec(ctx, String(req.query.agentId ?? ""));
       case "createAgent":
-        return res.json(await control.createAgent(ctx, body));
+        return await control.createAgent(ctx, body);
       case "propor":
-        return res.json(await control.proporMudanca(ctx, body));
+        return await control.proporMudanca(ctx, body);
       case "changesets":
-        return res.json(await control.listChangeSets(ctx, String(req.query.agentId ?? "")));
+        return await control.listChangeSets(ctx, String(req.query.agentId ?? ""));
       case "aprovar":
-        return res.json(await control.aprovarMudanca(ctx, body.changeSetId));
+        return await control.aprovarMudanca(ctx, body.changeSetId);
       case "avaliar":
-        return res.json(await control.avaliarMudanca(ctx, body.changeSetId));
+        return await control.avaliarMudanca(ctx, body.changeSetId);
       case "publicarMudanca":
-        return res.json(await control.publicarMudanca(ctx, body.changeSetId));
+        return await control.publicarMudanca(ctx, body.changeSetId);
       case "testar":
-        return res.json(await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo, changeSetId: body.changeSetId }));
+        return await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo, changeSetId: body.changeSetId });
       case "rodando":
-        return res.json(await control.specRodando(ctx, String(req.query.agentId ?? "")));
+        return await control.specRodando(ctx, String(req.query.agentId ?? ""));
       case "rodarTestes":
-        return res.json(await control.rodarTestes(ctx, String(body.agentId ?? req.query.agentId ?? ""), body.modoTeste === "ensaio" ? "ensaio" : "ar", body.changeSetId));
+        return await control.rodarTestes(ctx, String(body.agentId ?? req.query.agentId ?? ""), body.modoTeste === "ensaio" ? "ensaio" : "ar", body.changeSetId);
       case "members":
-        return res.json(await control.listMembers(ctx));
+        return await control.listMembers(ctx);
       case "setEstado":
-        return res.json(await control.setAgentEstado(ctx, { agentId: body.agentId, estado: body.estado }));
+        return await control.setAgentEstado(ctx, { agentId: body.agentId, estado: body.estado });
       case "assumirContato":
-        return res.json(await control.assumirContato(ctx, { agentId: body.agentId, contato: body.contato }));
+        return await control.assumirContato(ctx, { agentId: body.agentId, contato: body.contato });
       case "devolverContato":
-        return res.json(await control.devolverContato(ctx, { agentId: body.agentId, contato: body.contato }));
+        return await control.devolverContato(ctx, { agentId: body.agentId, contato: body.contato });
       case "assumidos":
-        return res.json(await control.listAssumidos(ctx, req.query.agentId ? String(req.query.agentId) : undefined));
+        return await control.listAssumidos(ctx, req.query.agentId ? String(req.query.agentId) : undefined);
       case "publicar":
-        return res.json(await control.publicar(ctx, body));
+        return await control.publicar(ctx, body);
       case "releases":
-        return res.json(await control.listReleases(ctx, String(req.query.agentId ?? "")));
+        return await control.listReleases(ctx, String(req.query.agentId ?? ""));
       case "reverter":
-        return res.json(await control.reverter(ctx, body));
+        return await control.reverter(ctx, body);
       case "log":
-        return res.json(await control.registrarLog(ctx, body));
+        return await control.registrarLog(ctx, body);
       case "logs":
-        return res.json(
+        return (
           await control.listLogs(
             ctx,
             req.query.agentId ? String(req.query.agentId) : undefined,
@@ -140,16 +150,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           )
         );
       case "stats":
-        return res.json(await control.statsHoje(ctx));
+        return await control.statsHoje(ctx);
       case "pendencias":
-        return res.json(await control.listPendencias(ctx));
+        return await control.listPendencias(ctx);
       case "connections":
-        return res.json(await control.listConnections(ctx));
+        return await control.listConnections(ctx);
       case "upsertConnection":
-        return res.json(await control.upsertConnection(ctx, body));
+        return await control.upsertConnection(ctx, body);
       default:
-        return res.status(400).json({ error: "ação desconhecida" });
-    }
+        throw new control.EntradaInvalida("ação desconhecida");
+      }
+    });
+    return res.json(resultado);
   } catch (e) {
     // Erro de domínio vira 4xx com a mensagem que a pessoa precisa ler.
     if (control.ehErroDeDominio(e)) {
