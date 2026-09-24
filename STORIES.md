@@ -263,9 +263,9 @@ Decisões:
 
 ## S-006 · Isolamento, permissões e erros no control plane
 
-- **status:** backlog
+- **status:** em-andamento
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-23 13:52
 
 **Missão.** Há escritas sem filtro de conta, ações que aceitam agente de outra conta e papéis que não são aplicados. Numa plataforma hospedada multi-tenant, isso é a falha que encerra a confiança de uma vez.
 
@@ -275,21 +275,37 @@ Decisões:
 
 | Caminho | Papel |
 | :--- | :--- |
-| `packages/control/src/index.ts:195` | update sem `org_id` |
-| `packages/control/src/index.ts:79-97, 733-762` | agente não validado |
-| `packages/control/src/index.ts:125` | join vazando |
-| `apps/web/api/control.ts` | roteador, métodos HTTP, mapeamento de erro |
+| `packages/control/src/erros.ts` | criado — `EntradaInvalida` 400, `SemPermissao` 403, `NaoEncontrado` 404, `Conflito` 409 |
+| `packages/control/src/permissoes.ts` | criado — matriz papel → permissão |
+| `packages/control/src/permissoes.test.ts` | criado — 5 testes |
+| `packages/control/src/isolamento.test.ts` | criado — 8 testes contra Postgres real |
+| `packages/control/src/index.ts` | `exigirAgenteDaConta`, permissão por ação, join e update com filtro de conta |
+| `packages/db/src/client.ts` | driver `pg` opcional (`DB_DRIVER=pg`) só para teste |
+| `apps/web/api/control.ts` | erro de domínio → 4xx, 5xx genérico com id, mutação só por POST, `limit` validado |
+| `.github/workflows/ci.yml` | serviço Postgres + migração antes dos testes |
 
-**Relacionados.** Depende de S-002. Complementado por S-011 e S-022.
+**Relacionados.** Depende de S-002. Complementado por S-011 (RLS) e S-022 (permissões por pessoa).
 
 **Checklist**
 
-- [ ] Todo `update`/`delete`/`join` filtra pela conta do contexto (teste por ação)
-- [ ] Ações que recebem `agentId` confirmam a posse
-- [ ] Toda ação declara a permissão que exige
-- [ ] Ações que chamam IA têm limite por conta
-- [ ] Mutações só por POST
-- [ ] Erros de domínio em 4xx; 5xx genérico com id
+- [x] Todo `update`/`delete`/`join` filtra pela conta do contexto
+- [x] Ações que recebem `agentId` confirmam a posse (`exigirAgenteDaConta`)
+- [x] Toda ação declara a permissão que exige
+- [x] Mutações só por POST
+- [x] Erros de domínio em 4xx; 5xx genérico com id de correlação
+- [x] Testes de isolamento entre contas contra banco real
+- [ ] Limite de chamadas de IA por conta
+
+**Notas.** Verificado nesta máquina: `npm run ci` verde — **30 testes passando e 8 pulados**, que são justamente os de isolamento: eles exigem banco e esta máquina não tem Postgres nem Docker. Na CI eles rodam contra um `postgres:16` de serviço, com as migrações aplicadas antes. **Enquanto a CI não rodar uma vez, o isolamento continua verificado só por leitura de código.**
+
+Correções concretas dos achados da auditoria:
+- o `update` de changeSet no publicar agora filtra por conta (antes, com o id, um admin marcava como publicada a mudança de outra conta);
+- o join do sino de pendências filtra a conta do agente (antes vazava o nome de agente alheio);
+- `proporMudanca` e `registrarLog` confirmam que o agente é da conta;
+- `aprovarMudanca` exige permissão de publicar (antes bastava não ser viewer) e falha com 404 quando não atualiza nada — antes gravava auditoria mesmo sem ter mudado coisa alguma;
+- `registrarLog` recusa `valorCentavos` que não seja inteiro não negativo, e exige permissão de operar quando vem de pessoa.
+
+**O que ficou faltando:** limite de chamadas de IA por conta. É contenção de custo, não de segurança, e casa melhor com o orçamento por conta da S-027.
 
 ---
 

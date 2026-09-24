@@ -17,9 +17,28 @@ import {
 } from "./tokens.js";
 
 import { ehSegredoEntrada, hashSegredo, novoSegredoEntrada } from "./webhooks.js";
+import { Conflito, EntradaInvalida, NaoEncontrado, SemPermissao } from "./erros.js";
+import { exigirPermissao } from "./permissoes.js";
 
 export * from "./tokens.js";
 export * from "./webhooks.js";
+export * from "./erros.js";
+export * from "./permissoes.js";
+
+/**
+ * Confere que o agente é DESTA conta e devolve a linha (S-006). Toda função que
+ * recebe `agentId` de fora passa por aqui: sem isso, era possível propor
+ * mudança e gravar execução em agente de outra conta sabendo só o id.
+ */
+async function exigirAgenteDaConta(ctx: Ctx, agentId: string) {
+  if (!agentId) throw new EntradaInvalida("falta o agentId");
+  const [agente] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
+  if (!agente) throw new NaoEncontrado("agente");
+  return agente;
+}
 
 // ═══ ENTRADA DE MENSAGEM (S-004) — conta e agente saem do segredo ═══
 
@@ -28,12 +47,12 @@ export async function criarSegredoDeEntrada(
   ctx: Ctx,
   input: { connectionId: string; agentId: string },
 ): Promise<{ segredo: string }> {
-  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("sem permissão pra configurar entrada");
+  exigirPermissao(ctx, "gerenciar");
   const [agente] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
-  if (!agente) throw new Error("agente não encontrado nesta conta");
+  if (!agente) throw new NaoEncontrado("agente");
 
   const { segredo, hash } = novoSegredoEntrada();
   const [row] = await db
@@ -41,7 +60,7 @@ export async function criarSegredoDeEntrada(
     .set({ inboundSecretHash: hash, agentId: input.agentId })
     .where(and(eq(connections.id, input.connectionId), eq(connections.orgId, ctx.orgId)))
     .returning();
-  if (!row) throw new Error("conexão não encontrada nesta conta");
+  if (!row) throw new NaoEncontrado("conexão");
 
   await audit(ctx, "connection.inbound_secret", row.id, { agentId: input.agentId });
   return { segredo };
@@ -86,9 +105,9 @@ export async function criarMachineToken(
   ctx: Ctx,
   input: { name: string; scopes?: Escopo[] },
 ): Promise<{ token: string; id: string; prefix: string; scopes: Escopo[] }> {
-  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("sem permissão pra criar token");
+  exigirPermissao(ctx, "gerenciar");
   const scopes = normalizarEscopos(input.scopes ?? ["log"]);
-  if (scopes.length === 0) throw new Error("escopos inválidos");
+  if (scopes.length === 0) throw new EntradaInvalida("escopos inválidos");
   const { token, hash, prefix } = novoToken();
   const [row] = await db
     .insert(machineTokens)
@@ -124,13 +143,13 @@ export function listarMachineTokens(ctx: Ctx) {
 }
 
 export async function revogarMachineToken(ctx: Ctx, id: string) {
-  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("sem permissão pra revogar token");
+  exigirPermissao(ctx, "gerenciar");
   const [row] = await db
     .update(machineTokens)
     .set({ revokedAt: new Date() })
     .where(and(eq(machineTokens.id, id), eq(machineTokens.orgId, ctx.orgId), isNull(machineTokens.revokedAt)))
     .returning();
-  if (!row) throw new Error("token não encontrado nesta conta");
+  if (!row) throw new NaoEncontrado("token");
   await audit(ctx, "machine_token.revoke", id, {});
   return { ok: true };
 }
@@ -210,6 +229,8 @@ export async function getAgent(ctx: Ctx, agentId: string) {
 }
 
 export async function createAgent(ctx: Ctx, input: { name: string; tipo: AgentTipo }) {
+  exigirPermissao(ctx, "ajustar");
+  if (!input.name?.trim()) throw new EntradaInvalida("falta o nome do agente");
   const [a] = await db
     .insert(agents)
     .values({ orgId: ctx.orgId, name: input.name, tipo: input.tipo })
@@ -223,6 +244,8 @@ export async function proporMudanca(
   ctx: Ctx,
   input: { agentId: string; origin: ChangeOrigin; intent: string; patch: unknown }
 ) {
+  exigirPermissao(ctx, "ajustar");
+  await exigirAgenteDaConta(ctx, input.agentId);
   const [cs] = await db
     .insert(changeSets)
     .values({
@@ -265,19 +288,25 @@ export async function listPendencias(ctx: Ctx) {
       createdAt: changeSets.createdAt,
     })
     .from(changeSets)
-    .innerJoin(agents, eq(agents.id, changeSets.agentId))
+    // o join TAMBÉM filtra por conta: sem isso, o sino podia mostrar o nome de
+    // um agente de outro tenant (achado A4 da auditoria)
+    .innerJoin(agents, and(eq(agents.id, changeSets.agentId), eq(agents.orgId, ctx.orgId)))
     .where(and(eq(changeSets.orgId, ctx.orgId), eq(changeSets.status, "evaluated")))
     .orderBy(desc(changeSets.createdAt));
   return rows;
 }
 
 export async function aprovarMudanca(ctx: Ctx, changeSetId: string) {
-  if (ctx.role === "viewer") throw new Error("sem permissão pra aprovar");
+  // aprovar é o que solta a mudança para o ar → exige publicar, não "ajustar"
+  exigirPermissao(ctx, "publicar");
   const [cs] = await db
     .update(changeSets)
     .set({ status: "approved", approvedBy: ctx.actor })
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)))
     .returning();
+  // antes, aprovar um id inexistente (ou de outra conta) gravava audit mesmo
+  // sem ter atualizado nada
+  if (!cs) throw new NaoEncontrado("mudança");
   await audit(ctx, "changeset.approve", changeSetId);
   return cs;
 }
@@ -290,12 +319,12 @@ export async function publicar(
   ctx: Ctx,
   input: { agentId: string; spec: AgentSpec; changeSetId: string; runtimeVersion: string }
 ) {
-  if (ctx.role === "viewer" || ctx.role === "operator") throw new Error("sem permissão pra publicar");
+  exigirPermissao(ctx, "publicar");
   const [agent] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
-  if (!agent) throw new Error("agente não encontrado neste tenant");
+  if (!agent) throw new NaoEncontrado("agente");
   const atual = agent.currentSpecVersion ?? null;
   const nextVer = (atual ?? 0) + 1;
 
@@ -309,7 +338,7 @@ export async function publicar(
     .set({ currentSpecVersion: nextVer })
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId), cond))
     .returning();
-  if (bumped.length === 0) throw new Error("conflito de versão — recarregue e tente de novo");
+  if (bumped.length === 0) throw new Conflito("conflito de versão — recarregue e tente de novo");
 
   const [spec] = await db
     .insert(agentSpecs)
@@ -335,7 +364,12 @@ export async function publicar(
     })
     .returning();
 
-  await db.update(changeSets).set({ status: "published" }).where(eq(changeSets.id, input.changeSetId));
+  // com filtro de conta: sem ele, o admin de uma conta marcava como publicada
+  // a mudança de outra, sabendo só o id (achado A4 da auditoria)
+  await db
+    .update(changeSets)
+    .set({ status: "published" })
+    .where(and(eq(changeSets.id, input.changeSetId), eq(changeSets.orgId, ctx.orgId)));
   await audit(ctx, "release.publish", rel.id, { version: nextVer });
   return { spec, release: rel };
 }
@@ -356,12 +390,12 @@ export function listReleases(ctx: Ctx, agentId: string) {
  * Mesmo CAS de publicar (sem transação interativa no neon-http).
  */
 export async function reverter(ctx: Ctx, input: { agentId: string; toSpecVersion: number }) {
-  if (ctx.role === "viewer" || ctx.role === "operator") throw new Error("sem permissão pra reverter");
+  exigirPermissao(ctx, "publicar");
   const [agent] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
-  if (!agent) throw new Error("agente não encontrado neste tenant");
+  if (!agent) throw new NaoEncontrado("agente");
 
   // a spec-alvo tem que ser DESTE tenant (org_id + agent_id + version)
   const [alvo] = await db
@@ -374,7 +408,7 @@ export async function reverter(ctx: Ctx, input: { agentId: string; toSpecVersion
         eq(agentSpecs.version, input.toSpecVersion)
       )
     );
-  if (!alvo) throw new Error("versão de spec não encontrada neste tenant");
+  if (!alvo) throw new NaoEncontrado("versão de spec");
 
   const atual = agent.currentSpecVersion ?? null;
   const nextVer = (atual ?? 0) + 1;
@@ -385,7 +419,7 @@ export async function reverter(ctx: Ctx, input: { agentId: string; toSpecVersion
     .set({ currentSpecVersion: nextVer })
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId), cond))
     .returning();
-  if (bumped.length === 0) throw new Error("conflito de versão — recarregue e tente de novo");
+  if (bumped.length === 0) throw new Conflito("conflito de versão — recarregue e tente de novo");
 
   const [spec] = await db
     .insert(agentSpecs)
@@ -440,7 +474,7 @@ export async function upsertConnection(
   ctx: Ctx,
   input: { kind: ConnKind; ref: string; meta?: Record<string, unknown> }
 ) {
-  if (ctx.role === "viewer" || ctx.role === "operator") throw new Error("sem permissão pra conectar");
+  exigirPermissao(ctx, "gerenciar");
   const [existing] = await db
     .select()
     .from(connections)
@@ -525,11 +559,12 @@ function situacoesDoKit(kit: ReturnType<typeof kitParaAgente>, n = 3) {
  *     ("conecte o cérebro") em vez de mostrar teatro.
  */
 export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
+  exigirPermissao(ctx, "ajustar");
   const [cs] = await db
     .select()
     .from(changeSets)
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
-  if (!cs) throw new Error("mudança não encontrada neste tenant");
+  if (!cs) throw new NaoEncontrado("mudança");
 
   const [ag] = await db
     .select()
@@ -634,7 +669,7 @@ export async function specRodando(ctx: Ctx, agentId: string) {
     .select()
     .from(agents)
     .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
-  if (!ag) throw new Error("agente não encontrado neste tenant");
+  if (!ag) throw new NaoEncontrado("agente");
   const kit = kitParaAgente(ag.name ?? "");
   const publicada = await loadPublishedSpec(ctx, agentId);
   const [rel] = await db
@@ -659,11 +694,12 @@ export async function specRodando(ctx: Ctx, agentId: string) {
  * resultado vem SINALIZADO (modo) pra UI nunca vender roteiro como real.
  */
 export async function rodarTestes(ctx: Ctx, agentId: string) {
+  exigirPermissao(ctx, "ajustar");
   const [ag] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.id, agentId), eq(agents.orgId, ctx.orgId)));
-  if (!ag) throw new Error("agente não encontrado neste tenant");
+  if (!ag) throw new NaoEncontrado("agente");
   const kit = kitParaAgente(ag.name ?? "");
   const publicada = await loadPublishedSpec(ctx, agentId);
   const spec = publicada ?? kit.spec;
@@ -711,11 +747,13 @@ export async function testarConversa(
   ctx: Ctx,
   input: { agentId: string; historico: { role: "user" | "assistant"; content: string }[]; modo?: "ar" | "ensaio" },
 ) {
+  // gasta chamada de IA → não é leitura
+  exigirPermissao(ctx, "ajustar");
   const [ag] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
-  if (!ag) throw new Error("agente não encontrado neste tenant");
+  if (!ag) throw new NaoEncontrado("agente");
 
   const kit = kitParaAgente(ag.name ?? "");
   const publicada = await loadPublishedSpec(ctx, input.agentId);
@@ -774,7 +812,7 @@ export async function publicarMudanca(ctx: Ctx, changeSetId: string) {
     .select()
     .from(changeSets)
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)));
-  if (!cs) throw new Error("mudança não encontrada neste tenant");
+  if (!cs) throw new NaoEncontrado("mudança");
   const [ag] = await db
     .select()
     .from(agents)
@@ -792,13 +830,13 @@ export async function publicarMudanca(ctx: Ctx, changeSetId: string) {
  * pausado = a IA não fala com o lead. É a ação de emergência do cliente.
  */
 export async function setAgentEstado(ctx: Ctx, input: { agentId: string; estado: "ativo" | "pausado" }) {
-  if (ctx.role === "viewer") throw new Error("sem permissão pra pausar/ligar");
+  exigirPermissao(ctx, "operar");
   const [row] = await db
     .update(agents)
     .set({ state: input.estado })
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)))
     .returning();
-  if (!row) throw new Error("agente não encontrado neste tenant");
+  if (!row) throw new NaoEncontrado("agente");
   await audit(ctx, "agent.estado", input.agentId, { estado: input.estado });
   return { id: row.id, state: row.state };
 }
@@ -816,12 +854,12 @@ export async function getAgentEstado(ctx: Ctx, agentId: string) {
 
 /** o humano assume ESTE contato: a IA cala só ali, segue atendendo o resto. */
 export async function assumirContato(ctx: Ctx, input: { agentId: string; contato: string }) {
-  if (ctx.role === "viewer") throw new Error("sem permissão pra assumir");
+  exigirPermissao(ctx, "operar");
   const [ag] = await db
     .select({ id: agents.id })
     .from(agents)
     .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
-  if (!ag) throw new Error("agente não encontrado neste tenant");
+  if (!ag) throw new NaoEncontrado("agente");
   const [row] = await db
     .insert(contactStates)
     .values({ orgId: ctx.orgId, agentId: input.agentId, contato: input.contato, estado: "humano", assumidoPor: ctx.actor })
@@ -836,7 +874,7 @@ export async function assumirContato(ctx: Ctx, input: { agentId: string; contato
 
 /** devolve o contato pra IA — apaga a linha; ausência = IA no comando. */
 export async function devolverContato(ctx: Ctx, input: { agentId: string; contato: string }) {
-  if (ctx.role === "viewer") throw new Error("sem permissão pra devolver");
+  exigirPermissao(ctx, "operar");
   await db
     .delete(contactStates)
     .where(and(eq(contactStates.orgId, ctx.orgId), eq(contactStates.agentId, input.agentId), eq(contactStates.contato, input.contato)));
@@ -887,6 +925,16 @@ export async function registrarLog(
     meta?: unknown;
   }
 ) {
+  // Quem ingere é o runtime, com token de escopo `log` (a API já conferiu o
+  // escopo). Pessoa precisa de permissão de operar: antes, um `viewer` gravava
+  // execução com valor em R$ e inflava o Radar de Dinheiro.
+  if (ctx.via !== "maquina") exigirPermissao(ctx, "operar");
+  if (input.agentId) await exigirAgenteDaConta(ctx, input.agentId);
+  if (input.valorCentavos !== undefined) {
+    if (!Number.isInteger(input.valorCentavos) || input.valorCentavos < 0) {
+      throw new EntradaInvalida("valorCentavos precisa ser inteiro não negativo");
+    }
+  }
   const [row] = await db
     .insert(runtimeLogs)
     .values({
