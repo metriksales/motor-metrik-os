@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens } from "@motor/db";
+import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -26,13 +26,30 @@ import {
 } from "./tokens.js";
 
 import { ehSegredoEntrada, hashSegredo, novoSegredoEntrada } from "./webhooks.js";
-import { Conflito, EntradaInvalida, NaoEncontrado, SemPermissao } from "./erros.js";
+import { Conflito, EntradaInvalida, ErroDeDominio, NaoEncontrado, SemPermissao } from "./erros.js";
+import {
+  CODIGO_MINUTOS,
+  CODIGO_TENTATIVAS,
+  CONVITE_DIAS,
+  SESSAO_DIAS,
+  expiraEm,
+  expirou,
+  emailValido,
+  hash,
+  iguais,
+  normalizarEmail,
+  novoCodigo,
+  novoTokenOpaco,
+} from "./sessao.js";
+import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
 import { exigirPermissao } from "./permissoes.js";
 
 export * from "./tokens.js";
 export * from "./webhooks.js";
 export * from "./erros.js";
 export * from "./permissoes.js";
+export * from "./sessao.js";
+export * from "./email.js";
 
 /**
  * Confere que o agente é DESTA conta e devolve a linha (S-006). Toda função que
@@ -1118,4 +1135,241 @@ export async function statsHoje(ctx: Ctx) {
 
 async function audit(ctx: Ctx, action: string, target?: string, data?: unknown) {
   await db.insert(auditLog).values({ orgId: ctx.orgId, actor: ctx.actor, action, target, data });
+}
+
+// ═══ AUTENTICAÇÃO PRÓPRIA (S-045) — sem Clerk, sem senha ═══
+
+/**
+ * Passo 1: a pessoa pede um código. Sempre respondemos a mesma coisa, exista
+ * a conta ou não — dizer "este e-mail não tem cadastro" entrega quem é cliente.
+ */
+export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPort }) {
+  const email = normalizarEmail(input.email);
+  if (!emailValido(email)) throw new EntradaInvalida("e-mail inválido");
+
+  // trava de força bruta: poucos pedidos por e-mail em janela curta
+  const desde = new Date(Date.now() - 15 * 60_000);
+  const recentes = await db
+    .select({ id: loginCodes.id })
+    .from(loginCodes)
+    .where(and(eq(loginCodes.email, email), gte(loginCodes.createdAt, desde)));
+  if (recentes.length >= 5) {
+    throw new ErroDeDominio("muitos pedidos de código; tente de novo em alguns minutos", 429, "muitos_pedidos");
+  }
+
+  const { codigo, hash: codeHash } = novoCodigo();
+  await db.insert(loginCodes).values({
+    email,
+    codeHash,
+    expiresAt: expiraEm(CODIGO_MINUTOS),
+  });
+
+  const email_ = input.enviarEmail ?? criarEmail();
+  const r = await email_.enviar({
+    para: email,
+    assunto: "Seu código de entrada no Metrik-OS",
+    texto: textoDoCodigo(codigo, CODIGO_MINUTOS),
+  });
+  if (!r.ok) throw new ErroDeDominio("não consegui enviar o código agora", 503, "email_indisponivel");
+
+  return { enviado: true, modo: email_.modo };
+}
+
+/**
+ * Passo 2: o código vira sessão. O código é de uso único; errar queima
+ * tentativas. Quem entra pela primeira vez ganha usuário — e, se não tiver
+ * conta nenhuma, uma conta própria (é dono dela).
+ */
+export async function entrarComCodigo(input: { email: string; codigo: string; userAgent?: string }) {
+  const email = normalizarEmail(input.email);
+  const [registro] = await db
+    .select()
+    .from(loginCodes)
+    .where(and(eq(loginCodes.email, email), isNull(loginCodes.usedAt)))
+    .orderBy(desc(loginCodes.createdAt))
+    .limit(1);
+
+  // Mesma resposta para "não existe", "expirou" e "errado": não dá pistas.
+  const recusa = () => new ErroDeDominio("código inválido ou expirado", 401, "codigo_invalido");
+  if (!registro) throw recusa();
+  if (expirou(registro.expiresAt)) throw recusa();
+  if (registro.attempts >= CODIGO_TENTATIVAS) throw recusa();
+
+  if (!iguais(hash(String(input.codigo ?? "")), registro.codeHash)) {
+    await db
+      .update(loginCodes)
+      .set({ attempts: registro.attempts + 1 })
+      .where(eq(loginCodes.id, registro.id));
+    throw recusa();
+  }
+
+  await db.update(loginCodes).set({ usedAt: new Date() }).where(eq(loginCodes.id, registro.id));
+
+  // usuário (cria no primeiro acesso)
+  let [pessoa] = await db.select().from(users).where(eq(users.email, email));
+  if (!pessoa) {
+    [pessoa] = await db.insert(users).values({ email }).returning();
+  }
+  await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, pessoa.id));
+
+  // conta ativa: a primeira de que a pessoa participa; sem nenhuma, cria a dela
+  const vinculos = await db
+    .select({ orgId: memberships.orgId })
+    .from(memberships)
+    .where(eq(memberships.userId, pessoa.id));
+
+  let orgId = vinculos[0]?.orgId ?? null;
+  if (!orgId) {
+    const [org] = await db.insert(organizations).values({ name: email.split("@")[0] }).returning();
+    await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
+    orgId = org.id;
+  }
+
+  const sessao = novoTokenOpaco();
+  const csrf = novoTokenOpaco();
+  await db.insert(sessions).values({
+    userId: pessoa.id,
+    tokenHash: sessao.hash,
+    orgId,
+    expiresAt: expiraEm(SESSAO_DIAS * 24 * 60),
+    userAgent: input.userAgent?.slice(0, 300),
+  });
+
+  return { token: sessao.token, csrf: csrf.token, userId: pessoa.id, orgId };
+}
+
+/**
+ * Resolve a sessão do cookie em contexto. É o coração do `resolveCtx`: a conta
+ * e o papel saem do banco, nunca do navegador.
+ */
+export async function resolverSessao(token: string): Promise<(Ctx & { userId: string; email: string }) | null> {
+  if (!token) return null;
+  const [linha] = await db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.tokenHash, hash(token)), isNull(sessions.revokedAt)));
+  if (!linha || expirou(linha.expiresAt)) return null;
+
+  const [pessoa] = await db.select().from(users).where(eq(users.id, linha.userId));
+  if (!pessoa) return null;
+
+  if (!linha.orgId) return null;
+  const [vinculo] = await db
+    .select()
+    .from(memberships)
+    .where(and(eq(memberships.orgId, linha.orgId), eq(memberships.userId, pessoa.id)));
+  // perdeu o acesso à conta desde o último uso → sessão não vale mais para ela
+  if (!vinculo) return null;
+
+  await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, linha.id));
+
+  return {
+    orgId: linha.orgId,
+    actor: pessoa.email,
+    role: vinculo.role,
+    via: "sessao",
+    userId: pessoa.id,
+    email: pessoa.email,
+  };
+}
+
+export async function sairDaSessao(token: string) {
+  if (!token) return { ok: true };
+  await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.tokenHash, hash(token)));
+  return { ok: true };
+}
+
+/** Contas de que a pessoa participa — alimenta o seletor de contas. */
+export async function contasDaPessoa(userId: string) {
+  return db
+    .select({ orgId: organizations.id, nome: organizations.name, role: memberships.role })
+    .from(memberships)
+    .innerJoin(organizations, eq(organizations.id, memberships.orgId))
+    .where(eq(memberships.userId, userId));
+}
+
+/** Troca a conta ativa da sessão, conferindo que a pessoa participa dela. */
+export async function trocarConta(input: { token: string; userId: string; orgId: string }) {
+  const [vinculo] = await db
+    .select()
+    .from(memberships)
+    .where(and(eq(memberships.orgId, input.orgId), eq(memberships.userId, input.userId)));
+  if (!vinculo) throw new NaoEncontrado("conta");
+  await db
+    .update(sessions)
+    .set({ orgId: input.orgId })
+    .where(and(eq(sessions.tokenHash, hash(input.token)), isNull(sessions.revokedAt)));
+  return { orgId: input.orgId, role: vinculo.role };
+}
+
+/** Convite: quem gerencia convida por e-mail; o aceite vincula à conta. */
+export async function convidar(
+  ctx: Ctx,
+  input: { email: string; role?: "owner" | "admin" | "operator" | "viewer"; baseUrl?: string; enviarEmail?: EmailPort },
+) {
+  exigirPermissao(ctx, "gerenciar");
+  const email = normalizarEmail(input.email);
+  if (!emailValido(email)) throw new EntradaInvalida("e-mail inválido");
+
+  const { token, hash: tokenHash } = novoTokenOpaco();
+  const [convite] = await db
+    .insert(invites)
+    .values({
+      orgId: ctx.orgId,
+      email,
+      role: input.role ?? "operator",
+      tokenHash,
+      invitedBy: ctx.actor,
+      expiresAt: expiraEm(CONVITE_DIAS * 24 * 60),
+    })
+    .returning();
+
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, ctx.orgId));
+  const link = `${input.baseUrl ?? ""}/convite?t=${token}`;
+  const email_ = input.enviarEmail ?? criarEmail();
+  await email_.enviar({
+    para: email,
+    assunto: `Convite para a conta ${org?.name ?? "Metrik-OS"}`,
+    texto: textoDoConvite({ conta: org?.name ?? "Metrik-OS", quemConvidou: ctx.actor, link, dias: CONVITE_DIAS }),
+  });
+
+  await audit(ctx, "invite.create", convite.id, { email, role: convite.role });
+  return { id: convite.id, email, role: convite.role };
+}
+
+/** Aceite do convite — precisa de sessão: a pessoa entra e então aceita. */
+export async function aceitarConvite(input: { token: string; userId: string }) {
+  const [convite] = await db
+    .select()
+    .from(invites)
+    .where(and(eq(invites.tokenHash, hash(input.token)), isNull(invites.acceptedAt)));
+  if (!convite || expirou(convite.expiresAt)) throw new ErroDeDominio("convite inválido ou expirado", 401, "convite_invalido");
+
+  const [pessoa] = await db.select().from(users).where(eq(users.id, input.userId));
+  if (!pessoa) throw new NaoEncontrado("usuário");
+  // o convite é para um e-mail: quem aceita precisa ser aquela pessoa
+  if (pessoa.email !== convite.email) {
+    throw new ErroDeDominio("este convite é de outro e-mail", 403, "convite_de_outro");
+  }
+
+  await db
+    .insert(memberships)
+    .values({ orgId: convite.orgId, userId: pessoa.id, role: convite.role })
+    .onConflictDoUpdate({
+      target: [memberships.orgId, memberships.userId],
+      set: { role: convite.role },
+    });
+  await db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, convite.id));
+
+  return { orgId: convite.orgId, role: convite.role };
+}
+
+/** Convites pendentes da conta. */
+export function listarConvites(ctx: Ctx) {
+  exigirPermissao(ctx, "gerenciar");
+  return db
+    .select({ id: invites.id, email: invites.email, role: invites.role, createdAt: invites.createdAt, expiresAt: invites.expiresAt })
+    .from(invites)
+    .where(and(eq(invites.orgId, ctx.orgId), isNull(invites.acceptedAt)))
+    .orderBy(desc(invites.createdAt));
 }
