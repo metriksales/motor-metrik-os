@@ -31,11 +31,23 @@ beforeAll(async () => {
   ({ sql: drizzleSql } = await import("drizzle-orm"));
 });
 
-/** O que o banco diz que é a conta da sessão agora. */
+/**
+ * O que o banco diz que é a conta da sessão agora.
+ *
+ * CUIDADO COM O VAZIO. `current_setting(nome, true)` devolve NULL só enquanto
+ * o parâmetro nunca existiu naquela sessão; depois que uma transação o definiu
+ * e terminou, ele volta ao padrão, que é STRING VAZIA. Como a conexão é
+ * reaproveitada do pool, a segunda requisição vê `''`, não NULL.
+ *
+ * É por isso que a política de RLS precisa ser
+ * `nullif(current_setting('app.org_id', true), '')::uuid`: sem o `nullif`, o
+ * cast de `''` para uuid estoura.
+ */
 async function contaSegundoOBanco(): Promise<string | null> {
   const r = await bd.db.execute(drizzleSql`select current_setting('app.org_id', true) as conta`);
   const linhas = r.rows ?? r;
-  return linhas[0]?.conta ?? null;
+  const valor = linhas[0]?.conta;
+  return valor ? valor : null; // NULL e '' significam a mesma coisa: conta nenhuma
 }
 
 async function novaConta(nome: string): Promise<string> {
@@ -47,6 +59,18 @@ describe.skipIf(!temBanco)("contexto de conta", () => {
   test("fora de comConta, o banco não sabe de conta nenhuma", async () => {
     expect(await contaSegundoOBanco()).toBeNull();
     expect(bd.contaEmCurso()).toBeNull();
+  });
+
+  test("o valor cru depois de uma transação é string vazia, não NULL", async () => {
+    // A política de RLS depende disto: sem `nullif`, o cast de '' para uuid
+    // estoura, e a mensagem não diria que o problema é falta de contexto.
+    const orgId = await novaConta(`ctx-vazio-${Date.now()}`);
+    await bd.comConta(orgId, async () => {});
+
+    const r = await bd.db.execute(drizzleSql`select current_setting('app.org_id', true) as conta`);
+    const cru = (r.rows ?? r)[0]?.conta;
+    expect(cru === "" || cru === null).toBe(true);
+    expect(cru).not.toBe(orgId);
   });
 
   test("dentro de comConta, o banco sabe exatamente qual é", async () => {
