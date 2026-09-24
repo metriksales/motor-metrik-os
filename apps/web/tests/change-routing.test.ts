@@ -1,11 +1,7 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 import { destinoDe } from "../src/views/Estudio";
 
-test("routes a follow-up request to the operational motor, not to conversation", () => {
-  assert.equal(
-    destinoDe("Quando o lead sumir, espera 1 dia e manda só 1 follow"),
-    "motor",
-  );
+// Migrado de node:test para o Vitest, que é o runner único do monorepo (S-002).
+test("pedido de follow-up vai para o motor operacional, não para a conversa", () => {
+  expect(destinoDe("Quando o lead sumir, espera 1 dia e manda só 1 follow")).toBe("motor");
 });
-

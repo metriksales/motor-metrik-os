@@ -141,12 +141,133 @@ export interface Transport {
 /** Chamada de ferramenta que o cérebro (LLM) pede. */
 export interface ToolCall { tool: string; args: Record<string, unknown>; }
 export interface LlmTurn { texto?: string; toolCalls?: ToolCall[]; }
+
+/** Schema de uma ferramenta oferecida ao cérebro (S-005). */
+export interface ToolSpec {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, { type: string; description: string; format?: string }>;
+    required: string[];
+    additionalProperties: false;
+  };
+}
+
+/**
+ * Catálogo das ferramentas de CRM, COM schema.
+ *
+ * Duas regras de segurança estão embutidas aqui (S-005):
+ * 1. **Nenhuma ferramenta recebe `contactId`.** O alvo é sempre o contato da
+ *    conversa, resolvido pelo runtime. Sem isso, um lead consegue mandar a IA
+ *    agir no contato de outra pessoa.
+ * 2. **`enviarMensagem` não é oferecida ao cérebro.** Quem responde ao lead é o
+ *    motor, pelo canal configurado — não uma ferramenta com destino livre.
+ */
+export const FERRAMENTAS_CRM: ToolSpec[] = [
+  {
+    name: "moverEtapa",
+    description: "Move uma oportunidade DESTE contato para outra etapa do funil.",
+    parameters: {
+      type: "object",
+      properties: {
+        oppId: { type: "string", description: "id da oportunidade deste contato" },
+        stageId: { type: "string", description: "id da etapa de destino" },
+      },
+      required: ["oppId", "stageId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "preencherCampo",
+    description: "Preenche um campo do contato da conversa.",
+    parameters: {
+      type: "object",
+      properties: {
+        field: { type: "string", description: "id ou nome do campo" },
+        value: { type: "string", description: "valor a gravar" },
+      },
+      required: ["field", "value"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "criarTarefa",
+    description: "Cria uma tarefa para o time sobre o contato da conversa.",
+    parameters: {
+      type: "object",
+      properties: {
+        titulo: { type: "string", description: "o que precisa ser feito" },
+        quando: { type: "string", description: "data e hora ISO 8601", format: "date-time" },
+      },
+      required: ["titulo"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "agendar",
+    description: "Agenda uma reunião com o contato da conversa em horário confirmado com ele.",
+    parameters: {
+      type: "object",
+      properties: {
+        quando: { type: "string", description: "data e hora ISO 8601", format: "date-time" },
+        calendarId: { type: "string", description: "agenda de destino, quando houver mais de uma" },
+      },
+      required: ["quando"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "addTag",
+    description: "Põe uma etiqueta no contato da conversa.",
+    parameters: {
+      type: "object",
+      properties: { tag: { type: "string", description: "nome da etiqueta" } },
+      required: ["tag"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "removerTag",
+    description: "Tira uma etiqueta do contato da conversa.",
+    parameters: {
+      type: "object",
+      properties: { tag: { type: "string", description: "nome da etiqueta" } },
+      required: ["tag"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "criarOportunidade",
+    description: "Cria uma oportunidade no funil para o contato da conversa.",
+    parameters: {
+      type: "object",
+      properties: {
+        funilId: { type: "string", description: "id do funil" },
+        valor: { type: "number", description: "valor estimado, quando souber" },
+      },
+      required: ["funilId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "handoff",
+    description: "Passa a conversa para um humano e para de responder este contato.",
+    parameters: {
+      type: "object",
+      properties: { motivo: { type: "string", description: "por que está passando" } },
+      required: [],
+      additionalProperties: false,
+    },
+  },
+];
+
 /** O "cérebro" — a skill agente-ia-metrik-completo por trás. Injetado como port. */
 export interface LlmPort {
   responder(input: {
     system: string;
     historico: { role: "user" | "assistant" | "tool"; content: string }[];
-    tools?: string[];
+    tools?: ToolSpec[];
   }): Promise<LlmTurn>;
 }
 

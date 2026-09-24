@@ -21,7 +21,8 @@ const comum = {
   outdir: saida,
   outExtension: { ".js": ".mjs" },
   // npm de verdade fica externo (o trace do Vercel os leva como JS normal)
-  external: ["@neondatabase/serverless", "drizzle-orm", "@upstash/*", "@clerk/*"],
+  // `pg` é externo de propósito: só o caminho de TESTE (DB_DRIVER=pg) o usa.
+  external: ["@neondatabase/serverless", "drizzle-orm", "@upstash/*", "@clerk/*", "pg"],
   logLevel: "warning",
 };
 

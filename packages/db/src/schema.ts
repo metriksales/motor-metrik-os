@@ -33,6 +33,37 @@ export const memberships = pgTable(
   (t) => [uniqueIndex("memberships_org_user").on(t.orgId, t.userId)]
 );
 
+/**
+ * Tokens de MÁQUINA — o que agentes, Claude Code/Codex e automações usam para
+ * falar com a Control API. Um token pertence a UMA conta e carrega escopos; a
+ * conta NUNCA vem de header (S-003). Guardamos só o hash: o valor em claro é
+ * mostrado uma única vez, na criação.
+ */
+export const machineTokens = pgTable(
+  "machine_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** sha256 do token em claro, em hex */
+    tokenHash: text("token_hash").notNull(),
+    /** início do token, só para a pessoa reconhecer na lista */
+    prefix: text("prefix").notNull(),
+    /** escopos: log | leitura | mudanca | admin */
+    scopes: jsonb("scopes").notNull().default(["log"]),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("machine_tokens_hash_unique").on(t.tokenHash),
+    index("machine_tokens_org_idx").on(t.orgId),
+  ],
+);
+
 export const agents = pgTable(
   "agents",
   {
@@ -115,9 +146,16 @@ export const connections = pgTable(
     status: text("status").notNull().default("disconnected"),
     vaultRef: text("vault_ref"),
     meta: jsonb("meta"),
+    /** agente que atende o que entra por esta conexão (S-004) */
+    agentId: uuid("agent_id"),
+    /** sha256 do segredo de entrada desta conexão; o valor em claro só aparece na criação */
+    inboundSecretHash: text("inbound_secret_hash"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("connections_org").on(t.orgId)]
+  (t) => [
+    index("connections_org").on(t.orgId),
+    uniqueIndex("connections_inbound_secret_unique").on(t.inboundSecretHash),
+  ]
 );
 
 /** release imutável: amarra spec + runtime + evals */

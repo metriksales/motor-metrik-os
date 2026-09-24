@@ -1,18 +1,26 @@
 import type { VercelRequest } from "@vercel/node";
 import type { Ctx } from "@motor/control";
 
-// Resolve o contexto (org + ator) de forma SEGURA: org_id SEMPRE vem do servidor.
-// - Se CLERK_SECRET_KEY existe → valida a sessão do Clerk (org da sessão).
-// - Senão → auth temporária por service token (só pra testar antes do Clerk).
+// Resolve o contexto (conta + ator) de forma SEGURA.
+// Lei do projeto: a CONTA vem sempre do servidor — do token de máquina ou da
+// sessão — e NUNCA de um header enviado pelo cliente.
+//
+// Dois caminhos:
+// 1. Token de MÁQUINA (`mos_…`): agentes ingerindo execuções, Claude Code/Codex,
+//    automações. A conta e os escopos saem do banco, pelo hash do token.
+// 2. Sessão de PESSOA (Clerk, enquanto a autenticação própria da S-045 não
+//    existe): a conta sai da organização da sessão.
 export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
-  // Auth de MÁQUINA (permanente, convive com o Clerk): agentes reais ingerindo
-  // execuções (Flight Recorder), Claude Code/Codex e automações server↔server.
-  // Exige o segredo EXATO; nunca vai pro browser.
-  const secret = process.env.CONTROL_PLANE_SECRET;
-  if (secret && req.headers["x-motor-token"] === secret) {
-    const orgId = String(req.headers["x-org-id"] ?? "");
-    if (!orgId) return null;
-    return { orgId, actor: String(req.headers["x-actor"] ?? "maquina"), role: "admin" };
+  const { extrairToken, resolverMachineToken } = await import("./_bundled/control.mjs");
+
+  const tokenDeMaquina = extrairToken({
+    authorization: req.headers["authorization"],
+    "x-motor-token": req.headers["x-motor-token"],
+  });
+  if (tokenDeMaquina) {
+    // Token inválido/revogado = 401. Não há atalho por header: `x-org-id` e
+    // `x-actor` são ignorados de propósito (eram a falha crítica da auditoria).
+    return await resolverMachineToken(tokenDeMaquina);
   }
 
   const clerkKey = process.env.CLERK_SECRET_KEY;
@@ -24,22 +32,23 @@ export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
     // 401 legítimo = SÓ token inválido. Erro da ponte (Neon/migração/corrida)
     // PROPAGA pro handler virar 500 com a causa — senão o primeiro debug em
     // produção vira um 401 mudo indistinguível de "chave errada".
-    let claims: Record<string, any>;
+    let claims: Record<string, unknown>;
     try {
       const { verifyToken } = await import("@clerk/backend");
-      claims = (await verifyToken(token, { secretKey: clerkKey })) as Record<string, any>;
+      claims = (await verifyToken(token, { secretKey: clerkKey })) as Record<string, unknown>;
     } catch (e) {
       console.error("[auth] token Clerk inválido:", e instanceof Error ? e.message : e);
       return null;
     }
-    const clerkOrgId = claims.org_id ?? claims.o?.id;
+    const o = claims.o as { id?: string; rol?: string; slg?: string } | undefined;
+    const clerkOrgId = claims.org_id ?? o?.id;
     if (!clerkOrgId) {
       console.error("[auth] sessão Clerk válida porém SEM organização ativa (claims sem org)");
       return null;
     }
     const clerkUserId = String(claims.sub ?? "user");
-    const role = mapRole(claims.org_role ?? claims.o?.rol);
-    const rawName = claims.org_slug ?? claims.o?.slg ?? claims.org_name;
+    const role = mapRole(claims.org_role ?? o?.rol);
+    const rawName = claims.org_slug ?? o?.slg ?? claims.org_name;
     // PONTE: mapeia (ou provisiona) o tenant interno a partir do org do Clerk.
     const { ensureOrgForClerk } = await import("./_bundled/control.mjs");
     const mapped = await ensureOrgForClerk({
@@ -48,7 +57,7 @@ export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
       name: typeof rawName === "string" ? rawName : undefined,
       role,
     });
-    return { orgId: mapped.orgId, actor: clerkUserId, role: mapped.role };
+    return { orgId: mapped.orgId, actor: clerkUserId, role: mapped.role, via: "sessao" };
   }
 
   return null;

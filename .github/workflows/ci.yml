@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'docs/**']
+  pull_request:
+  workflow_dispatch:
+
+# Uma rodada por branch: push novo cancela a anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Postgres de verdade para os testes de isolamento entre contas (S-006).
+    # Sem ele, os testes que precisam de banco são pulados.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: metrik_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/metrik_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck (todos os projetos)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Migrar o banco de teste
+        run: npm run db:migrate --workspace @motor/db
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Testes
+        run: npm test
+
+      - name: Build do front + funções
+        run: npm run build:web

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 import {
   extractGroupMessage,
   isAllowlisted,
@@ -8,15 +7,16 @@ import {
   secretsMatch,
 } from "../server/group-reader.js";
 
-const group = "120363420771756873@g.us";
+// JID fictício de propósito: nada de grupo real em teste (ver S-002).
+const group = "120000000000000000@g.us";
 
-test("extracts a direct UAZAPI group message", () => {
+test("extrai mensagem de grupo direta da UAZAPI", () => {
   const captured = extractGroupMessage({
     event: "messages",
     message: {
       id: "msg-1",
       chatid: group,
-      chatName: "Metrik Dev",
+      chatName: "Grupo de Teste",
       sender: "558599999999@s.whatsapp.net",
       senderName: "Pessoa",
       text: "Ajustar o prompt do cliente X",
@@ -25,14 +25,14 @@ test("extracts a direct UAZAPI group message", () => {
     },
   });
 
-  assert.ok(captured);
-  assert.equal(captured.groupJid, group);
-  assert.equal(captured.groupName, "Metrik Dev");
-  assert.equal(captured.messageText, "Ajustar o prompt do cliente X");
-  assert.equal(captured.senderName, "Pessoa");
+  expect(captured).toBeTruthy();
+  expect(captured?.groupJid).toBe(group);
+  expect(captured?.groupName).toBe("Grupo de Teste");
+  expect(captured?.messageText).toBe("Ajustar o prompt do cliente X");
+  expect(captured?.senderName).toBe("Pessoa");
 });
 
-test("extracts a wrapped WhatsApp payload and media caption", () => {
+test("extrai payload aninhado do WhatsApp e a legenda da mídia", () => {
   const captured = extractGroupMessage({
     event: "messages",
     data: {
@@ -43,29 +43,31 @@ test("extracts a wrapped WhatsApp payload and media caption", () => {
     },
   });
 
-  assert.ok(captured);
-  assert.equal(captured.messageId, "msg-2");
-  assert.equal(captured.messageType, "image");
-  assert.equal(captured.messageText, "Erro mostrado neste print");
+  expect(captured).toBeTruthy();
+  expect(captured?.messageId).toBe("msg-2");
+  expect(captured?.messageType).toBe("image");
+  expect(captured?.messageText).toBe("Erro mostrado neste print");
 });
 
-test("rejects direct chats and payloads without a stable message id", () => {
-  assert.equal(extractGroupMessage({ message: { id: "x", chatid: "558599999999@s.whatsapp.net", text: "oi" } }), null);
-  assert.equal(extractGroupMessage({ message: { chatid: group, text: "sem id" } }), null);
+test("recusa conversa direta e payload sem id estável de mensagem", () => {
+  expect(
+    extractGroupMessage({ message: { id: "x", chatid: "558599999999@s.whatsapp.net", text: "oi" } }),
+  ).toBeNull();
+  expect(extractGroupMessage({ message: { chatid: group, text: "sem id" } })).toBeNull();
 });
 
-test("enforces an exact group allowlist", () => {
-  const allowlist = parseAllowlist(` ${group},not-a-group,120000000000000000@g.us `);
-  assert.equal(allowlist.size, 2);
-  assert.equal(isAllowlisted(group, allowlist), true);
-  assert.equal(isAllowlisted("120000000000000001@g.us", allowlist), false);
+test("aplica a lista de grupos liberados de forma exata", () => {
+  const allowlist = parseAllowlist(` ${group},not-a-group,120000000000000009@g.us `);
+  expect(allowlist.size).toBe(2);
+  expect(isAllowlisted(group, allowlist)).toBe(true);
+  expect(isAllowlisted("120000000000000001@g.us", allowlist)).toBe(false);
 });
 
-test("minimizes sender and compares secrets safely", () => {
+test("minimiza o remetente e compara segredos com segurança", () => {
   const sender = minimizeSender("558599999999@s.whatsapp.net", "test-secret");
-  assert.equal(sender.last4, "9999");
-  assert.equal(sender.hash.length, 64);
-  assert.equal(sender.hash.includes("558599999999"), false);
-  assert.equal(secretsMatch("same", "same"), true);
-  assert.equal(secretsMatch("different", "same"), false);
+  expect(sender.last4).toBe("9999");
+  expect(sender.hash).toHaveLength(64);
+  expect(sender.hash.includes("558599999999")).toBe(false);
+  expect(secretsMatch("same", "same")).toBe(true);
+  expect(secretsMatch("different", "same")).toBe(false);
 });

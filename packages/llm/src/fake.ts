@@ -5,7 +5,7 @@
 // { quando: RegExp; responder: (texto) => LlmTurn }. O `responder()` pega o
 // ÚLTIMO conteúdo do histórico e aplica a PRIMEIRA regra que casar; se
 // nenhuma casar, devolve um texto genérico.
-import type { LlmPort, LlmTurn } from "@motor/core";
+import type { LlmPort, LlmTurn, ToolSpec } from "@motor/core";
 
 /** Uma regra determinística: casa o último texto e devolve um turno fixo. */
 export interface FakeRule {
@@ -33,7 +33,7 @@ export class FakeBrain implements LlmPort {
   async responder(input: {
     system: string;
     historico: { role: "user" | "assistant" | "tool"; content: string }[];
-    tools?: string[];
+    tools?: ToolSpec[];
   }): Promise<LlmTurn> {
     // último conteúdo do histórico (o que "chegou agora"); vazio se não houver
     const ultimo = input.historico.length > 0 ? input.historico[input.historico.length - 1].content : "";

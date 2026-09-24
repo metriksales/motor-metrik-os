@@ -21,5 +21,24 @@ export function getDatabaseUrl(): string {
 // os guards (getDatabaseUrl()) impedem qualquer query sem banco configurado.
 const url = getDatabaseUrl() || "postgresql://placeholder:placeholder@placeholder.invalid/placeholder";
 export const sql = neon(url);
-export const db = drizzle(sql, { schema });
+
+/**
+ * Driver alternativo para TESTE (S-006): com `DB_DRIVER=pg`, fala com um
+ * Postgres comum — é assim que a CI exercita isolamento entre contas num banco
+ * de verdade, sem depender de um projeto Neon. Em produção este caminho nunca
+ * roda: o driver segue sendo o neon-http.
+ */
+async function criarDb() {
+  if (process.env.DB_DRIVER === "pg") {
+    const [{ drizzle: drizzlePg }, pg] = await Promise.all([
+      import("drizzle-orm/node-postgres"),
+      import("pg"),
+    ]);
+    const pool = new pg.default.Pool({ connectionString: url });
+    return drizzlePg(pool, { schema });
+  }
+  return drizzle(sql, { schema });
+}
+
+export const db = (await criarDb()) as ReturnType<typeof drizzle<typeof schema>>;
 export type Db = typeof db;

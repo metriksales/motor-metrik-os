@@ -5,11 +5,9 @@
 // chat.completions. A Responses API (POST /v1/responses) aceita
 // `reasoning` + `tools` na mesma chamada — por isso é o transporte aqui.
 //
-// O schema FINO de cada tool mora na skill (agente-ia-metrik-completo);
-// aqui só declaramos os nomes como function-calling genérico
-// ({type:"function", name, parameters:{type:"object"}}). O motor injeta
-// os nomes de tool via `tools?: string[]` (contrato LlmPort de @motor/core).
-import type { LlmPort, LlmTurn, ToolCall } from "@motor/core";
+// As tools são declaradas COM schema (`ToolSpec` de @motor/core): nome,
+// descrição e parâmetros. O motor injeta o catálogo em `tools`.
+import type { LlmPort, LlmTurn, ToolCall, ToolSpec } from "@motor/core";
 
 /** Opções de construção do cérebro OpenAI. */
 export interface OpenAiBrainOptions {
@@ -48,7 +46,7 @@ export class OpenAiBrain implements LlmPort {
   async responder(input: {
     system: string;
     historico: { role: "user" | "assistant" | "tool"; content: string }[];
-    tools?: string[];
+    tools?: ToolSpec[];
   }): Promise<LlmTurn> {
     // 1) monta o input: system primeiro, depois o histórico (role→content).
     const inputItems: ResponsesInputItem[] = [
@@ -67,13 +65,15 @@ export class OpenAiBrain implements LlmPort {
       payload.reasoning = { effort: this.reasoningEffort };
     }
 
-    // 4) tools em function-calling genérico SE houver nomes.
-    // O schema fino mora na skill; aqui só o nome + parameters aberto.
+    // 4) tools com SCHEMA (S-005): nome, descrição e parâmetros declarados.
+    // Sem schema, o modelo adivinha os campos e manda string vazia — que no
+    // Kommo vira id 0 e no GHL vira PUT numa URL sem id.
     if (input.tools && input.tools.length > 0) {
-      payload.tools = input.tools.map((name) => ({
+      payload.tools = input.tools.map((t) => ({
         type: "function",
-        name,
-        parameters: { type: "object" },
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
       }));
     }
 

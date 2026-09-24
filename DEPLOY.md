@@ -6,14 +6,25 @@ Tudo num app só no Vercel: o front (Vite) + a Control API (funções em `apps/w
 1. **Vercel:** criar projeto apontando pro repo. **Root Directory = `motor-metrik-os/apps/web`**.
    Framework = Vite · Build = `npm run build` · Output = `dist`. As funções em `apps/web/api/*.ts` viram serverless automaticamente.
 2. **Neon:** criar banco, pegar a `DATABASE_URL` (pooled).
-3. **Env vars no Vercel:** `DATABASE_URL`, `CONTROL_PLANE_SECRET` (agora); `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`, `UPSTASH_*` (próximos slices). Ver `.env.example`.
+3. **Env vars no Vercel:** ver `.env.example` — `DATABASE_URL` (agora), `WEBHOOK_SECRET`, `CRON_SECRET`, `RESEND_API_KEY` e os segredos da autenticação própria conforme as stories entregam. **Nada de segredo com prefixo `VITE_`:** o build falha de propósito se encontrar um (`vite.config.ts`).
 4. **Migração:** com `DATABASE_URL` setado, rodar `npm run db:migrate --workspace @motor/db` (ou `drizzle-kit push`). O SQL já está gerado em `packages/db/drizzle/`.
 5. **Domínio:** apontar `metrik-os.vercel.app` (ou o domínio que o mestre passar).
 
 ## Rotas
 - `GET /api/health` → status.
-- `POST /api/control?action=agents|createAgent|propor|changesets|aprovar|publicar`
-  - headers (temporário, até Clerk): `x-motor-token: <CONTROL_PLANE_SECRET>`, `x-org-id: <org>`, `x-actor: <quem>`.
+- `POST /api/control?action=agents|createAgent|propor|changesets|aprovar|publicar|…`
+
+### Como uma máquina autentica (S-003)
+Agentes, Claude Code/Codex e automações usam **token de máquina por conta**:
+
+```
+Authorization: Bearer mos_<token>      (ou o header x-motor-token)
+```
+
+- O token é criado por alguém admin/owner da conta (`action=criarToken`, com `name` e `scopes`) e **aparece em claro uma única vez** — o banco guarda só o sha256.
+- A **conta sai do token**, no servidor. Os headers `x-org-id` e `x-actor` são ignorados: eram a falha crítica da auditoria.
+- **Escopos:** `log` (só ingerir execuções) · `leitura` · `mudanca` (propor e testar, sem publicar) · `admin` (tudo). Ação fora do escopo responde 403.
+- Para revogar: `action=revogarToken` com o `id`. `action=tokens` lista os da conta.
 
 ## Auth & Tenants (Clerk) — front JÁ ligado, env-gated
 O login e a **multi-tenência** já estão no front (`apps/web/src/main.tsx` + `lib/auth.tsx`), ligando quando as chaves existem:

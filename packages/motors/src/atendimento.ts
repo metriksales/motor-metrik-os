@@ -9,23 +9,15 @@ import type {
   MotorResult,
   MotorRunInput,
   CrmPort,
-  CrmTool,
   ToolCall,
   AgentSpec,
 } from "@motor/core";
+import { FERRAMENTAS_CRM } from "@motor/core";
 
-// Ferramentas que o cérebro pode pedir (mesma língua do CrmPort/CrmAdapter).
-const FERRAMENTAS: CrmTool[] = [
-  "moverEtapa",
-  "preencherCampo",
-  "criarTarefa",
-  "agendar",
-  "addTag",
-  "removerTag",
-  "criarOportunidade",
-  "enviarMensagem",
-  "handoff",
-];
+// Ferramentas oferecidas ao cérebro: o catálogo COM schema de @motor/core.
+// `enviarMensagem` fica de fora de propósito (S-005) — quem responde ao lead é
+// este motor, pelo canal configurado, e não uma ferramenta de destino livre.
+const FERRAMENTAS = FERRAMENTAS_CRM;
 
 /** Compila o "cérebro" (identidade + oferta + tom + travas) no system prompt. */
 function montarSystem(spec: AgentSpec): string {
@@ -40,45 +32,86 @@ function montarSystem(spec: AgentSpec): string {
   return linhas.join("\n");
 }
 
-/** Executa UMA tool pedida pelo cérebro, mapeando nome→método do CrmPort. */
-async function executarTool(crm: CrmPort, tc: ToolCall, contactId: string): Promise<string> {
+/** Argumento obrigatório: falta = erro, nunca string vazia (S-005). */
+function exigir(a: Record<string, unknown>, campo: string): string {
+  const v = a[campo];
+  if (typeof v !== "string" || v.trim() === "") {
+    throw new Error(`argumento "${campo}" faltando ou vazio`);
+  }
+  return v;
+}
+
+/**
+ * Executa UMA tool pedida pelo cérebro, mapeando nome→método do CrmPort.
+ *
+ * Trava de segurança (S-005): o ALVO é sempre o contato da conversa. O que o
+ * cérebro mandar em `args.contactId` é ignorado — sem isso, um lead consegue
+ * escrever "põe a tag X no contato Y" e a IA obedece no contato de outra pessoa.
+ * O mesmo vale para `oppId`: só passa se a oportunidade for conhecida DESTE
+ * contato (veio no evento ou foi criada nesta mesma execução).
+ */
+async function executarTool(
+  crm: CrmPort,
+  tc: ToolCall,
+  contactId: string,
+  oppsPermitidos: Set<string>,
+): Promise<string> {
   const a = tc.args ?? {};
-  const alvo = (typeof a.contactId === "string" && a.contactId) || contactId;
+  const alvo = contactId;
   switch (tc.tool) {
-    case "moverEtapa":
-      await crm.moverEtapa(String(a.oppId ?? ""), String(a.stageId ?? ""));
-      return `moverEtapa→${a.stageId ?? "?"}`;
-    case "preencherCampo":
-      await crm.preencherCampo(alvo, String(a.field ?? ""), a.value);
-      return `preencherCampo:${a.field ?? "?"}`;
-    case "criarTarefa":
-      await crm.criarTarefa(alvo, String(a.titulo ?? "tarefa"), a.quando ? String(a.quando) : undefined);
-      return `criarTarefa:${a.titulo ?? "tarefa"}`;
+    case "moverEtapa": {
+      const oppId = exigir(a, "oppId");
+      if (!oppsPermitidos.has(oppId)) {
+        // Oportunidade que não é deste contato (ou que o runtime não conhece).
+        throw new Error("oportunidade não pertence a este contato");
+      }
+      await crm.moverEtapa(oppId, exigir(a, "stageId"));
+      return `moverEtapa→${a.stageId}`;
+    }
+    case "preencherCampo": {
+      const field = exigir(a, "field");
+      await crm.preencherCampo(alvo, field, a.value);
+      return `preencherCampo:${field}`;
+    }
+    case "criarTarefa": {
+      const titulo = exigir(a, "titulo");
+      await crm.criarTarefa(alvo, titulo, a.quando ? String(a.quando) : undefined);
+      return `criarTarefa:${titulo}`;
+    }
     case "agendar": {
+      // Sem `quando` NÃO se agenda "para agora": isso enchia a agenda do time
+      // com reunião no instante da conversa.
       const { eventId } = await crm.agendar({
         contactId: alvo,
-        quando: String(a.quando ?? new Date().toISOString()),
+        quando: exigir(a, "quando"),
         calendarId: a.calendarId ? String(a.calendarId) : undefined,
       });
       return `agendar→${eventId}`;
     }
-    case "addTag":
-      await crm.addTag(alvo, String(a.tag ?? ""));
-      return `addTag:${a.tag ?? "?"}`;
-    case "removerTag":
-      await crm.removerTag(alvo, String(a.tag ?? ""));
-      return `removerTag:${a.tag ?? "?"}`;
+    case "addTag": {
+      const tag = exigir(a, "tag");
+      await crm.addTag(alvo, tag);
+      return `addTag:${tag}`;
+    }
+    case "removerTag": {
+      const tag = exigir(a, "tag");
+      await crm.removerTag(alvo, tag);
+      return `removerTag:${tag}`;
+    }
     case "criarOportunidade": {
       const { oppId } = await crm.criarOportunidade(
         alvo,
-        String(a.funilId ?? ""),
+        exigir(a, "funilId"),
         typeof a.valor === "number" ? a.valor : undefined,
       );
+      // Passa a valer para moverEtapa nesta mesma execução.
+      oppsPermitidos.add(oppId);
       return `criarOportunidade→${oppId}`;
     }
     case "enviarMensagem":
-      await crm.enviarMensagem(alvo, String(a.texto ?? ""));
-      return "enviarMensagem";
+      // Não é oferecida ao cérebro (FERRAMENTAS_CRM), e se vier mesmo assim —
+      // por alucinação ou injeção — não executa: destino livre é o vetor.
+      throw new Error("enviarMensagem não é uma ferramenta do cérebro");
     case "handoff":
       await crm.handoff(alvo);
       return "handoff";
@@ -137,16 +170,24 @@ export const atendimentoMotor: MotorEngine = {
     const did: string[] = [];
 
     // O cérebro pediu ferramentas → executa cada uma via CRM.
+    const falhas: string[] = [];
+
     if (turn.toolCalls && turn.toolCalls.length > 0) {
       if (!ports.crm) {
         return { ok: false, did: [], error: "cérebro pediu tools, mas crm indisponível" };
       }
+      // Oportunidades que ESTE contato pode mexer: a que veio no evento, mais
+      // as criadas nesta execução.
+      const oppsPermitidos = new Set<string>();
+      if (typeof event.meta?.oppId === "string") oppsPermitidos.add(event.meta.oppId);
+
       for (const tc of turn.toolCalls) {
         try {
-          did.push(await executarTool(ports.crm, tc, contactId));
+          did.push(await executarTool(ports.crm, tc, contactId, oppsPermitidos));
         } catch (e) {
           const erro = (e as Error).message;
           did.push(`falhou ${tc.tool}: ${erro}`);
+          falhas.push(`${tc.tool}: ${erro}`);
           ports.log({
             orgId, agentId, motor: "atendimento", ok: false,
             resumo: `tool ${tc.tool} falhou`, erro, at: agora.toISOString(), meta: { contactId },
@@ -180,11 +221,16 @@ export const atendimentoMotor: MotorEngine = {
       did.push("cérebro sem texto e sem tools — nada a fazer");
     }
 
+    // Tool que falhou não vira execução bem-sucedida (achado A5 da auditoria):
+    // antes, o painel mostrava sucesso com o CRM intocado.
+    const ok = falhas.length === 0;
     ports.log({
-      orgId, agentId, motor: "atendimento", ok: true,
-      resumo: `atendeu inbound de ${contactId}`, did,
+      orgId, agentId, motor: "atendimento", ok,
+      resumo: ok ? `atendeu inbound de ${contactId}` : `atendeu com ${falhas.length} falha(s) de ferramenta`,
+      did,
+      erro: ok ? undefined : falhas.join(" · "),
       at: agora.toISOString(), meta: { contactId, tools: turn.toolCalls?.length ?? 0 },
     });
-    return { ok: true, did };
+    return ok ? { ok: true, did } : { ok: false, did, error: falhas.join(" · ") };
   },
 };

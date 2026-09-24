@@ -1,5 +1,9 @@
-// Cliente da Control API (a porta única). Usa a sessão Clerk quando houver;
-// senão, um token de dev (VITE_MOTOR_TOKEN + VITE_ORG_ID) pra testar antes do Clerk.
+// Cliente da Control API (a porta única). Autentica SÓ pela sessão da pessoa.
+//
+// Não existe atalho por token de máquina aqui, de propósito (S-003): token de
+// máquina é segredo de servidor e, num app Vite, qualquer variável `VITE_*` é
+// embutida no JavaScript público. Sem sessão, a API responde 401 — e é isso
+// mesmo que deve acontecer.
 type GetToken = (() => Promise<string | null>) | undefined;
 
 async function authHeaders(getToken: GetToken): Promise<Record<string, string>> {
@@ -7,9 +11,6 @@ async function authHeaders(getToken: GetToken): Promise<Record<string, string>> 
     const t = await getToken();
     if (t) return { authorization: `Bearer ${t}` };
   }
-  const dev = import.meta.env.VITE_MOTOR_TOKEN as string | undefined;
-  const org = import.meta.env.VITE_ORG_ID as string | undefined;
-  if (dev && org) return { "x-motor-token": dev, "x-org-id": org, "x-actor": "web" };
   return {};
 }
 
