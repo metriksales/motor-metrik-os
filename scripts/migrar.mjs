@@ -8,6 +8,7 @@
 // `drizzle-kit migrate` é idempotente: ele guarda no banco o que já aplicou.
 // Sem DATABASE_URL (preview de branch, máquina de alguém), não faz nada.
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,10 +43,9 @@ console.log("migrar: aplicando migrações pendentes…");
 // CAPTURAR A SAÍDA, EM VEZ DE HERDAR.
 //
 // O `drizzle-kit` desenha um spinner que LIMPA A LINHA a cada quadro (ESC[2K
-// ESC[1G). O log da Vercel guarda só o último estado dessa linha — então a
-// mensagem de erro do Postgres era apagada pelo próprio spinner, e o deploy
-// falhava dizendo apenas "exited with 1". Dois deploys quebraram assim antes
-// de alguém perceber que o problema era não conseguir LER o problema.
+// ESC[1G). O log da Vercel guarda só o último estado dessa linha — então uma
+// mensagem de erro seria apagada pelo próprio spinner, e o deploy falharia
+// dizendo apenas "exited with 1".
 const r = spawnSync("npm", ["run", "db:migrate", "--workspace", "@motor/db"], {
   cwd: raiz,
   shell: process.platform === "win32",
@@ -65,18 +65,92 @@ function semEnfeite(texto) {
     .join("\n");
 }
 
+/**
+ * POR QUE ISTO EXISTE. O `drizzle-kit migrate` saiu com código 1 sem imprimir
+ * nada — três quadros de spinner e silêncio, em dois deploys seguidos. Ficar
+ * sem saber qual comando quebrou, num passo que derruba o deploy de propósito,
+ * é pior que a falha em si.
+ *
+ * Então, quando ele falha, nós mesmos perguntamos ao banco: executamos os
+ * comandos da migração pendente um a um dentro de uma transação que SEMPRE é
+ * desfeita. Nada é aplicado aqui — só descobrimos onde dói.
+ */
+async function explicar(conexao) {
+  console.error("");
+  console.error("── perguntando direto ao banco ─────────────────────────");
+  let cliente;
+  try {
+    const pg = (await import("pg")).default;
+    cliente = new pg.Client({ connectionString: conexao });
+    await cliente.connect();
+
+    const diario = JSON.parse(
+      readFileSync(resolve(raiz, "packages/db/drizzle/meta/_journal.json"), "utf8"),
+    );
+    const jaAplicadas = await cliente
+      .query("select count(*)::int as n from drizzle.__drizzle_migrations")
+      .then((x) => x.rows[0].n)
+      .catch(() => 0);
+
+    console.error(`aplicadas: ${jaAplicadas} de ${diario.entries.length}`);
+    const pendentes = diario.entries.slice(jaAplicadas);
+    if (pendentes.length === 0) {
+      console.error("nenhuma pendente — o problema não está no SQL das migrações.");
+      return;
+    }
+    console.error(`pendentes: ${pendentes.map((e) => e.tag).join(", ")}`);
+
+    const alvo = pendentes[0];
+    const sql = readFileSync(resolve(raiz, `packages/db/drizzle/${alvo.tag}.sql`), "utf8");
+    const comandos = sql
+      .split("--> statement-breakpoint")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    console.error(`ensaiando ${alvo.tag} — ${comandos.length} comandos, tudo será desfeito…`);
+
+    await cliente.query("BEGIN");
+    for (let i = 0; i < comandos.length; i++) {
+      try {
+        await cliente.query(comandos[i]);
+      } catch (e) {
+        const semComentario = comandos[i]
+          .split(/\r?\n/)
+          .filter((l) => !l.trim().startsWith("--"))
+          .join("\n")
+          .trim();
+        console.error("");
+        console.error(`>>> QUEBROU no comando ${i + 1} de ${comandos.length}:`);
+        console.error(semComentario.slice(0, 600));
+        console.error("");
+        console.error(`>>> o Postgres respondeu: ${e.message}`);
+        if (e.code) console.error(`>>> código: ${e.code}`);
+        if (e.hint) console.error(`>>> dica: ${e.hint}`);
+        break;
+      }
+    }
+    await cliente.query("ROLLBACK");
+  } catch (e) {
+    console.error(`não consegui perguntar ao banco: ${e.message}`);
+  } finally {
+    if (cliente) await cliente.end().catch(() => {});
+  }
+  console.error("────────────────────────────────────────────────────────");
+}
+
 if (r.status !== 0) {
   console.error("migrar: FALHOU — o deploy para aqui de propósito.");
   console.error("Publicar código novo sobre schema velho é como o login foi ao ar sem tabela.");
   console.error("");
-  console.error("── o que o banco respondeu ─────────────────────────────");
+  console.error("── o que o drizzle-kit disse ───────────────────────────");
   const saida = semEnfeite(r.stdout);
   const erro = semEnfeite(r.stderr);
   if (saida) console.error(saida);
   if (erro) console.error(erro);
-  if (!saida && !erro) console.error("(nada — nem o drizzle-kit explicou)");
+  if (!saida && !erro) console.error("(nada)");
   if (r.error) console.error(`falha ao executar: ${r.error.message}`);
   console.error("────────────────────────────────────────────────────────");
+
+  await explicar(url);
   process.exit(1);
 }
 
