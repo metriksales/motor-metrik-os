@@ -38,6 +38,20 @@ git rebase --exec "git commit --amend --no-edit --reset-author" <commit-antes-do
 git push --force-with-lease
 ```
 
+### Mescle o PR LOCALMENTE, não com `gh pr merge`
+
+O `gh pr merge` assina o **commit de merge** com a conta do token — e se essa conta não tiver assento na Vercel, **o deploy de produção fica `BLOCKED`** enquanto os previews de branch continuam passando. O site fica no build antigo e é fácil não perceber.
+
+```bash
+git checkout main && git pull
+git merge --no-ff <sua-branch>
+git push
+```
+
+Assim o merge herda a identidade configurada acima. (Aconteceu em 24/09: os três primeiros PRs ficaram com produção bloqueada por isso.)
+
+> **A Vercel pula commit que não toca o projeto.** Se você tentar destravar um deploy com um commit vazio, ele é ignorado ("skipping unaffected projects"). Para forçar, a mudança precisa tocar algum arquivo de `apps/web`.
+
 ## A stack
 
 Neon (Postgres) · Vercel · GitHub · autenticação própria · Resend para e-mail. **Não há Upstash nem QStash**: estado, filas, travas e idempotência ficam no Postgres, e o agendamento é o cron da Vercel. O porquê e os gatilhos para rever isso estão no `PRODUTO.md` §11.
