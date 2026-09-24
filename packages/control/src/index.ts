@@ -1617,3 +1617,28 @@ export async function usarCredencial(
 
   return { segredo, renovacao, meta: linha.meta, expiraEm: linha.expiraEm };
 }
+
+/**
+ * A trilha de auditoria da conta.
+ *
+ * Existia gente escrevendo em `audit_log` desde o começo e NINGUÉM lendo: a
+ * trilha era só de escrita, o que equivale a não ter trilha. É ela que
+ * responde "quem mexeu nisso, e quando foi usado o token deste cliente".
+ *
+ * Exige `ajustar`: saber quem fez o quê é mais do que um leitor precisa.
+ */
+export async function listarAuditoria(
+  ctx: Ctx,
+  opts: { limite?: number; acao?: string } = {},
+) {
+  exigirPermissao(ctx, "ajustar");
+  const limite = Math.min(Math.max(opts.limite ?? 100, 1), 500);
+  const filtros = [eq(auditLog.orgId, ctx.orgId)];
+  if (opts.acao) filtros.push(eq(auditLog.action, opts.acao));
+  return db
+    .select()
+    .from(auditLog)
+    .where(and(...filtros))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limite);
+}

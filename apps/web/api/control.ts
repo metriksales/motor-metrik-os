@@ -42,6 +42,7 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   // segredo: ele sai em um único lugar, `usarCredencial`, que é interno e não
   // está no despacho. Um token de máquina comprometido não extrai credencial
   // de cliente — ele nem tem por onde pedir.
+  auditoria: "leitura",
   credenciais: "admin",
   guardarCredencial: "admin",
   revogarCredencial: "admin",
@@ -164,6 +165,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await control.listConnections(ctx);
       case "upsertConnection":
         return await control.upsertConnection(ctx, body);
+      case "auditoria":
+        return await control.listarAuditoria(ctx, {
+          limite: lerLimite(req.query.limite),
+          acao: req.query.acao ? String(req.query.acao) : undefined,
+        });
       case "credenciais":
         return await control.listarCredenciais(ctx);
       case "guardarCredencial":

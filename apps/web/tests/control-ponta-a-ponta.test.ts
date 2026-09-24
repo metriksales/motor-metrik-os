@@ -242,9 +242,9 @@ describe.skipIf(!temBanco)("cofre pela porta única (S-025)", () => {
     const usado = await control.comConta(orgId, () => control.usarCredencial(ctx, { kind: "ghl" }));
     expect(usado.segredo).toBe(SEGREDO);
 
-    const trilha = await control.comConta(orgId, () =>
-      bd.db.select().from(bd.auditLog).where(drizzleSql`org_id = ${orgId}::uuid`),
-    );
+    // pelo MESMO módulo que escreveu: o bundle tem a própria cópia de
+    // @motor/db, e misturar os dois já me custou uma rodada de CI
+    const trilha = await control.comConta(orgId, () => control.listarAuditoria(ctx));
     const acoes = trilha.map((l: { action: string }) => l.action);
     expect(acoes).toContain("credencial.guardada");
     expect(acoes).toContain("credencial.usada");
