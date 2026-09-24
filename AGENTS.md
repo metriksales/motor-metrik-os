@@ -81,10 +81,44 @@ TEST_DATABASE_URL=postgres://... npm test
 
 Na CI eles sempre rodam, contra um serviço `postgres:16` com as migrações aplicadas antes. **Se você mexeu em qualquer coisa de isolamento ou permissão, confira o resultado da CI — não só o daqui.**
 
+## A CI, em linguagem simples
+
+**CI** quer dizer *integração contínua*: um computador do GitHub que, a cada push e a cada PR, baixa o repositório e roda as mesmas verificações que você roda na sua máquina. Se qualquer uma falhar, o PR fica marcado em vermelho.
+
+A nossa vive em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) e faz, nesta ordem:
+
+1. instala as dependências;
+2. **typecheck** nos 12 alvos;
+3. **lint**;
+4. **migra um Postgres descartável** que sobe junto com a execução;
+5. **testes** — e é aqui que rodam os 8 de isolamento entre contas, que na sua máquina ficam pulados;
+6. **build** do front e das funções.
+
+A checagem aparece no PR com o nome **`verificar`**. Ela leva cerca de 1 minuto e meio.
+
+> **Por que não dá para confiar só no `npm run ci` local:** os testes que precisam de banco são pulados aqui. Quem garante que uma conta não alcança a outra é a CI.
+
+### Por que o `main` ainda não é protegido por regra
+
+O certo seria o GitHub **recusar** merge sem a CI verde. Isso é "proteção de branch", e no GitHub é **recurso pago para repositório privado** — a organização está no plano gratuito, e tanto a proteção clássica quanto os *rulesets* respondem `403 Upgrade to GitHub Pro`.
+
+Enquanto isso não muda, valem duas barreiras mais fracas:
+
+- **Disciplina:** branch, PR, CI verde, merge. Está escrito aqui e é o combinado.
+- **Hook de `pre-push`**, versionado no repositório. Ative uma vez por clone:
+
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+
+  A partir daí, `git push` roda `npm run ci` antes de enviar e cancela o push se falhar. Para pular num caso específico: `PULAR_CI=1 git push` ou `git push --no-verify`.
+
+  É uma rede, não uma trava: mora na sua máquina e dá para pular. A trava de verdade só existe com plano pago.
+
 ## O fluxo de trabalho
 
 1. **Leia o `STORIES.md`** e trabalhe dentro de uma story. Se o que você vai fazer não está lá, crie a story antes (o formato está na própria estrutura do arquivo).
-2. Trabalhe numa branch, nunca direto no `main` — o `main` é protegido e exige a CI verde.
+2. Trabalhe numa branch, **nunca direto no `main`** — e ative o hook: `git config core.hooksPath .githooks`.
 3. `npm run ci` antes de commitar.
 4. Abra PR. A CI roda sozinha; a Vercel publica um preview.
 5. **Atualize a story na mesma entrega:** marque o checklist, mude o status e escreva em "Notas" **como você verificou** — o que foi exercitado, não que "está funcionando".

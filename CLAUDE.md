@@ -11,5 +11,5 @@ O essencial, para não errar o básico:
    ```
 2. **`npm run ci` antes de commitar** — typecheck, lint e testes, o mesmo que a CI roda.
 3. **Comece pelo [`STORIES.md`](STORIES.md)**: trabalhe dentro de uma story e atualize-a na mesma entrega, escrevendo **como verificou**.
-4. **Nunca no `main` direto**: branch, PR, CI verde.
+4. **Nunca no `main` direto**: branch, PR, CI verde (`git config core.hooksPath .githooks` roda a esteira antes do push).
 5. **Dois agentes, nomes fixos:** *agente construtor* (monta e mantém) × *agente de operação* (atende leads no CRM).
