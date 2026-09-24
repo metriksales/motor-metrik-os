@@ -66,10 +66,29 @@ class EmailResend implements EmailPort {
   }
 }
 
+/**
+ * Remetente de teste do Resend. Funciona SEM domínio verificado, mas só entrega
+ * para o e-mail dono da conta do Resend — serve para destravar o primeiro
+ * acesso, não para atender cliente.
+ */
+const REMETENTE_DE_TESTE = "Metrik-OS <onboarding@resend.dev>";
+
 export function criarEmail(env: NodeJS.ProcessEnv = process.env): EmailPort {
   const chave = env.RESEND_API_KEY;
-  const remetente = env.EMAIL_FROM ?? "Metrik-OS <nao-responda@metrik.local>";
-  return chave ? new EmailResend(chave, remetente) : new EmailSeco();
+  if (!chave) return new EmailSeco();
+
+  const remetente = env.EMAIL_FROM;
+  if (!remetente) {
+    // Sem EMAIL_FROM, um domínio inventado faz o Resend responder 403 e
+    // ninguém consegue entrar. O remetente de teste ao menos deixa o dono da
+    // conta acessar enquanto o domínio não é verificado.
+    console.warn(
+      "[email] EMAIL_FROM não configurada — usando o remetente de teste do Resend. " +
+        "Ele só entrega para o e-mail dono da conta do Resend; verifique o domínio e configure EMAIL_FROM.",
+    );
+    return new EmailResend(chave, REMETENTE_DE_TESTE);
+  }
+  return new EmailResend(chave, remetente);
 }
 
 /** O texto do código de entrada. Curto: é lido no meio de outra coisa. */
