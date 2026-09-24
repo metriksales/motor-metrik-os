@@ -16,7 +16,8 @@
     "build:web": "npm run build --workspace @motor/web",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "eslint .",
-    "test": "vitest run",
+    "bundle": "npm run bundle --workspace @motor/web",
+    "test": "npm run bundle && vitest run",
     "test:watch": "vitest",
     "ci": "npm run typecheck && npm run lint && npm test"
   },
