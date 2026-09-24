@@ -39,8 +39,16 @@ export interface StatsReais {
 const POLL_MS = 20_000;
 const CLOCK_MS = 60_000;
 
-export function useLive(): { logs: LogReal[] | null; stats: StatsReais | null; carregando: boolean } {
+export function useLive(): {
+  logs: LogReal[] | null;
+  stats: StatsReais | null;
+  carregando: boolean;
+  /** S-007: a falha precisa CHEGAR NA TELA — antes ficava só no console, e a
+   *  tela caía nos números de demonstração como se fossem da conta. */
+  erro?: string;
+} {
   const auth = useMotorAuth();
+  const [erro, setErro] = useState<string | undefined>(undefined);
   const [logs, setLogs] = useState<LogReal[] | null>(null);
   const [stats, setStats] = useState<StatsReais | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -57,6 +65,7 @@ export function useLive(): { logs: LogReal[] | null; stats: StatsReais | null; c
           api.stats(auth.getToken) as Promise<StatsReais>,
         ]);
         if (!vivoRef.current) return;
+        setErro(undefined);
         if (auth.demo) {
           // demo: só troca a maquete quando existe dado real de verdade
           if (Array.isArray(l) && l.length > 0) setLogs(l);
@@ -69,7 +78,10 @@ export function useLive(): { logs: LogReal[] | null; stats: StatsReais | null; c
       } catch (e) {
         // demo: segue na maquete (com selo). Logado: deixa rastro pro diagnóstico
         // (o banner de erro global vem do AgentsProvider).
-        if (!auth.demo) console.error("[live] control API falhou:", e);
+        if (!auth.demo) {
+          console.error("[live] control API falhou:", e);
+          if (vivoRef.current) setErro(e instanceof Error ? e.message : "falha ao ler os dados");
+        }
       } finally {
         if (vivoRef.current) setCarregando(false);
       }
@@ -93,7 +105,7 @@ export function useLive(): { logs: LogReal[] | null; stats: StatsReais | null; c
     };
   }, [auth.getToken, auth.demo]);
 
-  return { logs, stats, carregando };
+  return { logs, stats, carregando, erro };
 }
 
 export interface Pendencia {

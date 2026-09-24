@@ -37,6 +37,8 @@ export default function App() {
   const [agentSub, setAgentSub] = useState<SubId | undefined>(undefined);
   const auth = useMotorAuth();
   const { agents, byId, erro, loading: agentsLoading } = useAgents();
+  // "no ar" de verdade: conta a frota, não um selo fixo (S-007)
+  const noAr = agents.filter((a) => a.state === "ativo").length;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -59,13 +61,21 @@ export default function App() {
 
   // celular: as 3 telas que o cliente usa toda hora ficam na barra de baixo;
   // o resto (Módulos/Conexões/Admin) entra no "Mais". Sempre há como voltar.
-  const NAV_MOBILE = NAV.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
-  const NAV_MAIS = NAV.filter((n) => !["inicio", "agentes", "aovivo"].includes(n.id));
-  const NAV_OPERAR = NAV.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
-  const NAV_CONSTRUIR = NAV.filter((n) => ["modulos", "conexoes"].includes(n.id));
-  const NAV_GESTAO = NAV.filter((n) => n.id === "admin");
+  // Módulos e Conexões ainda são MAQUETE (nada ali consulta a conta). Ficam
+  // fora da navegação de quem está logado até S-019 e S-030 trazerem dado real
+  // — telas que afirmam "ligado · no ar e funcionando" sem ter consultado nada
+  // são a pior mentira do painel (S-007).
+  const MAQUETE: ViewId[] = ["modulos", "conexoes"];
+  const navVisivel = NAV.filter((n) => auth.demo || !MAQUETE.includes(n.id));
 
-  const nav = NAV.find((n) => n.id === view)!;
+  const NAV_MOBILE = navVisivel.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
+  const NAV_MAIS = navVisivel.filter((n) => !["inicio", "agentes", "aovivo"].includes(n.id));
+  const NAV_OPERAR = navVisivel.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
+  const NAV_CONSTRUIR = navVisivel.filter((n) => ["modulos", "conexoes"].includes(n.id));
+  const NAV_GESTAO = navVisivel.filter((n) => n.id === "admin");
+
+  // se a pessoa estava numa tela de maquete e saiu do demo, volta pro Início
+  const nav = navVisivel.find((n) => n.id === view) ?? navVisivel[0];
   const agent = agentId ? byId(agentId) : null;
   // Dentro de um agente, a navegação global vira um rail silencioso. O Estúdio
   // é a tarefa principal e não deve disputar largura com o menu completo.
@@ -277,7 +287,10 @@ export default function App() {
                 <Search size={14} /> Buscar
                 <span className="font-mono text-[10px] ml-1 px-1.5 py-0.5 rounded border border-[var(--line)] bg-[var(--surface-2)]">⌘K</span>
               </button>
-              <span className="pill hidden lg:inline-flex"><span className="live-dot" style={{ width: 7, height: 7 }} /> No ar</span>
+              {/* "No ar" era fixo: mostrava verde até com a frota parada (S-007) */}
+              {noAr > 0 && (
+                <span className="pill hidden lg:inline-flex"><span className="live-dot" style={{ width: 7, height: 7 }} /> {noAr} no ar</span>
+              )}
             </div>
             <button className="btn btn-primary btn-sm !px-2.5 sm:!px-3.5" onClick={() => go("agentes")}>
               <Wand2 size={14} /> <span className="hidden sm:inline">Pedir melhoria</span>

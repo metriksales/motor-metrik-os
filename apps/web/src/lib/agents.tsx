@@ -32,22 +32,35 @@ function mapReal(row: DbAgent, i: number): Agent {
     | undefined;
 
   if (tpl) {
-    // herda do template SÓ o visual e a estrutura (cor, mapa, features, escudo).
-    // Telemetria mock NUNCA veste agente real: "respondendo a Marina" congelada
-    // há 30 dias é a mentira mais visível pra quem volta todo dia — as telas
-    // derivam o "agora" e as métricas do Flight Recorder.
+    // Herda do template SÓ A APARÊNCIA: ícone, cor, papel e escudo.
+    //
+    // Nada que seja DADO vem junto (S-007): `work` trazia reuniões e follow-ups
+    // de gente que não existe ("Marina Alves, hoje 16:00"), `mapa`, `fluxo`,
+    // `upgrades` e `features` traziam configuração que a conta nunca ligou.
+    // Antes bastava o agente real se chamar "Atendente" para vestir tudo isso.
     return {
-      ...tpl,
       id: row.id,
       name: row.name,
+      glyph: tpl.glyph,
+      color: tpl.color,
+      papel: tpl.papel,
+      shield: tpl.shield,
       tipo,
-      state: state ?? tpl.state,
+      state: state ?? "idle",
       real: true,
       version: row.currentSpecVersion ?? 0,
       agora: "de plantão — aguardando o próximo lead",
       live: [],
       insights: [],
       metrics: { execucoes: 0, acertos: 0, erros: 0, custo: "R$ 0,00" },
+      simCenario: "",
+      sim: [],
+      integracoes: tpl.integracoes,
+      work: undefined,
+      mapa: undefined,
+      fluxo: [],
+      upgrades: [],
+      features: [],
     };
   }
   return {
@@ -83,7 +96,11 @@ const Ctx = createContext<AgentsData>({
 
 export function AgentsProvider({ children }: { children: ReactNode }) {
   const auth = useMotorAuth();
-  const [agents, setAgents] = useState<Agent[]>(AGENTS);
+  // Numa conta real a lista começa VAZIA (S-007): antes ela começava com os 9
+  // agentes de demonstração, então o cliente via uma frota fictícia até a API
+  // responder — e o skeleton de carregamento nunca aparecia, porque a lista
+  // "já tinha" itens.
+  const [agents, setAgents] = useState<Agent[]>(() => (auth.demo ? AGENTS : []));
   const [source, setSource] = useState<Source>("demo");
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | undefined>(undefined);

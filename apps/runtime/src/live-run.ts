@@ -10,6 +10,18 @@ import { makeSender, makeTransport } from "@motor/messaging";
 import { biaSDR } from "@motor/samples";
 import type { CrmPort, LlmTurn, MotorPorts, RuntimeEvent, RuntimeLog } from "@motor/core";
 
+// TRAVA (S-007): este script grava execuções SINTÉTICAS no Flight Recorder.
+// Rodado contra o banco de produção, ele inventa atendimento e dinheiro na
+// conta de um cliente. Só roda com a confirmação explícita:
+//   PERMITIR_DADO_SINTETICO=1 DATABASE_URL='...' npx tsx apps/runtime/src/live-run.ts
+if (process.env.PERMITIR_DADO_SINTETICO !== "1") {
+  console.error(
+    "live-run gera execuções sintéticas e não deve tocar banco de cliente.\n" +
+      "Rode com PERMITIR_DADO_SINTETICO=1 e um DATABASE_URL de desenvolvimento.",
+  );
+  process.exit(1);
+}
+
 const ORG = "9cece617-ccf0-4cdf-b187-2323afe8f90d"; // Vega Consultoria (seed)
 const ATENDENTE = "3cc1d9f9-e166-4ba7-856b-096001a5b651"; // agente real no banco
 
