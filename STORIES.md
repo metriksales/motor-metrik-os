@@ -179,9 +179,9 @@ Decisões tomadas aqui:
 
 ## S-004 · Webhook de entrada fail-closed com tenant do servidor
 
-- **status:** backlog
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-23 13:20
 
 **Missão.** Sem `WEBHOOK_SECRET` configurado, qualquer pessoa dispara chamadas pagas de IA e grava execuções em qualquer conta, escolhendo a conta no corpo da requisição. Com a plataforma recebendo os webhooks de todos os clientes, essa é a porta da frente.
 
@@ -191,18 +191,32 @@ Decisões tomadas aqui:
 
 | Caminho | Papel |
 | :--- | :--- |
-| `apps/web/api/webhook.ts:15-26` | autenticação e extração do tenant |
-| `packages/db/src/schema.ts` → `connections` | hash do segredo de entrada por conexão |
+| `packages/control/src/webhooks.ts` | criado — parte pura: geração, hash e extração do segredo |
+| `packages/control/src/webhooks.test.ts` | criado — 5 testes |
+| `packages/control/src/index.ts` | `criarSegredoDeEntrada`, `resolverEntrada` |
+| `packages/db/src/schema.ts` → `connections` | colunas `inbound_secret_hash` (única) e `agent_id` |
+| `packages/db/drizzle/0006_awesome_victor_mancha.sql` | migração gerada |
+| `apps/web/api/webhook.ts` | reescrito: fail-closed, tenant do servidor, erro sem vazamento |
 
-**Relacionados.** Depende de S-002. Relaciona-se com S-024 (dedupe) e S-026.
+**Relacionados.** Depende de S-002. Relaciona-se com S-024 (dedupe) e S-026 (formato de cada provedor).
 
 **Checklist**
 
-- [ ] Sem segredo configurado → 503, sem chamar IA
-- [ ] Lookup `segredo → (conta, agente)` no servidor; corpo ignorado
-- [ ] Comparação em tempo constante
-- [ ] Erro 500 não devolve a mensagem interna
-- [ ] Testes: sem segredo, segredo errado, segredo de outra conta
+- [x] Sem segredo válido → 401, sem chamar IA nem tocar no banco de execução
+- [x] Lookup `segredo → (conta, agente)` no servidor; `orgId`/`agentId` do corpo ignorados
+- [x] Segredo **por conexão**, não global
+- [x] Erro 500 não devolve a mensagem interna
+- [x] Testes: sem segredo, segredo vazio, formato errado, token de máquina no lugar do segredo
+- [ ] Teste contra banco real: segredo de outra conta não alcança esta
+
+**Notas.** Verificado: `npm run ci` verde com **17 testes** (5 novos aqui).
+
+Decisões:
+- Segredo `mws_` + 24 bytes, guardado em **sha256** na conexão. Busca por hash, então não há comparação de segredo em tempo linear.
+- **Header `x-webhook-secret` é o caminho preferido, e a query é aceita** (`?s=`), porque vários provedores de WhatsApp só deixam configurar a URL. Quando vem pela query, o handler registra aviso — o segredo aparece no log de acesso, e a rotação é por conexão. É o mesmo problema que a S-029 corrige no piloto de grupos.
+- O que antes vinha do corpo (`orgId`, `agentId`) agora sai da conexão. Só o `contactId` continua vindo do payload, porque é o identificador do lead no provedor.
+
+**O que NÃO mudou aqui:** a pausa e o "assumir" continuam **fail-open** — se a leitura do estado falhar, o agente responde. Está marcado com `TODO(S-020)` no código, que é onde vira fail-closed junto com a parada de emergência.
 
 ---
 

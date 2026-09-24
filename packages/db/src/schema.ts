@@ -146,9 +146,16 @@ export const connections = pgTable(
     status: text("status").notNull().default("disconnected"),
     vaultRef: text("vault_ref"),
     meta: jsonb("meta"),
+    /** agente que atende o que entra por esta conexão (S-004) */
+    agentId: uuid("agent_id"),
+    /** sha256 do segredo de entrada desta conexão; o valor em claro só aparece na criação */
+    inboundSecretHash: text("inbound_secret_hash"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("connections_org").on(t.orgId)]
+  (t) => [
+    index("connections_org").on(t.orgId),
+    uniqueIndex("connections_inbound_secret_unique").on(t.inboundSecretHash),
+  ]
 );
 
 /** release imutável: amarra spec + runtime + evals */

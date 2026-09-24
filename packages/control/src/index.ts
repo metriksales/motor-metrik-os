@@ -16,7 +16,52 @@ import {
   papelDoToken,
 } from "./tokens.js";
 
+import { ehSegredoEntrada, hashSegredo, novoSegredoEntrada } from "./webhooks.js";
+
 export * from "./tokens.js";
+export * from "./webhooks.js";
+
+// ═══ ENTRADA DE MENSAGEM (S-004) — conta e agente saem do segredo ═══
+
+/** Quem atende o que entrar por esta conexão. Devolve o segredo UMA vez. */
+export async function criarSegredoDeEntrada(
+  ctx: Ctx,
+  input: { connectionId: string; agentId: string },
+): Promise<{ segredo: string }> {
+  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("sem permissão pra configurar entrada");
+  const [agente] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, input.agentId), eq(agents.orgId, ctx.orgId)));
+  if (!agente) throw new Error("agente não encontrado nesta conta");
+
+  const { segredo, hash } = novoSegredoEntrada();
+  const [row] = await db
+    .update(connections)
+    .set({ inboundSecretHash: hash, agentId: input.agentId })
+    .where(and(eq(connections.id, input.connectionId), eq(connections.orgId, ctx.orgId)))
+    .returning();
+  if (!row) throw new Error("conexão não encontrada nesta conta");
+
+  await audit(ctx, "connection.inbound_secret", row.id, { agentId: input.agentId });
+  return { segredo };
+}
+
+/**
+ * Resolve o segredo de entrada em (conta, agente, conexão). É daqui que o
+ * webhook tira o tenant — nunca do corpo da requisição.
+ */
+export async function resolverEntrada(
+  segredo: string,
+): Promise<{ orgId: string; agentId: string; connectionId: string; kind: string } | null> {
+  if (!ehSegredoEntrada(segredo)) return null;
+  const [row] = await db
+    .select()
+    .from(connections)
+    .where(eq(connections.inboundSecretHash, hashSegredo(segredo)));
+  if (!row || !row.agentId) return null;
+  return { orgId: row.orgId, agentId: row.agentId, connectionId: row.id, kind: row.kind };
+}
 
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
 export { getDatabaseUrl } from "@motor/db";
