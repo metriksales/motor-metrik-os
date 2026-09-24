@@ -981,8 +981,26 @@ export function listAssumidos(ctx: Ctx, agentId?: string) {
 }
 
 /** usuários/membros do tenant (Admin) — quem tem login nesta organização. */
+/**
+ * Quem acessa esta conta. O vínculo guarda `user_id` como TEXTO, e nem todo
+ * texto ali é uma pessoa: as linhas da época do Clerk apontam para
+ * identidades que não existem mais (`user_2abc…`) e não abrem nada. Por isso
+ * o join com `users` e o campo `viva` — sem ele a tela mostra id cru e a
+ * pessoa não se reconhece na própria lista.
+ */
 export function listMembers(ctx: Ctx) {
-  return db.select().from(memberships).where(eq(memberships.orgId, ctx.orgId)).orderBy(desc(memberships.createdAt));
+  return db
+    .select({
+      userId: memberships.userId,
+      role: memberships.role,
+      createdAt: memberships.createdAt,
+      email: users.email,
+      nome: users.name,
+    })
+    .from(memberships)
+    .leftJoin(users, eq(sql<string>`${users.id}::text`, memberships.userId))
+    .where(eq(memberships.orgId, ctx.orgId))
+    .orderBy(desc(memberships.createdAt));
 }
 
 // ═══ FLIGHT RECORDER — a caixa-preta REAL (o que separa produto de demo) ═══
