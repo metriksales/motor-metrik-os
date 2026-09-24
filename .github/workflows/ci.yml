@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'docs/**']
   pull_request:
+  workflow_dispatch:
 
 # Uma rodada por branch: push novo cancela a anterior.
 concurrency:
