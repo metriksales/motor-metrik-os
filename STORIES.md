@@ -91,9 +91,9 @@ Atualizado em 2026-09-23 14:05.
 
 ## S-002 · Esteira de qualidade: CI, lint e testes
 
-- **status:** backlog
+- **status:** em-andamento
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-23 13:05
 
 **Missão.** Nada impede um commit quebrado de ir ao ar: o build de deploy não tipa os pacotes, não há lint e só existe um teste. Toda correção das fases seguintes precisa de uma esteira que prove que funciona e continua funcionando.
 
@@ -103,22 +103,30 @@ Atualizado em 2026-09-23 14:05.
 
 | Caminho | Papel |
 | :--- | :--- |
-| `.github/workflows/ci.yml` | planejado — pipeline |
-| `package.json` (raiz) | scripts `typecheck`, `lint`, `test` para todos os workspaces |
-| `eslint.config.js` | planejado — com `react-hooks` |
-| `apps/web/tsconfig.json` | incluir `api/` e `vite.config.ts` |
+| `.github/workflows/ci.yml` | pipeline: typecheck, lint, testes e build |
+| `package.json` (raiz) | scripts `typecheck`, `lint`, `test`, `ci`; `engines: node >=22` |
+| `scripts/typecheck.mjs` | roda `tsc --noEmit` nos 12 alvos e só falha no fim |
+| `eslint.config.js` | flat config com typescript-eslint + react-hooks |
+| `vitest.config.ts` | runner único do monorepo |
+| `packages/core/tsconfig.json` | criado — o pacote não tinha |
+| `apps/web/tsconfig.node.json` | criado — cobre `vite.config.ts`, `server/`, `tests/`, `scripts/` |
 
 **Relacionados.** Destrava a verificação de todas as outras stories.
 
 **Checklist**
 
-- [ ] `npm run typecheck` na raiz cobre todos os workspaces e passa
-- [ ] `apps/web/api/*.ts` e `vite.config.ts` entram no typecheck
-- [ ] ESLint com `react-hooks/exhaustive-deps`; os 8 `eslint-disable` revisados
-- [ ] Runner único; o teste do group-reader roda nele
+- [x] `npm run typecheck` na raiz cobre todos os workspaces e passa
+- [x] `apps/web/api/*.ts` e `vite.config.ts` entram no typecheck
+- [x] ESLint com `react-hooks/exhaustive-deps` ligado (como aviso)
+- [x] Runner único (Vitest); o teste do group-reader roda nele
+- [x] JID real trocado por fictício no teste
 - [ ] CI verde num PR de teste e obrigatória no `main`
 
-**Notas.** Trocar o JID real do teste por um fictício.
+**Notas.** Verificado nesta máquina com Node v24.19.0: `npm run ci` sai com código 0 — typecheck em **12 alvos** (8 pacotes, runtime, front, `api/` e o alvo `tsconfig.node.json`), lint com **0 erros e 95 avisos**, **5 testes** passando, e `npm run build:web` gerando os bundles das funções e o `dist`.
+
+Os 95 avisos são a dívida que a auditoria mapeou (≈50 `any`, variáveis sem uso, deps de efeito). Ficam como **aviso** de propósito, para a CI poder passar hoje; viram **erro** quando as S-013 e S-014 limparem. Os 8 `eslint-disable` de `exhaustive-deps` continuam no lugar pelo mesmo motivo — revisá-los é trabalho da S-014.
+
+Falta só o último item: a CI precisa rodar uma vez num PR para o GitHub conhecer o nome da checagem, e só então dá para exigi-la no `main`.
 
 ---
 
