@@ -226,7 +226,7 @@ describe.skipIf(!temBanco)("convite", () => {
     ).rejects.toThrow(/inválido ou expirado/);
   });
 
-  test("convite de outro e-mail não é aceito por quem não é o dono dele", async () => {
+  test("convite de outro e-mail não é sequer visível para quem não é o dono", async () => {
     const emailDona = `dona2-${Date.now()}@metrik.test`;
     const caixaDona = caixaDeEntrada();
     await fundar(emailDona);
@@ -255,7 +255,11 @@ describe.skipIf(!temBanco)("convite", () => {
       control.comPessoa(ctxIntrusa.userId, () =>
         control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
       ),
-    ).rejects.toThrow(/de outro e-mail/);
+      // Com o RLS (S-011) a recusa ficou MAIS forte, não menos: o convite de
+      // outra pessoa não é sequer legível, então a resposta é "inválido ou
+      // expirado" em vez de "é de outro e-mail". Quem tenta não consegue
+      // distinguir convite alheio de convite inexistente.
+    ).rejects.toThrow(/inválido ou expirado/);
   });
 
   test("quem não gerencia não convida", async () => {

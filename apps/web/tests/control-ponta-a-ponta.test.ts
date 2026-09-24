@@ -103,7 +103,9 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
     const [org] = await bd.db.insert(bd.organizations).values({ name: `e2e-escopo-${Date.now()}` }).returning();
     const ctx = { orgId: org.id, actor: "teste", role: "owner", via: "sessao" };
     // token de ingestão: o mais estreito que existe
-    const { token } = await control.criarMachineToken(ctx, { name: "só log", scopes: ["log"] });
+    const { token } = await control.comConta(org.id, () =>
+      control.criarMachineToken(ctx, { name: "só log", scopes: ["log"] }),
+    );
 
     const r = await chamar({ action: "agents", token });
     expect(r.status).toBe(403);
