@@ -3655,3 +3655,184 @@ html[data-theme="light"] .est-feature-copy small { color: #707985; }
   -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px rgba(59, 130, 246, 0.14);
   box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px rgba(59, 130, 246, 0.14);
 }
+
+/* ============================================================
+   SELETOR DE CONTA — painel que abre À DIREITA da barra lateral.
+   Abrir para o lado (e não para baixo) é o que permite mostrar o nome
+   inteiro da conta sem espremer o menu, e deixa a lista crescer sem
+   empurrar a navegação. Tudo em tokens, para valer nos dois temas.
+   ============================================================ */
+.conta-ancora {
+  position: relative;
+}
+.conta-painel {
+  position: absolute;
+  top: 4px;
+  left: calc(100% + 16px);
+  z-index: 60;
+  width: 308px;
+  max-height: min(70vh, 460px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-hi);
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 28px 60px -28px rgba(0, 0, 0, 0.82);
+  animation: conta-entra 0.14s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* o fio de luz no topo, como no cartão da entrada */
+.conta-painel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 18px;
+  left: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+}
+/* a seta que liga o painel ao cartão da conta */
+.conta-painel::after {
+  content: "";
+  position: absolute;
+  top: 26px;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  border-bottom: 1px solid var(--line-hi);
+  border-left: 1px solid var(--line-hi);
+  border-radius: 1px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+@keyframes conta-entra {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.conta-busca {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+  color: var(--txt-4);
+}
+.conta-busca input {
+  width: 100%;
+  min-width: 0;
+  color: var(--txt);
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  outline: none;
+}
+.conta-busca input::placeholder { color: var(--txt-4); }
+
+.conta-lista {
+  min-height: 0;
+  flex: 1;
+  padding: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.conta-secao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 8px 5px;
+  color: var(--txt-4);
+  font: 700 8.5px/1 "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.conta-secao span {
+  padding: 2px 6px;
+  color: var(--txt-4);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 8.5px;
+}
+.conta-risco {
+  margin: 7px 8px;
+  height: 1px;
+  background: var(--line);
+}
+
+.conta-linha {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.conta-linha.is-destacada {
+  border-color: var(--line-hi);
+  background: var(--surface-2);
+}
+.conta-linha.is-atual {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: rgba(59, 130, 246, 0.07);
+}
+.conta-linha:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.78);
+  outline-offset: 1px;
+}
+.conta-avatar {
+  width: 27px;
+  height: 27px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.09);
+  font-size: 10.5px;
+  font-weight: 750;
+}
+.conta-texto {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+.conta-texto strong {
+  overflow: hidden;
+  color: var(--txt);
+  font-size: 12.5px;
+  font-weight: 590;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conta-texto small {
+  color: var(--txt-4);
+  font-size: 9.5px;
+  line-height: 1.2;
+}
+.conta-check { flex: none; color: var(--emerald); }
+.conta-vazio {
+  padding: 14px 9px 16px;
+  color: var(--txt-4);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Telas estreitas: não há largura à direita — o painel volta para baixo. */
+@media (max-width: 1080px) {
+  .conta-painel {
+    top: calc(100% + 6px);
+    left: 0;
+    width: auto;
+    min-width: 100%;
+  }
+  .conta-painel::after { display: none; }
+}
