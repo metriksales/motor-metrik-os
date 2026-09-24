@@ -49,9 +49,17 @@ if (!url) {
  *
  * Migração é DDL e quer uma sessão inteira e previsível. O endpoint direto é o
  * mesmo host sem o sufixo, e não custa nada: é uma conexão só, por deploy.
+ *
+ * A integração Neon↔Vercel JÁ PUBLICA a conexão direta, em
+ * `DATABASE_URL_UNPOOLED`. Preferimos ela: é o valor que o Neon declara, não um
+ * palpite meu sobre o formato do host. A troca de texto continua como reserva,
+ * para quando a variável não existir — CI, máquina de alguém, outro provedor.
  */
-const urlDireta = url.replace("-pooler.", ".");
-if (urlDireta !== url) {
+const direta = process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || "";
+const urlDireta = direta || url.replace("-pooler.", ".");
+if (direta) {
+  console.log("migrar: usando DATABASE_URL_UNPOOLED (conexão direta declarada pelo Neon)");
+} else if (urlDireta !== url) {
   console.log("migrar: usando o endpoint direto do Neon (migração não passa por pooler)");
 }
 
