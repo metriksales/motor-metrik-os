@@ -69,6 +69,32 @@ async function entrar(email: string) {
 
 const marca = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+/**
+ * O motivo REAL de um erro de banco, e não o embrulho.
+ *
+ * O drizzle troca a mensagem do Postgres por `Failed query: <sql> params: …` e
+ * guarda a original em `cause`. Quem usar `toThrow(/permissão/)` direto está
+ * conferindo o embrulho, não o motivo — e o teste passa ou falha pelo texto
+ * errado. Esta função junta a corrente inteira.
+ */
+function motivo(e: unknown): string {
+  const partes: string[] = [];
+  let atual = e as { message?: string; cause?: unknown } | undefined;
+  while (atual) {
+    if (atual.message) partes.push(atual.message);
+    atual = atual.cause as typeof atual;
+  }
+  return partes.join(" | ");
+}
+
+/** Roda e devolve o erro, em vez de deixá-lo subir. */
+async function oQueQuebra(corpo: () => Promise<unknown>): Promise<unknown> {
+  return corpo().then(
+    () => null,
+    (e: unknown) => e,
+  );
+}
+
 describe.skipIf(!temBanco)("sem contexto nenhum, no papel da aplicação", () => {
   // `comContexto({})` é a conexão da aplicação SEM declarar quem é: o papel
   // vira `metrik_app` e os dois parâmetros ficam vazios. É o estado de uma
@@ -95,14 +121,15 @@ describe.skipIf(!temBanco)("sem contexto nenhum, no papel da aplicação", () =>
   });
 
   test("escrever código à mão é recusado pelo banco", async () => {
-    await expect(
+    const erro = await oQueQuebra(() =>
       bd.comContexto({}, () =>
         bd.db.execute(
           drizzleSql`insert into login_codes (email, code_hash, expires_at)
                      values ('invasor@metrik.test', 'x', now() + interval '10 minutes')`,
         ),
       ),
-    ).rejects.toThrow(/row-level security|violates/i);
+    );
+    expect(motivo(erro)).toMatch(/row-level security|violates/i);
   });
 
   test("nenhuma pessoa e nenhuma conta aparecem", async () => {

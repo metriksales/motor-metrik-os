@@ -1429,21 +1429,17 @@ export async function aceitarConvite(input: { token: string; userId: string }) {
   // O conserto não é afrouxar a política ("quem tem o token pode se
   // vincular" é o buraco que a S-011 fechou): é uma função nomeada que confere
   // o token E o e-mail antes de escrever, e cabe na lista de escapes do RLS.
-  try {
-    const r = await db.execute(
-      sql`select * from aceitar_convite_por_hash(${input.userId}::uuid, ${hash(input.token)})`,
-    );
-    const linha = linhas(r)[0] as { org_id: string; papel: Papel };
-    return { orgId: linha.org_id, role: linha.papel };
-  } catch (e) {
-    // A função levanta o MESMO erro para convite inexistente, vencido, já
-    // aceito e "de outro e-mail". Quem tenta não distingue os casos — antes,
-    // o 403 "este convite é de outro e-mail" confirmava que ele existia.
-    if (String((e as { message?: string })?.message ?? "").includes("convite_invalido")) {
-      throw new ErroDeDominio("convite inválido ou expirado", 401, "convite_invalido");
-    }
-    throw e;
-  }
+  const r = await db.execute(
+    sql`select * from aceitar_convite_por_hash(${input.userId}::uuid, ${hash(input.token)})`,
+  );
+  const linha = linhas(r)[0] as { conta: string; papel: Papel } | undefined;
+
+  // Zero linha é a recusa, e é a MESMA para convite inexistente, vencido, já
+  // aceito e de outro e-mail. Quem tenta não distingue os casos — antes, o 403
+  // "este convite é de outro e-mail" confirmava que o convite existia.
+  if (!linha) throw new ErroDeDominio("convite inválido ou expirado", 401, "convite_invalido");
+
+  return { orgId: linha.conta, role: linha.papel };
 }
 
 /** Convites pendentes da conta. */

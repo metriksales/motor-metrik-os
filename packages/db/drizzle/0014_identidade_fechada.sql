@@ -168,8 +168,17 @@ $$;
 -- Não se conserta afrouxando a política: "quem tem o token pode se vincular"
 -- como regra geral de escrita é exatamente o buraco que a S-011 fechou. Vira
 -- função, que confere o token E o e-mail antes de escrever.
+-- NÃO SE CHAMA `org_id`. Uma coluna de `RETURNS TABLE` vira variável PL/pgSQL,
+-- e uma variável chamada `org_id` colide com a coluna `org_id` do INSERT lá
+-- embaixo: "column reference org_id is ambiguous" (42702). O nome de fora não
+-- é decoração — é o que decide se a função compila.
+--
+-- E NÃO LEVANTA EXCEÇÃO: recusa devolvendo ZERO LINHA. Exceção do Postgres
+-- chega ao Node embrulhada pelo driver ("Failed query: …"), com a mensagem
+-- original só em `cause` — quem chama teria que cavar o encadeamento para
+-- saber o que houve. Nenhuma linha é uma resposta que não precisa de escavação.
 CREATE OR REPLACE FUNCTION aceitar_convite_por_hash(p_user uuid, p_hash text)
-RETURNS TABLE (org_id uuid, papel text)
+RETURNS TABLE (conta uuid, papel text)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
 	c record;
@@ -178,17 +187,13 @@ BEGIN
 	SELECT i.id, i.org_id, i.role, i.email INTO c
 	FROM invites i
 	WHERE i.token_hash = p_hash AND i.accepted_at IS NULL AND i.expires_at >= now();
-	IF NOT FOUND THEN
-		RAISE EXCEPTION 'convite_invalido' USING ERRCODE = 'check_violation';
-	END IF;
+	IF NOT FOUND THEN RETURN; END IF;
 
 	SELECT u.email INTO dela FROM users u WHERE u.id = p_user;
 	-- o convite é para um e-mail: quem aceita precisa ser aquela pessoa. A
 	-- recusa é a MESMA de convite inexistente, de propósito: quem tenta não
 	-- distingue "é de outro" de "não existe".
-	IF dela IS NULL OR dela <> c.email THEN
-		RAISE EXCEPTION 'convite_invalido' USING ERRCODE = 'check_violation';
-	END IF;
+	IF dela IS NULL OR dela <> c.email THEN RETURN; END IF;
 
 	INSERT INTO memberships (org_id, user_id, role)
 	VALUES (c.org_id, p_user::text, c.role)
