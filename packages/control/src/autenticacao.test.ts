@@ -35,14 +35,15 @@ function caixaDeEntrada(): EmailPort & { ultima(): Mensagem | undefined; codigo(
  * ninguém entra, e é justamente isso que os testes abaixo exercitam.
  */
 async function fundar(email: string) {
-  const { db, users, organizations, memberships, comPessoa } = await import("@motor/db");
+  const { db, users, organizations, memberships, comConta } = await import("@motor/db");
   const [pessoa] = await db.insert(users).values({ email }).returning();
   const [org] = await db
     .insert(organizations)
     .values({ name: email.split("@")[0] })
     .returning();
-  // `memberships` tem RLS (S-011): o vínculo só entra declarando de quem é
-  await comPessoa(pessoa.id, () =>
+  // `memberships` tem RLS (S-011), e a ESCRITA exige estar dentro da conta —
+  // é o que impede alguém de se adicionar à conta dos outros
+  await comConta(org.id, () =>
     db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" }),
   );
   return { userId: pessoa.id, orgId: org.id };
