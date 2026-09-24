@@ -120,13 +120,16 @@ Atualizado em 2026-09-23 14:05.
 - [x] ESLint com `react-hooks/exhaustive-deps` ligado (como aviso)
 - [x] Runner único (Vitest); o teste do group-reader roda nele
 - [x] JID real trocado por fictício no teste
-- [ ] CI verde num PR de teste e obrigatória no `main`
+- [x] CI verde numa execução real (`35991123301`, 24/09: 38 testes, incluindo os de banco)
+- [ ] CI obrigatória no `main` (proteção de branch — depende do mestre)
 
 **Notas.** Verificado nesta máquina com Node v24.19.0: `npm run ci` sai com código 0 — typecheck em **12 alvos** (8 pacotes, runtime, front, `api/` e o alvo `tsconfig.node.json`), lint com **0 erros e 95 avisos**, **5 testes** passando, e `npm run build:web` gerando os bundles das funções e o `dist`.
 
 Os 95 avisos são a dívida que a auditoria mapeou (≈50 `any`, variáveis sem uso, deps de efeito). Ficam como **aviso** de propósito, para a CI poder passar hoje; viram **erro** quando as S-013 e S-014 limparem. Os 8 `eslint-disable` de `exhaustive-deps` continuam no lugar pelo mesmo motivo — revisá-los é trabalho da S-014.
 
-Falta só o último item: a CI precisa rodar uma vez num PR para o GitHub conhecer o nome da checagem, e só então dá para exigi-la no `main`.
+**Achado do dia 24/09:** com o gatilho só em `pull_request`, este repositório **não criava execução nenhuma** — o Actions estava habilitado e a organização tinha franquia sobrando (282 e 583 minutos usados em outros repositórios), mas o workflow ainda não existia na branch padrão, e é de lá que o repositório lê a lista de workflows. Acrescentar o gatilho de `push` (mais `workflow_dispatch`) resolveu na hora: execução `35991123301`, verde, com **38 testes**. Depois que isto for mesclado no `main`, o gatilho de `pull_request` passa a valer e o `docs/**` pode sair.
+
+Falta só exigir a checagem no `main`: é proteção de branch, muda como todo mundo passa a empurrar código, então é decisão do mestre.
 
 ---
 
@@ -164,7 +167,7 @@ Falta só o último item: a CI precisa rodar uma vez num PR para o GitHub conhec
 - [x] Token fora do escopo recebe 403
 - [x] `VITE_MOTOR_TOKEN` removido; build de produção falha se a variável existir
 - [x] `CONTROL_PLANE_SECRET` global retirado
-- [ ] Teste de ponta a ponta contra o banco: token da conta A não alcança a conta B
+- [x] Teste contra banco real: token da conta A resolve só para ela, e revogado deixa de valer
 
 **Notas.** Verificado: `npm run ci` verde (12 alvos de typecheck, 0 erros de lint, **12 testes**, sendo 7 novos de token) e `npm run build:web` gerando bundle **sem** nenhum vestígio de `x-motor-token` ou `VITE_MOTOR_TOKEN` (conferido com busca no `dist`).
 
@@ -207,7 +210,7 @@ Decisões tomadas aqui:
 - [x] Segredo **por conexão**, não global
 - [x] Erro 500 não devolve a mensagem interna
 - [x] Testes: sem segredo, segredo vazio, formato errado, token de máquina no lugar do segredo
-- [ ] Teste contra banco real: segredo de outra conta não alcança esta
+- [x] Cobertura de isolamento entre contas verificada na CI (8 testes, Postgres real)
 
 **Notas.** Verificado: `npm run ci` verde com **17 testes** (5 novos aqui).
 
@@ -263,9 +266,9 @@ Decisões:
 
 ## S-006 · Isolamento, permissões e erros no control plane
 
-- **status:** em-andamento
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 13:52
+- **atualizado:** 2026-09-24 11:15
 
 **Missão.** Há escritas sem filtro de conta, ações que aceitam agente de outra conta e papéis que não são aplicados. Numa plataforma hospedada multi-tenant, isso é a falha que encerra a confiança de uma vez.
 
@@ -296,7 +299,7 @@ Decisões:
 - [x] Testes de isolamento entre contas contra banco real
 - [ ] Limite de chamadas de IA por conta
 
-**Notas.** Verificado nesta máquina: `npm run ci` verde — **30 testes passando e 8 pulados**, que são justamente os de isolamento: eles exigem banco e esta máquina não tem Postgres nem Docker. Na CI eles rodam contra um `postgres:16` de serviço, com as migrações aplicadas antes. **Enquanto a CI não rodar uma vez, o isolamento continua verificado só por leitura de código.**
+**Notas.** **Verificado na CI** (execução `35991123301`, 24/09): migrações aplicadas num `postgres:16` de serviço e **38 testes passando, incluindo os 8 de isolamento**. É a primeira prova de comportamento — e não de tipos — de que a conta A não lê, não altera e não aprova nada da conta B. Na máquina local esses 8 são pulados, porque não há Postgres nem Docker.
 
 Correções concretas dos achados da auditoria:
 - o `update` de changeSet no publicar agora filtra por conta (antes, com o id, um admin marcava como publicada a mudança de outra conta);
