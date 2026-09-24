@@ -14,7 +14,7 @@ import AgentDetail from "./views/AgentDetail";
 import Modulos from "./views/Modulos";
 import Conexoes from "./views/Conexoes";
 import Admin from "./views/Admin";
-import { OrganizationSwitcher, UserButton } from "@clerk/clerk-react";
+import { MenuDaPessoa, SeletorDeConta } from "./views/SeletorDeConta";
 import { useMotorAuth } from "./lib/auth";
 
 export default function App() {
@@ -128,25 +128,7 @@ export default function App() {
           </button>
         )}
 
-        {!compactSide && (auth.demo ? (
-          <button className="app-org-card">
-            <span className="app-org-avatar">{auth.orgInitial}</span>
-            <span className="app-org-copy">
-              <strong>{auth.orgName}</strong>
-              <small>{auth.orgDesc}</small>
-            </span>
-            <ChevronsUpDown size={14} aria-hidden="true" />
-          </button>
-        ) : (
-          <div className="app-org-card app-org-card--clerk">
-            <OrganizationSwitcher
-              hidePersonal
-              afterCreateOrganizationUrl="/"
-              afterSelectOrganizationUrl="/"
-              appearance={{ elements: { rootBox: { width: "100%" } } }}
-            />
-          </div>
-        ))}
+        {!compactSide && <SeletorDeConta />}
 
         <nav className="app-nav" aria-label="Navegação principal">
           {[
@@ -301,9 +283,9 @@ export default function App() {
               <Wand2 size={14} /> <span className="hidden sm:inline">Pedir melhoria</span>
             </button>
             {auth.demo ? (
-              <span className="pill hidden sm:inline-flex" title="Modo demo — sem login (adicione as chaves do Clerk pra ativar contas)">Demo</span>
+              <span className="pill hidden sm:inline-flex" title="Modo vitrine — dados de demonstração">Demo</span>
             ) : (
-              <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: { width: 30, height: 30 } } }} />
+              <MenuDaPessoa />
             )}
           </div>
         </header>

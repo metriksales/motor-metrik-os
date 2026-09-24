@@ -4,14 +4,30 @@
 // máquina é segredo de servidor e, num app Vite, qualquer variável `VITE_*` é
 // embutida no JavaScript público. Sem sessão, a API responde 401 — e é isso
 // mesmo que deve acontecer.
+/**
+ * Parâmetro herdado do tempo do Clerk (S-045). A sessão agora é um cookie
+ * `httpOnly`, que o navegador manda sozinho — não há token para o JavaScript
+ * carregar. Ficou aceito para não mexer em ~70 chamadas de uma vez; é ignorado.
+ */
 type GetToken = (() => Promise<string | null>) | undefined;
 
-async function authHeaders(getToken: GetToken): Promise<Record<string, string>> {
-  if (getToken) {
-    const t = await getToken();
-    if (t) return { authorization: `Bearer ${t}` };
+/** Lê um cookie legível pelo JavaScript (o de CSRF é assim de propósito). */
+export function lerCookie(nome: string): string {
+  const alvo = `${nome}=`;
+  for (const parte of document.cookie.split(";")) {
+    const p = parte.trim();
+    if (p.startsWith(alvo)) return decodeURIComponent(p.slice(alvo.length));
   }
-  return {};
+  return "";
+}
+
+/**
+ * Cabeçalhos de uma escrita. O cookie de sessão viaja sozinho, então toda
+ * escrita repete o valor do cookie de CSRF no header — um site hostil
+ * consegue fazer o navegador mandar o cookie, mas não consegue lê-lo.
+ */
+export function cabecalhosDeEscrita(csrf: string): Record<string, string> {
+  return csrf ? { "content-type": "application/json", "x-csrf-token": csrf } : { "content-type": "application/json" };
 }
 
 export async function control<T = unknown>(
@@ -21,14 +37,52 @@ export async function control<T = unknown>(
   const q = new URLSearchParams({ action, ...(opts.query ?? {}) }).toString();
   const res = await fetch(`/api/control?${q}`, {
     method: opts.body ? "POST" : "GET",
-    headers: { "content-type": "application/json", ...(await authHeaders(opts.getToken)) },
+    headers: cabecalhosDeEscrita(lerCookie("mos_csrf")),
+    credentials: "same-origin",
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as any)?.error ?? `erro ${res.status}`);
+    throw new Error((err as { error?: string })?.error ?? `erro ${res.status}`);
   }
   return res.json() as Promise<T>;
+}
+
+/** Endpoints de sessão (S-045): entrar, sair, trocar de conta. */
+export const auth = {
+  async pedirCodigo(email: string) {
+    return chamarAuth("pedirCodigo", { email });
+  },
+  async entrar(email: string, codigo: string) {
+    return chamarAuth("entrar", { email, codigo });
+  },
+  async sair() {
+    return chamarAuth("sair", {});
+  },
+  async eu() {
+    return chamarAuth("eu");
+  },
+  async contas() {
+    return chamarAuth("contas");
+  },
+  async trocarConta(orgId: string) {
+    return chamarAuth("trocarConta", { orgId });
+  },
+  async aceitarConvite(token: string) {
+    return chamarAuth("aceitarConvite", { token });
+  },
+};
+
+async function chamarAuth(acao: string, body?: Record<string, unknown>) {
+  const res = await fetch(`/api/auth?acao=${acao}`, {
+    method: body ? "POST" : "GET",
+    headers: cabecalhosDeEscrita(lerCookie("mos_csrf")),
+    credentials: "same-origin",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const dados = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((dados as { error?: string })?.error ?? `erro ${res.status}`);
+  return dados;
 }
 
 // Atalhos tipados (o front conecta nisto quando o banco estiver vivo).

@@ -5,10 +5,8 @@ import { fileURLToPath, URL } from "node:url";
 // Dev-only: serve /api/control local chamando @motor/control direto (stack
 // completo no `npm run dev`, sem precisar de `vercel dev`). NÃO afeta o build de
 // produção (apply:"serve" → só roda no dev server).
-// Auth em dev: com Authorization Bearer + CLERK_SECRET_KEY no .env.local, roda o
-// MESMO caminho de produção (verifyToken → ensureOrgForClerk) — o primeiro login
-// vira testável ANTES do Vercel. Sem Bearer, atalho x-org-id como sempre.
-function localControlApi(clerkSecretKey: string | undefined): PluginOption {
+// Auth em dev: mesma sessão de produção (cookie do /api/auth).
+function localControlApi(): PluginOption {
   return {
     name: "local-control-api",
     apply: "serve",
@@ -24,27 +22,12 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
           const url = new URL(req.url ?? "", "http://localhost");
           const action = url.searchParams.get("action") ?? "";
 
-          let ctx: { orgId: string; actor: string; role: "admin" };
-          const authHeader = String(req.headers["authorization"] ?? "");
-          if (authHeader.startsWith("Bearer ") && clerkSecretKey) {
-            // caminho REAL do primeiro login (idêntico ao api/_auth.ts de prod)
-            const { verifyToken } = await import("@clerk/backend");
-            const claims = (await verifyToken(authHeader.slice(7), { secretKey: clerkSecretKey })) as Record<string, any>;
-            const clerkOrgId = claims.org_id ?? claims.o?.id;
-            if (!clerkOrgId) return send(401, { error: "sessão Clerk sem organização ativa (dev)" });
-            const rawName = claims.org_slug ?? claims.o?.slg ?? claims.org_name;
-            const mapped = await control.ensureOrgForClerk({
-              clerkOrgId: String(clerkOrgId),
-              clerkUserId: String(claims.sub ?? "user"),
-              name: typeof rawName === "string" ? rawName : undefined,
-              role: "owner",
-            });
-            ctx = { orgId: mapped.orgId, actor: String(claims.sub ?? "user"), role: "admin" };
-          } else {
-            const orgId = String(req.headers["x-org-id"] ?? "");
-            if (!orgId) return send(401, { error: "sem x-org-id (dev)" });
-            ctx = { orgId, actor: "dev", role: "admin" };
-          }
+          // Auth em dev = o MESMO caminho de produção (S-045): cookie de sessão
+          // resolvido pelo control plane. Sem sessão, 401 — a porta de dev não
+          // é mais um atalho de admin (era o achado M8 da auditoria).
+          const cookies = control.lerCookies(req.headers.cookie);
+          const ctx = await control.resolverSessao(cookies[control.COOKIE_SESSAO] ?? "");
+          if (!ctx) return send(401, { error: "sem sessão (entre em /api/auth)" });
 
           let body: any = {};
           if (req.method === "POST") {
@@ -116,15 +99,15 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
 
 export default defineConfig(({ mode }) => {
   // .env/.env.local inteiros (sem filtro VITE_) — o middleware dev precisa de
-  // CLERK_SECRET_KEY e DATABASE_URL, que nunca vão pro bundle do browser.
+  // DATABASE_URL, que nunca vai pro bundle do browser.
   const env = loadEnv(mode, process.cwd(), "");
-  for (const k of ["CLERK_SECRET_KEY", "DATABASE_URL"]) {
+  for (const k of ["DATABASE_URL"]) {
     if (env[k] && !process.env[k]) process.env[k] = env[k];
   }
   // Trava de segurança (S-003): segredo NUNCA vai pro bundle. Qualquer VITE_*
   // com cara de token derruba o build antes de publicar.
   const proibidas = Object.keys(env).filter(
-    (k) => k.startsWith("VITE_") && /TOKEN|SECRET|KEY|PASSWORD|SENHA/i.test(k) && k !== "VITE_CLERK_PUBLISHABLE_KEY",
+    (k) => k.startsWith("VITE_") && /TOKEN|SECRET|KEY|PASSWORD|SENHA/i.test(k),
   );
   if (proibidas.length > 0) {
     throw new Error(
@@ -137,16 +120,14 @@ export default defineConfig(({ mode }) => {
   // propósito: a chave pode não estar configurada no projeto da Vercel, e
   // quebrar o deploy às cegas seria pior. Quando ela estiver confirmada lá,
   // troque este aviso por um `throw` — a tela já recusa abrir em demo.
-  if (mode === "production" && !env.VITE_CLERK_PUBLISHABLE_KEY && env.VITE_ALLOW_DEMO !== "1") {
+  if (mode === "production" && env.VITE_ALLOW_DEMO === "1") {
     console.warn(
-      "\n⚠️  build de produção SEM VITE_CLERK_PUBLISHABLE_KEY.\n" +
-        "   O app vai recusar abrir (tela \"login não configurado\") em vez de mostrar a maquete.\n" +
-        "   Configure a chave, ou publique a vitrine de propósito com VITE_ALLOW_DEMO=1.\n",
+      "\n⚠️  build de produção com VITE_ALLOW_DEMO=1: vai ao ar a VITRINE, com dados de demonstração.\n",
     );
   }
 
   return {
-    plugins: [react(), localControlApi(env.CLERK_SECRET_KEY)],
+    plugins: [react(), localControlApi()],
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

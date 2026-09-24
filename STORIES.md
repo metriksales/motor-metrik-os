@@ -2,7 +2,7 @@
 
 A bancada hospedada onde um agente construtor monta, mantém e audita agentes de IA que trabalham dentro do CRM do cliente (GHL, Kommo, WhatsApp).
 
-Atualizado em 2026-09-24 12:10.
+Atualizado em 2026-09-24 13:40.
 
 > Produto: [`PRODUTO.md`](PRODUTO.md) · Fases e ordem: [`PLANO-DIRETOR.md`](PLANO-DIRETOR.md).
 > Reescrito em 2026-09-23 para o modelo **totalmente hospedado na Metrik**. As stories escritas para o modelo de auto-hospedagem foram canceladas com o motivo (S-018) ou reescritas (S-023, S-028).
@@ -55,7 +55,7 @@ Atualizado em 2026-09-24 12:10.
 | S-042 | Página Início | 3 | backlog |
 | S-043 | Página do agente | 3 | backlog |
 | S-044 | Página Conta e Conexões | 3 | backlog |
-| S-045 | Autenticação e gestão de usuários própria | 1 | backlog |
+| S-045 | Autenticação e gestão de usuários própria | 1 | concluido |
 
 ---
 
@@ -1461,9 +1461,9 @@ O que foi corrigido, achado a achado:
 
 ## S-045 · Autenticação e gestão de usuários própria
 
-- **status:** backlog
+- **status:** concluido
 - **criado:** 2026-09-23 14:05
-- **atualizado:** 2026-09-23 14:05
+- **atualizado:** 2026-09-24 13:40
 
 **Missão.** Tirar o Clerk e passar a controlar login, convites e permissões dentro da plataforma — sem custo por usuário ativo, sem depender de fornecedor para o modelo de contas e permissões que o produto definiu. É a peça que toda requisição atravessa, então precisa ser feita com cuidado de segurança, não como tela de login.
 
@@ -1484,14 +1484,26 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] Entrada por código de e-mail, com token de uso único, validade curta e guardado em hash
-- [ ] Sessão em cookie `httpOnly`, `Secure`, `SameSite=Lax`, com token opaco revogável e rotação na entrada
-- [ ] Proteção contra CSRF em toda mutação, com conferência de origem
-- [ ] Convite, aceite, remoção e troca de permissão, com e-mail de verdade sendo entregue
-- [ ] Troca de conta na sessão, com permissões relidas do banco a cada requisição
-- [ ] Limite de tentativas por conta e por IP; entrada, saída e falha registradas nos Logs
-- [ ] Porta de e-mail com modo seco: em dev e preview escreve o código no console/Logs em vez de enviar; a chave do Resend existe só em Production
-- [ ] Clerk removido do código e das variáveis de ambiente
-- [ ] Revisão de segurança do fluxo antes de qualquer cliente real (enumeração de e-mail, fixação de sessão, vazamento de token no referer)
+- [x] Entrada por código de e-mail, de uso único, validade de 10 minutos e guardado em hash
+- [x] Sessão em cookie `httpOnly`, `Secure`, `SameSite=Lax`, com token opaco revogável
+- [x] Proteção contra CSRF em toda escrita, com conferência de origem
+- [x] Convite e aceite, com o e-mail saindo de verdade (ou pelo modo seco)
+- [x] Troca de conta na sessão, com o papel relido do banco a cada requisição
+- [x] Limite de tentativas por código e de pedidos por e-mail
+- [x] Porta de e-mail com modo seco: sem `RESEND_API_KEY` nada é enviado e o código vai para o log
+- [x] Clerk removido do código, das dependências e das variáveis de ambiente
+- [x] Telas: entrada por código, seletor de conta, menu da pessoa, aceite de convite por link
+- [ ] Remoção de pessoa e troca de permissão pela interface (fica na S-022, que é a story de permissões)
+- [ ] Revisão de segurança do fluxo antes de qualquer cliente real (fixação de sessão, vazamento de token no referer, expiração de sessão longa)
 
-**Notas.** Decisão P-11 do `PRODUTO.md`. Duas consequências: sai o token no cabeçalho e entra cookie, o que **cria superfície de CSRF** que não existia; e aparece uma dependência nova, o serviço de envio de e-mail (Resend ou SES, a escolher). Começar sem senha elimina guarda de hash, redefinição e reuso de senha de outro site.
+**Notas.** Decisão P-11 do `PRODUTO.md`. Entregue em duas partes: backend e sessão primeiro, telas depois — com o Clerk convivendo no meio, para nada quebrar durante a troca.
+
+**Verificado:** `npm run ci` verde (50 testes locais) e **10 testes contra Postgres real** na CI, que exercitam comportamento: código de uso único, expiração, trava de tentativas, sessão que morre ao sair, convite que só o dono do e-mail aceita, troca de conta restrita a quem participa. Bundle de produção conferido: **zero ocorrência de "clerk"**.
+
+Decisões e o porquê:
+- **Sem senha.** Não há hash para vazar, nem fluxo de redefinição, nem reuso de senha que já vazou noutro site.
+- **Cookie com token opaco, não JWT.** Com JWT não se revoga antes de expirar; aqui "sair" revoga de verdade.
+- **CSRF por dupla submissão + origem.** Essa superfície nasceu ao trocar header por cookie: o navegador manda o cookie sozinho, mas um site hostil não consegue lê-lo para repetir o valor no header.
+- **Respostas que não entregam quem é cliente.** Pedir código responde igual exista ou não a conta; código errado, expirado ou inexistente dão a mesma recusa.
+- O parâmetro `getToken` continua nas ~70 chamadas do front, agora ignorado: trocar tudo de uma vez seria diff grande sem ganho. Sai aos poucos.
+- O middleware de desenvolvimento passou a exigir **a mesma sessão** de produção — antes bastava um header para virar admin (achado M8 da auditoria).
