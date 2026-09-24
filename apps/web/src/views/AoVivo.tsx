@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Radio, Loader2, ArrowRight, Database, MessageSquareText } from "lucide-react";
 import { AGENTS, STATS, type LiveRow, SELO_META, conferir } from "../data";
+import { apenasNoDemo, estadoDoDado, legendaDoEstado, SEM_DADO } from "../lib/honestidade";
 import { useAgents } from "../lib/agents";
 import { useLive, tempoRelativo, reais, kpiDinheiro, type LogReal } from "../lib/live";
 import { useMotorAuth } from "../lib/auth";
@@ -22,7 +23,7 @@ function minutosDesde(iso: string): number {
 
 export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
   const { agents } = useAgents();
-  const { logs, stats, carregando } = useLive();
+  const { logs, stats, carregando, erro: erroLive } = useLive();
   const auth = useMotorAuth();
   const ativos = agents.filter((a) => a.state === "ativo");
   const real = logs !== null;
@@ -49,7 +50,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           raw: l,
         };
       })
-    : FEED;
+    : (apenasNoDemo(auth.demo, FEED) ?? []);
 
   // último trabalho REAL por agente — mata a "Marina" congelada do mock
   const ultimoPorAgente = new Map<string, LogReal>();
@@ -71,7 +72,12 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
         { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : "—" },
         { label: dinheiro.label, value: dinheiro.value },
       ]
-    : STATS;
+    : (apenasNoDemo(auth.demo, STATS) ?? [
+        { label: "Agentes no ar", value: String(ativos.length) },
+        { label: "Atendimentos hoje", value: SEM_DADO },
+        { label: "Acertos", value: SEM_DADO },
+        { label: "Valor gerado", value: SEM_DADO },
+      ]);
 
   return (
     <div className="space-y-6">

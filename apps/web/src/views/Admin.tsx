@@ -6,6 +6,7 @@ import { Building2, KeyRound, Users, Database, ShieldCheck, Check } from "lucide
 import { api } from "../lib/api";
 import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo } from "../lib/live";
+import { apenasNoDemo } from "../lib/honestidade";
 import { Reveal, Pill } from "../ui";
 
 type Membro = { userId: string; role: string; createdAt?: string };
@@ -39,7 +40,9 @@ export default function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const lista = membros ?? DEMO_MEMBROS;
+  // membros de demonstração SÓ na vitrine (S-007): numa conta real, lista vazia
+  // é lista vazia — antes mostrava gente que não existe com um selo "demo".
+  const lista: Membro[] = membros ?? apenasNoDemo(auth.demo, DEMO_MEMBROS) ?? [];
   const real = membros !== null;
 
   return (

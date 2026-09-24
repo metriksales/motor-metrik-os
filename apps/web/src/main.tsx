@@ -20,7 +20,14 @@ import "./index.css";
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 // denuncia build sem a env (a chave é inlinada em BUILD time: colar no Vercel
 // sem redeploy não muda nada — este log é o diagnóstico de 1 segundo).
-if (!clerkKey) console.info("Motor OS em modo DEMO — build sem VITE_CLERK_PUBLISHABLE_KEY (login desligado).");
+if (!clerkKey) console.info("Metrik-OS em modo DEMO — build sem VITE_CLERK_PUBLISHABLE_KEY (login desligado).");
+
+// Produção NUNCA cai em demo por acidente (S-007): sem chave de login, o que
+// iria ao ar seria uma vitrine com dados fictícios no lugar do painel da conta.
+// Aqui a tela DIZ isso, em vez de abrir a maquete como se fosse o produto.
+// Para publicar a vitrine de propósito: VITE_ALLOW_DEMO=1 no build.
+const demoEmProducaoSemPermissao =
+  import.meta.env.PROD && !clerkKey && import.meta.env.VITE_ALLOW_DEMO !== "1";
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -93,9 +100,29 @@ const demoValue: MotorAuth = {
   orgInitial: "V",
 };
 
+/** Produção sem login configurado: diz o que houve, em vez de abrir a maquete. */
+function DemoBloqueado() {
+  return (
+    <Centered>
+      <h1 style={{ fontSize: 20, marginBottom: 12 }}>Login não configurado</h1>
+      <p style={{ maxWidth: 460, lineHeight: 1.5, color: "var(--txt-3)" }}>
+        Este build subiu sem <code>VITE_CLERK_PUBLISHABLE_KEY</code>. Sem ela, o app abriria em
+        modo demonstração — com dados fictícios no lugar dos da sua conta, o que seria pior que
+        não abrir.
+      </p>
+      <p style={{ maxWidth: 460, lineHeight: 1.5, color: "var(--txt-4)", marginTop: 12 }}>
+        Configure a chave no projeto e publique de novo. Para mostrar a vitrine de propósito,
+        use <code>VITE_ALLOW_DEMO=1</code> no build.
+      </p>
+    </Centered>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {clerkKey ? (
+    {demoEmProducaoSemPermissao ? (
+      <DemoBloqueado />
+    ) : clerkKey ? (
       <ClerkProvider publishableKey={clerkKey} afterSignOutUrl="/" appearance={clerkAppearance}>
         <SignedIn>
           <RequireOrg>

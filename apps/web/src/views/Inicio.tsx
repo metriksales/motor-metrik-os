@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, Sparkles, ShieldCheck, GraduationCap, BadgeCheck } from "lucide-react";
 import { STATS, type ViewId } from "../data";
+import { apenasNoDemo, estadoDoDado, legendaDoEstado, SEM_DADO } from "../lib/honestidade";
 import { useAgents } from "../lib/agents";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
@@ -23,7 +24,7 @@ function deltaType(value: string, up: boolean): DeltaType {
 export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen: (id: string) => void }) {
   const auth = useMotorAuth();
   const { agents } = useAgents();
-  const { logs, stats, carregando } = useLive();
+  const { logs, stats, carregando, erro: erroLive } = useLive();
   // A vitrine pode usar atividade viva como amostra, mas nunca deve chamá-la
   // de "dados da sua conta": sem login, continua sendo demonstração.
   const dadosDaConta = !auth.demo && !!stats;
@@ -51,16 +52,27 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
   const reunioesHoje = logsHoje.filter((l) => (l.valorCentavos ?? 0) > 0).length;
   const errosHoje = logsHoje.filter((l) => !l.ok);
 
-  // Números REAIS do Flight Recorder quando existem; senão o demo (STATS mock).
+  // Números REAIS do Flight Recorder quando existem. Sem eles: maquete SÓ no
+  // demo; na conta de alguém, traço — nunca um número inventado (S-007).
   const dinheiro = stats ? kpiDinheiro(stats) : null;
-  const kpis = stats && dinheiro
+  const kpisReais = stats && dinheiro
     ? [
         { label: "Agentes no ar", value: String(ativos), delta: `de ${agents.length}`, up: true },
         { label: "Atendimentos hoje", value: String(stats.execucoes), delta: dadosDaConta ? "dado real ✓" : "demonstração", up: true },
-        { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : "—", delta: `${stats.erros} erros`, up: stats.erros === 0 },
+        { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : SEM_DADO, delta: `${stats.erros} erros`, up: stats.erros === 0 },
         { label: dinheiro.label, value: dinheiro.value, delta: dinheiro.delta, up: true },
       ]
-    : STATS;
+    : null;
+  const estado = estadoDoDado({ demo: auth.demo, carregando, erro: erroLive, temDado: !!stats });
+  const kpis =
+    kpisReais ??
+    apenasNoDemo(auth.demo, STATS) ??
+    [
+      { label: "Agentes no ar", value: String(ativos), delta: `de ${agents.length}`, up: true },
+      { label: "Atendimentos hoje", value: SEM_DADO, delta: legendaDoEstado(estado), up: true },
+      { label: "Acertos", value: SEM_DADO, delta: "", up: true },
+      { label: "Valor gerado", value: SEM_DADO, delta: "", up: true },
+    ];
 
   return (
     <div className="space-y-4">
@@ -81,7 +93,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               </span>
             ) : (
               <span className="text-[12px] text-[var(--txt-4)]">
-                {auth.demo ? "números de demonstração" : stats ? "dados reais da sua conta" : "sem atividade ainda"}
+                {legendaDoEstado(estado)}
               </span>
             )}
           </div>

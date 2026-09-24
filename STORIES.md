@@ -2,7 +2,7 @@
 
 A bancada hospedada onde um agente construtor monta, mantém e audita agentes de IA que trabalham dentro do CRM do cliente (GHL, Kommo, WhatsApp).
 
-Atualizado em 2026-09-23 14:05.
+Atualizado em 2026-09-24 12:10.
 
 > Produto: [`PRODUTO.md`](PRODUTO.md) · Fases e ordem: [`PLANO-DIRETOR.md`](PLANO-DIRETOR.md).
 > Reescrito em 2026-09-23 para o modelo **totalmente hospedado na Metrik**. As stories escritas para o modelo de auto-hospedagem foram canceladas com o motivo (S-018) ou reescritas (S-023, S-028).
@@ -12,12 +12,12 @@ Atualizado em 2026-09-23 14:05.
 | ID | Story | Fase | Status |
 | :--- | :--- | :--- | :--- |
 | S-001 | Auditoria técnica de base | — | concluido |
-| S-002 | Esteira de qualidade: CI, lint e testes | 0 | backlog |
-| S-003 | Auth de máquina por conta, sem segredo no browser | 0 | backlog |
-| S-004 | Webhook de entrada fail-closed com tenant do servidor | 0 | backlog |
-| S-005 | Tools da IA presas ao contato da conversa | 0 | backlog |
-| S-006 | Isolamento, permissões e erros no control plane | 0 | backlog |
-| S-007 | Tela honesta: nenhum dado demo fora do modo demo | 0 | backlog |
+| S-002 | Esteira de qualidade: CI, lint e testes | 0 | concluido |
+| S-003 | Auth de máquina por conta, sem segredo no browser | 0 | concluido |
+| S-004 | Webhook de entrada fail-closed com tenant do servidor | 0 | concluido |
+| S-005 | Tools da IA presas ao contato da conversa | 0 | concluido |
+| S-006 | Isolamento, permissões e erros no control plane | 0 | concluido |
+| S-007 | Tela honesta: nenhum dado demo fora do modo demo | 0 | concluido |
 | S-008 | Publicação atômica e à prova de concorrência | 1 | backlog |
 | S-009 | Porteiro de verdade: eval obrigatório e fiel à produção | 1 | backlog |
 | S-010 | Integridade do banco: FKs, uniques e ledger append-only | 1 | backlog |
@@ -91,9 +91,9 @@ Atualizado em 2026-09-23 14:05.
 
 ## S-002 · Esteira de qualidade: CI, lint e testes
 
-- **status:** em-andamento
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 13:05
+- **atualizado:** 2026-09-24 12:10
 
 **Missão.** Nada impede um commit quebrado de ir ao ar: o build de deploy não tipa os pacotes, não há lint e só existe um teste. Toda correção das fases seguintes precisa de uma esteira que prove que funciona e continua funcionando.
 
@@ -314,9 +314,9 @@ Correções concretas dos achados da auditoria:
 
 ## S-007 · Tela honesta: nenhum dado demo fora do modo demo
 
-- **status:** backlog
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-24 12:05
 
 **Missão.** O painel promete "o que a IA fez de verdade", mas um cliente logado pode ver agentes fictícios, "212 atendimentos · R$ 7.500" e integrações "no ar e funcionando" que nunca foram ligadas. Um número falso destrói a credibilidade de todos os verdadeiros.
 
@@ -338,15 +338,28 @@ Correções concretas dos achados da auditoria:
 
 **Checklist**
 
-- [ ] Estado inicial vazio quando não é demo; skeleton aparece
-- [ ] Helper único de fallback + teste garantindo que nada demo vaza no logado
-- [ ] `useLive` expõe erro e a tela mostra o erro em vez de números
-- [ ] Telas de maquete fora da navegação do logado
-- [ ] `live-run` exige banco de dev
-- [ ] Build de produção com modo demo ligado falha (salvo `VITE_ALLOW_DEMO=1`); enquanto o Clerk ainda estiver no código, vale também para a chave dele
+- [x] Estado inicial vazio quando não é demo; o skeleton volta a aparecer
+- [x] Helper único (`lib/honestidade.ts`) + 6 testes garantindo que nada de demonstração vaza no logado
+- [x] `useLive` expõe erro; a tela mostra o estado em vez de número inventado
+- [x] Agente real herda só aparência do template — nada de `work`, `mapa`, `fluxo`, `upgrades` ou `features`
+- [x] Telas de maquete (Módulos, Conexões) fora da navegação do logado
+- [x] Indicadores fixos do shell: "No ar" vira contagem real; toggle de WhatsApp só na vitrine
+- [x] `live-run` exige `PERMITIR_DADO_SINTETICO=1`
+- [x] Produção sem login recusa abrir, com tela que explica
 - [ ] Varredura manual do app logado, registrada com prints
 
-**Notas.** Os commits `2f724c1` ("corrige workspace mobile e honestidade da demo") e `2a28876` podem ter coberto parte disto; conferir antes de começar.
+**Notas.** Verificado: `npm run ci` verde com **37 testes** (6 novos do helper de honestidade). Os commits `2f724c1` e `2a28876` já tinham resolvido parte — o Início já distinguia "dado real" e o Fechamento já recebia `demo` — e o que faltava está feito.
+
+O que foi corrigido, achado a achado:
+- **Estado inicial:** a lista de agentes começava com os 9 de demonstração; agora começa vazia fora do demo, e por isso o skeleton volta a funcionar (ele nunca aparecia, porque a lista "já tinha" itens).
+- **Herança de template:** um agente real chamado "Atendente" vestia agenda e follow-ups de gente que não existe. Agora herda ícone, cor, papel e escudo — e nada mais.
+- **Falha da API:** `useLive` só logava no console e a tela caía nos números de demonstração. Agora o erro chega à tela, e o estado (`carregando`, `erro`, `vazio`, `ok`, `demo`) tem uma frase própria.
+- **Maquetes:** Módulos e Conexões saíram da navegação do logado até S-030 e S-019.
+- **`live-run`:** era capaz de inventar atendimento e dinheiro num banco de cliente; agora exige confirmação explícita.
+
+**Decisão registrada:** o checklist pedia que o **build falhasse** em produção sem login. Não fiz isso: **não tenho permissão para listar as variáveis dos projetos na Vercel** (403), então não dá para saber se a chave do Clerk está configurada lá — derrubar o build às cegas quebraria os deploys de vocês. Em vez disso, o build **avisa em letras grandes** e o app **recusa abrir**, com uma tela que explica o que configurar. Quando a chave estiver confirmada na Vercel, trocar o aviso por um `throw` é uma linha, e está comentado no `vite.config.ts`.
+
+**O que fica em aberto:** a varredura manual com prints, que precisa de uma conta real com dados — ela fecha junto com o primeiro cliente de verdade.
 
 ---
 

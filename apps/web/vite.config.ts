@@ -133,6 +133,18 @@ export default defineConfig(({ mode }) => {
     );
   }
 
+  // Aviso alto no build de produção sem login (S-007). Não derruba o build de
+  // propósito: a chave pode não estar configurada no projeto da Vercel, e
+  // quebrar o deploy às cegas seria pior. Quando ela estiver confirmada lá,
+  // troque este aviso por um `throw` — a tela já recusa abrir em demo.
+  if (mode === "production" && !env.VITE_CLERK_PUBLISHABLE_KEY && env.VITE_ALLOW_DEMO !== "1") {
+    console.warn(
+      "\n⚠️  build de produção SEM VITE_CLERK_PUBLISHABLE_KEY.\n" +
+        "   O app vai recusar abrir (tela \"login não configurado\") em vez de mostrar a maquete.\n" +
+        "   Configure a chave, ou publique a vitrine de propósito com VITE_ALLOW_DEMO=1.\n",
+    );
+  }
+
   return {
     plugins: [react(), localControlApi(env.CLERK_SECRET_KEY)],
     resolve: {
