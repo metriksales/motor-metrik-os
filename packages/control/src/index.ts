@@ -42,7 +42,7 @@ import {
   novoTokenOpaco,
 } from "./sessao.js";
 import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
-import { exigirPermissao } from "./permissoes.js";
+import { exigirPermissao, type Papel } from "./permissoes.js";
 
 export * from "./tokens.js";
 export * from "./webhooks.js";
@@ -100,12 +100,14 @@ export async function resolverEntrada(
   segredo: string,
 ): Promise<{ orgId: string; agentId: string; connectionId: string; kind: string } | null> {
   if (!ehSegredoEntrada(segredo)) return null;
-  const [row] = await db
-    .select()
-    .from(connections)
-    .where(eq(connections.inboundSecretHash, hashSegredo(segredo)));
-  if (!row || !row.agentId) return null;
-  return { orgId: row.orgId, agentId: row.agentId, connectionId: row.id, kind: row.kind };
+  const achado = await db.execute(
+    sql`select * from resolver_entrada_por_hash(${hashSegredo(segredo)})`,
+  );
+  const row = linhas(achado)[0] as
+    | { connection_id: string; org_id: string; agent_id: string; kind: string }
+    | undefined;
+  if (!row) return null;
+  return { orgId: row.org_id, agentId: row.agent_id, connectionId: row.connection_id, kind: row.kind };
 }
 
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
@@ -186,19 +188,24 @@ export async function revogarMachineToken(ctx: Ctx, id: string) {
  */
 export async function resolverMachineToken(tokenEmClaro: string): Promise<Ctx | null> {
   if (!ehTokenDeMaquina(tokenEmClaro)) return null;
-  const hash = hashToken(tokenEmClaro);
-  const [row] = await db
-    .select()
-    .from(machineTokens)
-    .where(and(eq(machineTokens.tokenHash, hash), isNull(machineTokens.revokedAt)));
+  // Busca pela FUNÇÃO do banco, não pela tabela: com o RLS ligado, a tabela
+  // não é legível sem conta declarada — e aqui a conta é justamente o que
+  // estamos tentando descobrir. A função atravessa o RLS, mas só responde a
+  // quem já tem o hash certo; não serve para listar nada (S-011).
+  const achado = await db.execute(
+    sql`select * from resolver_token_por_hash(${hashToken(tokenEmClaro)})`,
+  );
+  const row = linhas(achado)[0] as
+    | { token_id: string; org_id: string; nome: string; escopos: unknown }
+    | undefined;
   if (!row) return null;
 
-  const scopes = normalizarEscopos(row.scopes);
-  await db.update(machineTokens).set({ lastUsedAt: new Date() }).where(eq(machineTokens.id, row.id));
+  const scopes = normalizarEscopos(row.escopos as Escopo[]);
+  await db.execute(sql`select marcar_uso_do_token(${row.token_id}::uuid)`);
 
   return {
-    orgId: row.orgId,
-    actor: `token:${row.name}`,
+    orgId: row.org_id,
+    actor: `token:${row.nome}`,
     role: papelDoToken(scopes),
     via: "maquina",
     scopes,
@@ -1121,6 +1128,15 @@ async function audit(ctx: Ctx, action: string, target?: string, data?: unknown) 
   await db.insert(auditLog).values({ orgId: ctx.orgId, actor: ctx.actor, action, target, data });
 }
 
+/**
+ * As linhas de um `db.execute`. O node-postgres devolve `{ rows }` e o driver
+ * do Neon devolve o array direto — normalizar aqui evita espalhar o `?? r`.
+ */
+function linhas(resultado: unknown): Record<string, unknown>[] {
+  const r = resultado as { rows?: Record<string, unknown>[] } | Record<string, unknown>[];
+  return Array.isArray(r) ? r : (r.rows ?? []);
+}
+
 // ═══ AUTENTICAÇÃO PRÓPRIA (S-045) — sem Clerk, sem senha ═══
 
 /**
@@ -1312,32 +1328,30 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
  */
 export async function resolverSessao(token: string): Promise<(Ctx & { userId: string; email: string }) | null> {
   if (!token) return null;
-  const [linha] = await db
-    .select()
-    .from(sessions)
-    .where(and(eq(sessions.tokenHash, hash(token)), isNull(sessions.revokedAt)));
-  if (!linha || expirou(linha.expiresAt)) return null;
+  const achado = await db.execute(sql`select * from resolver_sessao_por_hash(${hash(token)})`);
+  const linha = linhas(achado)[0] as
+    | { session_id: string; user_id: string; org_id: string | null; expires_at: string; email: string }
+    | undefined;
+  if (!linha) return null;
+  if (expirou(new Date(linha.expires_at))) return null;
+  if (!linha.org_id) return null;
 
-  const [pessoa] = await db.select().from(users).where(eq(users.id, linha.userId));
-  if (!pessoa) return null;
-
-  if (!linha.orgId) return null;
-  const [vinculo] = await db
-    .select()
-    .from(memberships)
-    .where(and(eq(memberships.orgId, linha.orgId), eq(memberships.userId, pessoa.id)));
   // perdeu o acesso à conta desde o último uso → sessão não vale mais para ela
+  const papel = await db.execute(
+    sql`select papel_na_conta(${linha.user_id}::uuid, ${linha.org_id}::uuid) as papel`,
+  );
+  const vinculo = (linhas(papel)[0] as { papel: Papel | null } | undefined)?.papel;
   if (!vinculo) return null;
 
-  await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, linha.id));
+  await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, linha.session_id));
 
   return {
-    orgId: linha.orgId,
-    actor: pessoa.email,
-    role: vinculo.role,
+    orgId: linha.org_id,
+    actor: linha.email,
+    role: vinculo,
     via: "sessao",
-    userId: pessoa.id,
-    email: pessoa.email,
+    userId: linha.user_id,
+    email: linha.email,
   };
 }
 

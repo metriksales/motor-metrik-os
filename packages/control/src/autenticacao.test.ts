@@ -35,13 +35,16 @@ function caixaDeEntrada(): EmailPort & { ultima(): Mensagem | undefined; codigo(
  * ninguém entra, e é justamente isso que os testes abaixo exercitam.
  */
 async function fundar(email: string) {
-  const { db, users, organizations, memberships } = await import("@motor/db");
+  const { db, users, organizations, memberships, comPessoa } = await import("@motor/db");
   const [pessoa] = await db.insert(users).values({ email }).returning();
   const [org] = await db
     .insert(organizations)
     .values({ name: email.split("@")[0] })
     .returning();
-  await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
+  // `memberships` tem RLS (S-011): o vínculo só entra declarando de quem é
+  await comPessoa(pessoa.id, () =>
+    db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" }),
+  );
   return { userId: pessoa.id, orgId: org.id };
 }
 
@@ -292,9 +295,11 @@ describe.skipIf(!temBanco)("quem acessa a conta", () => {
     const ctx = await control.resolverSessao(s.token);
 
     // vínculo da época do Clerk: texto que não corresponde a pessoa nenhuma
-    const { db, memberships } = await import("@motor/db");
+    const { db, memberships, comConta } = await import("@motor/db");
     const idMorto = `user_2clerk${Date.now()}`;
-    await db.insert(memberships).values({ orgId, userId: idMorto, role: "admin" });
+    await comConta(orgId, () =>
+      db.insert(memberships).values({ orgId, userId: idMorto, role: "admin" }),
+    );
 
     const linhas = await control.listMembers(ctx);
     expect(linhas).toHaveLength(2);

@@ -78,11 +78,18 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
   test("com token da conta, a ação roda e enxerga só a conta dele", async () => {
     const [orgA] = await bd.db.insert(bd.organizations).values({ name: `e2e-a-${Date.now()}` }).returning();
     const [orgB] = await bd.db.insert(bd.organizations).values({ name: `e2e-b-${Date.now()}` }).returning();
-    await bd.db.insert(bd.agents).values({ orgId: orgA.id, name: "Agente de A", tipo: "resposta" });
-    await bd.db.insert(bd.agents).values({ orgId: orgB.id, name: "Agente de B", tipo: "resposta" });
+    // com o RLS ligado, agente só nasce dentro da conta dele (S-011)
+    await bd.comConta(orgA.id, () =>
+      bd.db.insert(bd.agents).values({ orgId: orgA.id, name: "Agente de A", tipo: "resposta" }),
+    );
+    await bd.comConta(orgB.id, () =>
+      bd.db.insert(bd.agents).values({ orgId: orgB.id, name: "Agente de B", tipo: "resposta" }),
+    );
 
     const ctxA = { orgId: orgA.id, actor: "teste", role: "owner", via: "sessao" };
-    const { token } = await control.criarMachineToken(ctxA, { name: "e2e", scopes: ["admin"] });
+    const { token } = await bd.comConta(orgA.id, () =>
+      control.criarMachineToken(ctxA, { name: "e2e", scopes: ["admin"] }),
+    );
 
     const r = await chamar({ action: "agents", token });
     expect(r.status).toBe(200);
@@ -106,7 +113,9 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
   test("ação de escrita por GET é recusada", async () => {
     const [org] = await bd.db.insert(bd.organizations).values({ name: `e2e-post-${Date.now()}` }).returning();
     const ctx = { orgId: org.id, actor: "teste", role: "owner", via: "sessao" };
-    const { token } = await control.criarMachineToken(ctx, { name: "e2e", scopes: ["admin"] });
+    const { token } = await bd.comConta(org.id, () =>
+      control.criarMachineToken(ctx, { name: "e2e", scopes: ["admin"] }),
+    );
 
     const r = await chamar({ action: "createAgent", token, metodo: "GET" });
     expect(r.status).toBe(405);
@@ -115,7 +124,9 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
   test("ação desconhecida vira 400, não 500", async () => {
     const [org] = await bd.db.insert(bd.organizations).values({ name: `e2e-404-${Date.now()}` }).returning();
     const ctx = { orgId: org.id, actor: "teste", role: "owner", via: "sessao" };
-    const { token } = await control.criarMachineToken(ctx, { name: "e2e", scopes: ["admin"] });
+    const { token } = await bd.comConta(org.id, () =>
+      control.criarMachineToken(ctx, { name: "e2e", scopes: ["admin"] }),
+    );
 
     const r = await chamar({ action: "inventada", token });
     expect(r.status).toBe(400);
@@ -124,7 +135,9 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
   test("a escrita passa pela transação da conta e persiste depois do commit", async () => {
     const [org] = await bd.db.insert(bd.organizations).values({ name: `e2e-commit-${Date.now()}` }).returning();
     const ctx = { orgId: org.id, actor: "teste", role: "owner", via: "sessao" };
-    const { token } = await control.criarMachineToken(ctx, { name: "e2e", scopes: ["admin"] });
+    const { token } = await bd.comConta(org.id, () =>
+      control.criarMachineToken(ctx, { name: "e2e", scopes: ["admin"] }),
+    );
 
     const nome = `Agente criado pela porta ${Date.now()}`;
     const r = await chamar({
@@ -136,7 +149,7 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
     expect(r.status).toBe(200);
 
     // a resposta só sai depois do commit — então o dado TEM que estar no banco
-    const achados = await control.listAgents(ctx);
+    const achados = await bd.comConta(org.id, () => control.listAgents(ctx));
     expect((achados as { name: string }[]).map((a) => a.name)).toContain(nome);
   });
 

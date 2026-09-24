@@ -36,6 +36,23 @@ const url = getDatabaseUrl() || "postgresql://placeholder:placeholder@placeholde
  * sem `webSocketConstructor` configurado, ele usa o `WebSocket` global, que o
  * Node 22 tem. O custo é latência no primeiro acesso de cada instância fria.
  */
+/**
+ * O PAPEL DA APLICAÇÃO (S-011). Toda conexão vira `metrik_app` ao abrir.
+ *
+ * É isto que faz o isolamento ser o PADRÃO em vez de uma opção. `metrik_app`
+ * não é dono das tabelas, então as políticas de RLS valem para ele: uma
+ * consulta que esqueça de declarar a conta não devolve dado de outro cliente,
+ * devolve zero linhas. Sem esta troca, o RLS protegeria só quem lembrasse de
+ * pedir proteção — que é exatamente quem não precisa dela.
+ *
+ * Quem roda migração NÃO passa por aqui (o drizzle-kit abre conexão própria),
+ * e continua como dono. É o que permite a migração existir.
+ *
+ * `SET ROLE` é de sessão, não de transação: vale para tudo que vier depois
+ * nesta conexão.
+ */
+const VIRAR_APP = "set role metrik_app";
+
 async function criarDb() {
   if (process.env.DB_DRIVER === "pg") {
     // Postgres comum, para teste local e CI: mesmo contrato, sem depender do Neon.
@@ -43,13 +60,17 @@ async function criarDb() {
       import("drizzle-orm/node-postgres"),
       import("pg"),
     ]);
-    return drizzlePg(new pg.default.Pool({ connectionString: url }), { schema });
+    const pool = new pg.default.Pool({ connectionString: url });
+    pool.on("connect", (c: { query: (t: string) => unknown }) => void c.query(VIRAR_APP));
+    return drizzlePg(pool, { schema });
   }
   const [{ drizzle: criar }, { Pool }] = await Promise.all([
     import("drizzle-orm/neon-serverless"),
     import("@neondatabase/serverless"),
   ]);
-  return criar(new Pool({ connectionString: url }), { schema });
+  const pool = new Pool({ connectionString: url });
+  pool.on("connect", (c: { query: (t: string) => unknown }) => void c.query(VIRAR_APP));
+  return criar(pool, { schema });
 }
 
 const base = (await criarDb()) as unknown as ReturnType<typeof drizzleWs<typeof schema>>;

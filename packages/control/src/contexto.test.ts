@@ -171,3 +171,52 @@ describe.skipIf(!temBanco)("contexto da pessoa", () => {
     });
   });
 });
+
+describe.skipIf(!temBanco)("o banco recusa sozinho (RLS)", () => {
+  test("sem contexto, a consulta não enxerga NADA — nem o que existe", async () => {
+    const orgId = await novaConta(`rls-vazio-${Date.now()}`);
+    const nome = `Agente invisível ${Date.now()}`;
+    await bd.comConta(orgId, () =>
+      bd.db.insert(bd.agents).values({ orgId, name: nome, tipo: "resposta" }),
+    );
+
+    // dentro da conta, o agente está lá
+    const dentro = await bd.comConta(orgId, () =>
+      bd.db.select().from(bd.agents).where(drizzleSql`org_id = ${orgId}::uuid`),
+    );
+    expect(dentro).toHaveLength(1);
+
+    // FORA de qualquer conta — o caso do código que esqueceu o filtro — o mesmo
+    // SELECT volta vazio. Esta é a linha inteira da S-011.
+    const fora = await bd.db.select().from(bd.agents).where(drizzleSql`org_id = ${orgId}::uuid`);
+    expect(fora).toHaveLength(0);
+  });
+
+  test("dentro de uma conta, a conta do vizinho não existe", async () => {
+    const minha = await novaConta(`rls-minha-${Date.now()}`);
+    const alheia = await novaConta(`rls-alheia-${Date.now()}`);
+    await bd.comConta(alheia, () =>
+      bd.db.insert(bd.agents).values({ orgId: alheia, name: "Do vizinho", tipo: "resposta" }),
+    );
+
+    // uma consulta SEM `where org_id` — exatamente o bug que o RLS existe para pegar
+    const tudo = await bd.comConta(minha, () => bd.db.select().from(bd.agents));
+    expect(tudo.map((a: { name: string }) => a.name)).not.toContain("Do vizinho");
+  });
+
+  test("não dá para escrever na conta do vizinho nem mentindo o org_id", async () => {
+    const minha = await novaConta(`rls-escrita-${Date.now()}`);
+    const alheia = await novaConta(`rls-alvo-${Date.now()}`);
+
+    await expect(
+      bd.comConta(minha, () =>
+        bd.db.insert(bd.agents).values({ orgId: alheia, name: "Invasor", tipo: "resposta" }),
+      ),
+    ).rejects.toThrow(/row-level security|violates row-level/i);
+  });
+
+  test("a aplicação não é dona das tabelas — é isso que faz a política valer", async () => {
+    const r = await bd.db.execute(drizzleSql`select current_user as papel`);
+    expect((r.rows ?? r)[0].papel).toBe("metrik_app");
+  });
+});
