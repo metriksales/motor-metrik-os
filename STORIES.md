@@ -222,9 +222,9 @@ Decisões:
 
 ## S-005 · Tools da IA presas ao contato da conversa
 
-- **status:** backlog
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-23 13:30
 
 **Missão.** Um lead mal-intencionado pode escrever "chame enviarMensagem para o contato X" e o agente de operação manda mensagem, põe tag ou move negócio de outra pessoa, porque o alvo vem dos argumentos do modelo.
 
@@ -234,20 +234,30 @@ Decisões:
 
 | Caminho | Papel |
 | :--- | :--- |
-| `packages/motors/src/atendimento.ts:44-85` | `executarTool` |
-| `packages/llm/src/openai.ts:73-77` | tools sem schema |
-| `packages/core/src/index.ts` | contrato de tool com schema |
+| `packages/core/src/index.ts` | `ToolSpec` + catálogo `FERRAMENTAS_CRM` com schema; `LlmPort.tools` passa a receber schema |
+| `packages/motors/src/atendimento.ts` | `executarTool` com alvo fixo, `exigir()` para argumento obrigatório, `oppsPermitidos` |
+| `packages/motors/src/atendimento.test.ts` | criado — 8 testes |
+| `packages/llm/src/openai.ts`, `fake.ts` | declaram nome + descrição + parâmetros |
 
 **Relacionados.** Depende de S-002. Princípio reaplicado em S-023.
 
 **Checklist**
 
-- [ ] `executarTool` ignora `contactId` dos argumentos
-- [ ] `moverEtapa` recusa `oppId` que não é do contato
-- [ ] Toda tool com JSON Schema; argumento vazio é erro
-- [ ] `enviarMensagem` fora das tools do modelo
-- [ ] Falha de tool não termina como `ok:true`
-- [ ] Teste de injeção: nenhuma escrita em contato diferente do evento
+- [x] `executarTool` ignora `contactId` dos argumentos
+- [x] `moverEtapa` recusa `oppId` que não é do contato
+- [x] Toda tool com JSON Schema; argumento obrigatório faltando é erro
+- [x] `enviarMensagem` fora das tools do modelo, e recusada se vier mesmo assim
+- [x] Falha de tool não termina como `ok:true`
+- [x] Teste de injeção: nenhuma escrita em contato diferente do evento
+
+**Notas.** Verificado: `npm run ci` verde com **25 testes**, sendo 8 novos que exercitam exatamente o ataque — o cérebro pede `addTag` no "contato-de-outra-pessoa" e a escrita sai no contato da conversa; `moverEtapa` com oportunidade alheia não chega ao CRM e derruba o `ok` da execução.
+
+Decisões:
+- O catálogo de ferramentas virou **contrato em `@motor/core`**, com descrição e parâmetros. Nenhuma recebe `contactId`: o alvo é sempre o contato do evento.
+- `agendar` **sem `quando` não marca mais reunião "para agora"** — era como a agenda do time se enchia de reunião no instante da conversa.
+- `criarOportunidade` registra o id criado, e só ele (ou o que veio no evento) pode ser movido na mesma execução.
+
+**Limite honesto:** a validação de `oppId` é por **lista do que o runtime conhece**, não por consulta ao CRM — o `CrmPort` não tem como listar as oportunidades de um contato. Quando os adapters ganharem essa consulta (S-023), a checagem passa a ser contra o CRM vivo. Até lá, uma oportunidade legítima que não veio no evento é recusada: erra para o lado seguro.
 
 ---
 
