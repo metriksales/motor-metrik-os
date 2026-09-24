@@ -127,3 +127,47 @@ describe.skipIf(!temBanco)("contexto de conta", () => {
     expect(sobrou).toHaveLength(0);
   });
 });
+
+describe.skipIf(!temBanco)("contexto da pessoa", () => {
+  test("comPessoa declara a pessoa, e nenhuma conta", async () => {
+    const { db, users } = bd;
+    const [pessoa] = await db
+      .insert(users)
+      .values({ email: `ctx-pessoa-${Date.now()}@metrik.test` })
+      .returning();
+
+    await bd.comPessoa(pessoa.id, async () => {
+      const r = await bd.db.execute(
+        drizzleSql`select nullif(current_setting('app.user_id', true), '') as pessoa,
+                          nullif(current_setting('app.org_id', true), '') as conta`,
+      );
+      const linha = (r.rows ?? r)[0];
+      expect(linha.pessoa).toBe(pessoa.id);
+      // forçar uma conta aqui seria mentira: o seletor de contas atravessa contas
+      expect(linha.conta).toBeNull();
+      expect(bd.pessoaEmCurso()).toBe(pessoa.id);
+      expect(bd.contaEmCurso()).toBeNull();
+    });
+  });
+
+  test("comConta declara a conta, e nenhuma pessoa", async () => {
+    const orgId = await novaConta(`ctx-so-conta-${Date.now()}`);
+    await bd.comConta(orgId, async () => {
+      expect(bd.contaEmCurso()).toBe(orgId);
+      expect(bd.pessoaEmCurso()).toBeNull();
+    });
+  });
+
+  test("as duas coordenadas convivem", async () => {
+    const orgId = await novaConta(`ctx-duas-${Date.now()}`);
+    const [pessoa] = await bd.db
+      .insert(bd.users)
+      .values({ email: `ctx-duas-${Date.now()}@metrik.test` })
+      .returning();
+
+    await bd.comContexto({ orgId, userId: pessoa.id }, async () => {
+      expect(bd.contaEmCurso()).toBe(orgId);
+      expect(bd.pessoaEmCurso()).toBe(pessoa.id);
+    });
+  });
+});

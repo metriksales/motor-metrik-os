@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createProductionDeps, handleInbound } from "./_bundled/runtime.mjs";
 import {
+  comConta,
   extrairSegredoEntrada,
   getAgentEstado,
   getContatoEstado,
@@ -35,6 +36,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const b = (req.body ?? {}) as Record<string, unknown>;
   const contactId = String(b.contactId ?? "");
   if (!contactId) return res.status(400).json({ error: "falta contactId no corpo" });
+
+  // Daqui para baixo, tudo dentro da conta resolvida (S-011). Esta é a entrada
+  // com o pior modo de falha do produto: se o contexto faltar quando o RLS
+  // entrar, o agente não erra — ele simplesmente para de responder lead, em
+  // silêncio. A resolução do segredo acima é cruzada de propósito: é ela que
+  // DESCOBRE a conta, e por isso não pode estar dentro dela.
+  return comConta(orgId, () => atender({ req, res, orgId, agentId, contactId, b }));
+}
+
+async function atender({
+  res,
+  orgId,
+  agentId,
+  contactId,
+  b,
+}: {
+  req: VercelRequest;
+  res: VercelResponse;
+  orgId: string;
+  agentId: string;
+  contactId: string;
+  b: Record<string, unknown>;
+}) {
 
   // PAUSE do cliente é honrado AQUI, antes de qualquer resposta.
   // TODO(S-020): isto ainda é fail-open — se a leitura do estado falhar, o

@@ -109,7 +109,7 @@ export async function resolverEntrada(
 }
 
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
-export { getDatabaseUrl, comConta, contaEmCurso } from "@motor/db";
+export { getDatabaseUrl, comContexto, comConta, comPessoa, contaEmCurso, pessoaEmCurso } from "@motor/db";
 
 export interface Ctx {
   orgId: string;
