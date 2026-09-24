@@ -34,6 +34,86 @@ export const memberships = pgTable(
 );
 
 /**
+ * PESSOAS (S-045) — autenticação própria, sem Clerk.
+ *
+ * Entrada sem senha: a pessoa pede um código, ele chega por e-mail e vira
+ * sessão. Nada de hash de senha para vazar, nada de fluxo de redefinição.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** guardado em minúsculas; é a identidade da pessoa */
+    email: text("email").notNull(),
+    name: text("name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("users_email_unique").on(t.email)],
+);
+
+/** Código de entrada de uso único: guardamos só o hash, e ele expira rápido. */
+export const loginCodes = pgTable(
+  "login_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    /** tentativas erradas neste código — trava força bruta */
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("login_codes_email_idx").on(t.email, t.createdAt)],
+);
+
+/** Sessão em cookie: token opaco, guardado em hash, revogável de verdade. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    /** conta ativa da sessão (a pessoa troca sem sair) */
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    userAgent: text("user_agent"),
+  },
+  (t) => [
+    uniqueIndex("sessions_token_unique").on(t.tokenHash),
+    index("sessions_user_idx").on(t.userId),
+  ],
+);
+
+/** Convite para uma conta: aceite cria (ou vincula) a pessoa com as permissões. */
+export const invites = pgTable(
+  "invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: roleEnum("role").notNull().default("operator"),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: text("invited_by").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("invites_token_unique").on(t.tokenHash),
+    index("invites_org_idx").on(t.orgId),
+  ],
+);
+
+/**
  * Tokens de MÁQUINA — o que agentes, Claude Code/Codex e automações usam para
  * falar com a Control API. Um token pertence a UMA conta e carrega escopos; a
  * conta NUNCA vem de header (S-003). Guardamos só o hash: o valor em claro é

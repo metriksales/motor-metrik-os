@@ -11,7 +11,33 @@ import type { Ctx } from "@motor/control";
 // 2. Sessão de PESSOA (Clerk, enquanto a autenticação própria da S-045 não
 //    existe): a conta sai da organização da sessão.
 export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
-  const { extrairToken, resolverMachineToken } = await import("./_bundled/control.mjs");
+  const {
+    extrairToken,
+    resolverMachineToken,
+    resolverSessao,
+    lerCookies,
+    COOKIE_SESSAO,
+    COOKIE_CSRF,
+    HEADER_CSRF,
+    csrfValido,
+    origemConfere,
+  } = await import("./_bundled/control.mjs");
+
+  // 1. Sessão própria (S-045) — o caminho das pessoas. Cookie httpOnly com
+  // token opaco; a conta e o papel saem do banco.
+  const cookies = lerCookies(req.headers.cookie);
+  const tokenDeSessao = cookies[COOKIE_SESSAO];
+  if (tokenDeSessao) {
+    // Cookie viaja sozinho, então toda escrita confere origem e CSRF — é a
+    // superfície que aparece ao trocar header por cookie.
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      if (!origemConfere({ origin: req.headers.origin, host: req.headers.host })) return null;
+      if (!csrfValido({ metodo: req.method ?? "", cookie: cookies[COOKIE_CSRF], header: req.headers[HEADER_CSRF] })) {
+        return null;
+      }
+    }
+    return await resolverSessao(tokenDeSessao);
+  }
 
   const tokenDeMaquina = extrairToken({
     authorization: req.headers["authorization"],

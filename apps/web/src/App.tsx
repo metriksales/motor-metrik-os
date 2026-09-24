@@ -153,7 +153,12 @@ export default function App() {
             { label: "Operar", items: NAV_OPERAR },
             { label: "Construir", items: NAV_CONSTRUIR },
             { label: "Gestão", items: NAV_GESTAO },
-          ].map((group) => (
+          ]
+            // grupo sem item nenhum não vira cabeçalho solto: fora do demo,
+            // "Construir" ficava vazio porque Módulos e Conexões estão
+            // escondidos até terem dado real (S-007).
+            .filter((group) => group.items.length > 0)
+            .map((group) => (
             <div className="app-nav-group" key={group.label}>
               {!compactSide && <span className="app-nav-group-label">{group.label}</span>}
               {group.items.map((n) => (
