@@ -64,6 +64,27 @@
       "when": 1790256433789,
       "tag": "0008_religar_contas_orfas",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790264935595,
+      "tag": "0009_prechecagem_integridade",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790264961306,
+      "tag": "0010_integridade_de_conta",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790264980548,
+      "tag": "0011_ledger_append_only",
+      "breakpoints": true
     }
   ]
 }

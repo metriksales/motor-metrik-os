@@ -1,5 +1,6 @@
 // @motor/db — schema multi-tenant. TUDO por org_id (+ RLS na migração).
 // Reflete BACKEND.md. Fonte de verdade durável; Redis é só hot path.
+import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, jsonb, integer, boolean, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["owner", "admin", "operator", "viewer"]);
@@ -164,7 +165,7 @@ export const contactStates = pgTable(
   "contact_states",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    orgId: uuid("org_id").notNull(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
     agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
     contato: text("contato").notNull(),
     /** "humano" = assumido (IA de fora); linha ausente = IA no comando */
@@ -183,7 +184,7 @@ export const agentSpecs = pgTable(
   "agent_specs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    orgId: uuid("org_id").notNull(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
     agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
     version: integer("version").notNull(),
     spec: jsonb("spec").notNull(),
@@ -200,8 +201,10 @@ export const changeSets = pgTable(
   "change_sets",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    orgId: uuid("org_id").notNull(),
-    agentId: uuid("agent_id").notNull(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
     origin: changeOriginEnum("origin").notNull(),
     actor: text("actor").notNull(),
     intent: text("intent"),
@@ -227,7 +230,7 @@ export const connections = pgTable(
     vaultRef: text("vault_ref"),
     meta: jsonb("meta"),
     /** agente que atende o que entra por esta conexão (S-004) */
-    agentId: uuid("agent_id"),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
     /** sha256 do segredo de entrada desta conexão; o valor em claro só aparece na criação */
     inboundSecretHash: text("inbound_secret_hash"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -235,21 +238,35 @@ export const connections = pgTable(
   (t) => [
     index("connections_org").on(t.orgId),
     uniqueIndex("connections_inbound_secret_unique").on(t.inboundSecretHash),
+    /**
+     * Uma conexão por tipo, por conta — MENOS WhatsApp. Duas contas de CRM na
+     * mesma conta deixariam "para qual CRM eu escrevo?" ambíguo. Já dois
+     * números de WhatsApp no mesmo cliente é caso real, e ali a desambiguação
+     * é o `agent_id`.
+     */
+    uniqueIndex("connections_org_kind")
+      .on(t.orgId, t.kind)
+      .where(sql`kind <> 'whatsapp'`),
   ]
 );
 
 /** release imutável: amarra spec + runtime + evals */
-export const releases = pgTable("releases", {
+export const releases = pgTable(
+  "releases",
+  {
   id: uuid("id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id").notNull(),
-  agentId: uuid("agent_id").notNull(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  agentId: uuid("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
   specVersion: integer("spec_version").notNull(),
   runtimeVersion: text("runtime_version").notNull(),
   evalRun: text("eval_run"),
   gitSha: text("git_sha"),
   promotedBy: text("promoted_by"),
   promotedAt: timestamp("promoted_at", { withTimezone: true }).defaultNow().notNull(),
-});
+},
+(t) => [uniqueIndex("releases_agent_spec").on(t.agentId, t.specVersion)]);
 
 /**
  * A CAIXA-PRETA REAL (Flight Recorder): cada execução de agente vira uma linha.
@@ -262,7 +279,7 @@ export const runtimeLogs = pgTable(
   "runtime_logs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    orgId: uuid("org_id").notNull(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
     agentId: uuid("agent_id"),
     motor: text("motor"),
     ok: boolean("ok").notNull(),
@@ -279,7 +296,7 @@ export const runtimeLogs = pgTable(
 
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id"),
+  orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
   actor: text("actor"),
   action: text("action").notNull(),
   target: text("target"),
