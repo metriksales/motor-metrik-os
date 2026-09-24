@@ -17,7 +17,7 @@ Em menos de 30 segundos, o usuário deve conseguir responder:
 ## Problema atual
 
 - Chat, artefato, abas e Cérebro usam a mesma fisionomia: fundo escuro, hairline, card e âmbar.
-- A terceira coluna do Cérebro repete a peça aberta, rouba largura do documento e fica vazia quando há poucas peças.
+- A coluna do Cérebro precisa explicar a ordem das peças sem repetir o documento nem virar uma sidebar genérica.
 - Cabeçalho + AGORA + cabeçalho de Edições + abas criam barras demais antes do conteúdo.
 - A função do agente, sua forma de falar, oferta e regras recebem quase o mesmo peso visual.
 - “Artefato”, “Execuções” e “Histórico” são nomes de sistema; o cliente pensa em “como funciona”, “ao vivo” e “mudanças”.
@@ -50,22 +50,22 @@ Em menos de 30 segundos, o usuário deve conseguir responder:
 ### Layout
 
 ```text
-┌ AGENTE · estado · resumo do dia · ações ───────────────────────────────┐
-├ MELHORAR ──────────────┬ COMO FUNCIONA · TESTAR · AO VIVO · MUDANÇAS ┤
-│ conversa e pedidos     │                                               │
-│                       │  O CAMINHO DO AGENTE                          │
-│                       │  [Conversa]──[Agenda]──[Follow-up]            │
-│                       │                                               │
-│                       │  peça selecionada, usando toda a largura      │
-│ composer fixo         │  função → contexto → regras → evidência       │
-└───────────────────────┴───────────────────────────────────────────────┘
+┌ AGENTE · estado · resumo do dia · ações ───────────────────────────────────┐
+├ MELHORAR ──────────────╫ COMO FUNCIONA · TESTAR · AO VIVO · MUDANÇAS ─────┤
+│ conversa e pedidos     ║                                                   │
+│                        ║  DOCUMENTO DA PEÇA          CAMINHO DO AGENTE     │
+│                        ║  função                     [01 Conversa]         │
+│                        ║  contexto                         ↓               │
+│                        ║  regras                     [02 Próxima peça]     │
+│ composer fixo          ║                                                   │
+└────────────────────────╨───────────────────────────────────────────────────┘
 ```
 
-No celular, os destinos permanecem explícitos e cada um ocupa a tela inteira.
+O separador `╫` pode ser arrastado entre 300 e 520px. No celular, os destinos permanecem explícitos, cada um ocupa a tela inteira e o Caminho vem depois do documento.
 
 ## Assinatura
 
-O elemento memorável é o **Caminho do Agente**: um trilho vivo de peças reais, em ordem, que funciona ao mesmo tempo como explicação, navegação e estado. Selecionar uma peça muda o documento abaixo; não abre outra sidebar.
+O elemento memorável é o **Caminho do Agente**: módulos verticais, quase quadrados, com peças reais em ordem. Ele funciona como explicação, navegação e estado sem disputar o protagonismo do documento. Selecionar uma peça muda o documento ao lado.
 
 ## Critérios de sucesso
 
@@ -75,4 +75,3 @@ O elemento memorável é o **Caminho do Agente**: um trilho vivo de peças reais
 - Menos barras, menos caixas equivalentes, mais contraste de hierarquia.
 - Sem overflow em 375px, 768px, 1280px e 1440px.
 - Todos os controles de navegação têm alvo mínimo de 44px, foco visível e estado ativo textual.
-

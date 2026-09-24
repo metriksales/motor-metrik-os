@@ -43,10 +43,10 @@ export const api = {
   aprovar: (changeSetId: string, getToken?: GetToken) => control("aprovar", { body: { changeSetId }, getToken }),
   avaliar: (changeSetId: string, getToken?: GetToken) => control("avaliar", { body: { changeSetId }, getToken }),
   publicarMudanca: (changeSetId: string, getToken?: GetToken) => control("publicarMudanca", { body: { changeSetId }, getToken }),
-  testar: (agentId: string, historico: { role: "user" | "assistant"; content: string }[], modo?: "ar" | "ensaio", getToken?: GetToken) =>
-    control("testar", { body: { agentId, historico, modo }, getToken }),
+  testar: (agentId: string, historico: { role: "user" | "assistant"; content: string }[], modo?: "ar" | "ensaio", getToken?: GetToken, changeSetId?: string | null) =>
+    control("testar", { body: { agentId, historico, modo, changeSetId }, getToken }),
   rodando: (agentId: string, getToken?: GetToken) => control("rodando", { query: { agentId }, getToken }),
-  rodarTestes: (agentId: string, getToken?: GetToken) => control("rodarTestes", { body: { agentId }, getToken }),
+  rodarTestes: (agentId: string, modoTeste: "ar" | "ensaio" = "ar", getToken?: GetToken, changeSetId?: string | null) => control("rodarTestes", { body: { agentId, modoTeste, changeSetId }, getToken }),
   listMembers: (getToken?: GetToken) => control("members", { getToken }),
   setEstado: (agentId: string, estado: "ativo" | "pausado", getToken?: GetToken) =>
     control("setEstado", { body: { agentId, estado }, getToken }),

@@ -19,7 +19,7 @@ const ORIGEM_LABEL: Record<Mudanca["origem"], string> = {
 const STATUS_COR: Record<Mudanca["status"], string> = {
   "no ar": "#3fb950",
   "em teste": "#fbbf24",
-  "aguardando aprovação": "#e8b04b",
+  "aguardando aprovação": "#3b82f6",
 };
 
 export default function MudancasTab({ agent }: { agent: Agent }) {
@@ -64,7 +64,7 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
     <div className="space-y-4">
       <Reveal>
         <div className="card p-4 flex items-start gap-3">
-          <Sparkles size={16} className="flex-none mt-0.5" style={{ color: "#e8b04b" }} />
+          <Sparkles size={16} className="flex-none mt-0.5" style={{ color: "#3b82f6" }} />
           <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
             Você pede no <b className="text-[var(--txt)]">Melhorar</b> — e o que entra no ar aparece aqui,
             com antes/depois, <b className="text-[var(--txt)]">onde encaixou</b> no processo e a prova do porteiro.
@@ -89,7 +89,7 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
 function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
   const stCor = STATUS_COR[m.status];
   return (
-    <div className="card p-5" style={{ borderColor: "#e8b04b2e" }}>
+    <div className="card p-5" style={{ borderColor: "#3b82f62e" }}>
       <div className="flex items-center justify-between gap-3 mb-2.5">
         <span className="text-[12px] text-[var(--txt-3)]">
           {m.quando} · <b className="text-[var(--txt-2)]">{ORIGEM_LABEL[m.origem]}</b>

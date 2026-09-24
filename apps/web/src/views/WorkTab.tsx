@@ -57,7 +57,7 @@ function Agenda({ w, color }: { w: Work; color: string }) {
 function Followups({ w, color }: { w: Work; color: string }) {
   const items = w.followups ?? [];
   const meta: Record<string, { color: string; label: string }> = {
-    agora: { color: "#e8b04b", label: "enviando" },
+    agora: { color: "#3b82f6", label: "enviando" },
     agendado: { color: "#58aae4", label: "vai enviar" },
     feito: { color: "#3fb950", label: "enviado" },
   };
@@ -169,9 +169,9 @@ function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelh
       </div>
 
       {/* HANDOFF — ensinar algo novo é ação → só no Melhorar */}
-      <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3.5" style={{ borderColor: "#e8b04b2e", background: "linear-gradient(160deg, rgba(232,176,75,.06), var(--surface))" }}>
-        <span className="grid place-items-center rounded-xl flex-none" style={{ width: 40, height: 40, background: "rgba(232,176,75,.14)", border: "1px solid #e8b04b40" }}>
-          <BookOpen size={19} style={{ color: "#e8b04b" }} />
+      <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-3.5" style={{ borderColor: "#3b82f62e", background: "linear-gradient(160deg, rgba(59,130,246,.06), var(--surface))" }}>
+        <span className="grid place-items-center rounded-xl flex-none" style={{ width: 40, height: 40, background: "rgba(59,130,246,.14)", border: "1px solid #3b82f640" }}>
+          <BookOpen size={19} style={{ color: "#3b82f6" }} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-[14px] font-medium text-[var(--txt)]">Quer ensinar algo novo — um plano, um preço, uma objeção?</div>

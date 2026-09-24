@@ -363,7 +363,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#e8b04b",
+    color: "#3b82f6",
     agora: "movendo 3 leads pra etapa “Qualificada”",
     fluxo: [
       { label: "Lê a conversa", deveria: "a cada lead novo", status: "ok" },
@@ -694,7 +694,7 @@ export const AGENTS: Agent[] = [
       },
     },
     state: "ativo",
-    color: "#ecc06a",
+    color: "#60a5fa",
     agora: "gerando petição pra 3 casos na etapa “Protocolar”",
     fluxo: [
       { label: "Recebe o gatilho", deveria: "caso entra na etapa “Protocolar” — ou você clica no card", status: "ok", alvo: { tipo: "etapa", nome: "Protocolar" } },
@@ -830,7 +830,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "previdenciario", nome: "Aposentadoria", cor: "#e8b04b",
+          id: "previdenciario", nome: "Aposentadoria", cor: "#3b82f6",
           quando: "menciona INSS, tempo de contribuição ou “me aposentar”",
           coleta: ["anos de contribuição", "idade", "quando contribuiu por último"],
           on: true, execucoesHoje: 7, ultima: "há 25 min — Sr. Almir",
@@ -966,7 +966,7 @@ export const AGENTS: Agent[] = [
           ],
         },
         {
-          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#e8b04b",
+          id: "kommo", nome: "Kommo Academy · R$ 997/ano", cor: "#3b82f6",
           quando: "quer aprender Kommo, prestar serviço ou implementar pra clientes",
           on: true, execucoesHoje: 4, ultima: "há 18 min — agência SP",
           regras: [
@@ -1037,7 +1037,7 @@ export type Modulo = {
 export const MODULOS: Modulo[] = [
   { id: "m2", name: "Recuperar no-show", icon: CalendarX, color: "#3fb950", blurb: "reativa quem faltou na reunião, sem você lembrar", gatilho: "faltou na reunião", acao: "reoferece 2 horários", installed: true, tag: "popular" },
   { id: "m3", name: "Alerta por palavra", icon: BellRing, color: "#fbbf24", blurb: "te avisa quando alguém fala “cancelar” ou “reembolso”", gatilho: "palavra crítica", acao: "avisa seu grupo", installed: true },
-  { id: "m1", name: "Upsell inteligente", icon: TrendingUp, color: "#e8b04b", blurb: "oferece o upgrade certo pra quem já é cliente", gatilho: "compra confirmada", acao: "sugere o plano acima", installed: false, tag: "popular" },
+  { id: "m1", name: "Upsell inteligente", icon: TrendingUp, color: "#3b82f6", blurb: "oferece o upgrade certo pra quem já é cliente", gatilho: "compra confirmada", acao: "sugere o plano acima", installed: false, tag: "popular" },
   { id: "m5", name: "Contrato ZapSign", icon: FileSignature, color: "#7c9fe0", blurb: "gera e manda o contrato pra assinar assim que fecha", gatilho: "negócio ganho", acao: "envia contrato", installed: false, tag: "novo" },
   { id: "m4", name: "Enriquecer campo", icon: Sparkles, color: "#58aae4", blurb: "descobre e completa os dados do lead sozinho", gatilho: "dado faltando", acao: "preenche o campo", installed: false },
   { id: "m6", name: "Rastreio de origem", icon: Radar, color: "#58aae4", blurb: "mostra de qual anúncio cada lead realmente veio", gatilho: "novo lead", acao: "marca a origem", installed: true },
@@ -1053,7 +1053,7 @@ export const CHAT_EXEMPLOS = [
 ];
 
 export const CONEXOES_MCP = [
-  { id: "claude", name: "Claude Code", desc: "conecte e peça direto do terminal — vira mudança segura, testada e reversível aqui dentro", status: "conectado", color: "#e8b04b" },
+  { id: "claude", name: "Claude Code", desc: "conecte e peça direto do terminal — vira mudança segura, testada e reversível aqui dentro", status: "conectado", color: "#3b82f6" },
   { id: "codex", name: "Codex", desc: "mesma tomada, outro assistente — a Metrik aprova e publica com prova", status: "conectado", color: "#58aae4" },
 ];
 

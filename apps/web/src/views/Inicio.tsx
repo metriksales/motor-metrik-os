@@ -4,10 +4,18 @@ import { STATS, type ViewId } from "../data";
 import { useAgents } from "../lib/agents";
 import { useMotorAuth } from "../lib/auth";
 import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
-import { Reveal, Delta, Skeleton } from "../ui";
+import { Reveal, Skeleton } from "../ui";
+import { BadgeDelta, type DeltaType } from "../components/ui/BadgeDelta";
 import { Robot } from "../Robot";
 import FechamentoDia from "./FechamentoDia";
 import Marcos from "./Marcos";
+
+function deltaType(value: string, up: boolean): DeltaType {
+  const normalized = value.toLowerCase();
+  if (normalized.includes("estável") || normalized.startsWith("de ") || normalized.includes("dado real") || normalized.includes("demonstração")) return "neutral";
+  if (normalized.includes("erro")) return /^0\s/.test(normalized) ? "increase" : "decrease";
+  return up ? "increase" : "decrease";
+}
 
 // O Início é o ESTADO DA OPERAÇÃO, não uma landing page: placar do dia,
 // a frota em linhas, o que precisa de você e o que acabou de acontecer.
@@ -94,7 +102,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                   <div className="text-[12px] text-[var(--txt-3)] mb-2">{s.label}</div>
                   <div className="flex items-end justify-between gap-2">
                     <div className="num text-[25px] leading-none">{s.value}</div>
-                    <Delta up={s.up}>{s.delta}</Delta>
+                    <BadgeDelta value={s.delta} deltaType={deltaType(s.delta, s.up)} variant="soft" />
                   </div>
                 </div>
               ))}
@@ -166,7 +174,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               />
               <Pilar
                 icon={GraduationCap}
-                color="#e8b04b"
+                color="#3b82f6"
                 titulo="Escola"
                 texto="A IA errou? Você corrige apontando, como faria com uma pessoa. O motor aprende sem você tocar em nada por dentro."
               />

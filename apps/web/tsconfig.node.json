@@ -8,6 +8,12 @@
     "noEmit": true,
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
+    // os testes importam componentes (.tsx) — ex.: tests/change-routing.test.ts
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    // mesmo alias do vite.config e do tsconfig do front
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
     "resolveJsonModule": true,
     "types": ["node"]
   },

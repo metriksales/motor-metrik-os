@@ -11,24 +11,27 @@
     "test:group-reader": "tsx --test tests/group-reader.test.ts"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.1.0",
     "@clerk/backend": "^3.17.0",
     "@clerk/clerk-react": "^5.61.9",
     "@motor/control": "*",
+    "@motor/core": "*",
     "@motor/db": "*",
     "@motor/runtime": "*",
+    "@neondatabase/serverless": "^1.1.0",
+    "clsx": "^2.1.1",
     "framer-motion": "^11.3.24",
     "lucide-react": "^0.436.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.4",
     "@types/react-dom": "^18.3.0",
     "@vercel/node": "^3.2.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "esbuild": "^0.21.5",
     "autoprefixer": "^10.4.20",
+    "esbuild": "^0.21.5",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10",
     "tsx": "^4.23.13",

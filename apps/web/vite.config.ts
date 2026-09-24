@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
 
 // Dev-only: serve /api/control local chamando @motor/control direto (stack
 // completo no `npm run dev`, sem precisar de `vercel dev`). NÃO afeta o build de
@@ -87,11 +88,11 @@ function localControlApi(clerkSecretKey: string | undefined): PluginOption {
             case "publicarMudanca":
               return send(200, await control.publicarMudanca(ctx, body.changeSetId));
             case "testar":
-              return send(200, await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo }));
+              return send(200, await control.testarConversa(ctx, { agentId: body.agentId, historico: body.historico ?? [], modo: body.modo, changeSetId: body.changeSetId }));
             case "rodando":
               return send(200, await control.specRodando(ctx, url.searchParams.get("agentId") ?? ""));
             case "rodarTestes":
-              return send(200, await control.rodarTestes(ctx, String(body.agentId ?? url.searchParams.get("agentId") ?? "")));
+              return send(200, await control.rodarTestes(ctx, String(body.agentId ?? url.searchParams.get("agentId") ?? ""), body.modoTeste === "ensaio" ? "ensaio" : "ar", body.changeSetId));
             case "members":
               return send(200, await control.listMembers(ctx));
             case "setEstado":
@@ -134,6 +135,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), localControlApi(env.CLERK_SECRET_KEY)],
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
+      },
+    },
     // localhost de propósito: o middleware de dev é uma porta admin sem sessão;
     // com host:true ele ficava exposto na rede local (achado M8 da auditoria).
     server: { port: 5175, host: "localhost" },

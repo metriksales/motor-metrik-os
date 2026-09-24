@@ -14,14 +14,15 @@ import {
 } from "@motor/messaging";
 import { defaultRegistry } from "@motor/motors";
 import { makeAdapter } from "@motor/crm";
-import type {
-  AgentSpec,
-  ConnKind,
-  CrmPort,
-  LlmPort,
-  MotorPorts,
-  MotorRegistry,
-  RuntimeLog,
+import {
+  resolveMotorConfig,
+  type AgentSpec,
+  type ConnKind,
+  type CrmPort,
+  type LlmPort,
+  type MotorPorts,
+  type MotorRegistry,
+  type RuntimeLog,
 } from "@motor/core";
 import type { RuntimeDeps } from "./deps";
 
@@ -44,15 +45,6 @@ export interface ProductionEnv {
 
 const CANAIS = new Set(["ghl-native", "uazapi-multi"]);
 const SENDERS = new Set(["meta-template", "llm-freeform"]);
-
-/** Config do follow-up a partir do spec (os "botões" do cliente). */
-function configFollowup(spec: AgentSpec): Record<string, unknown> {
-  const cfg: Record<string, unknown> = {};
-  for (const m of spec.modulos ?? []) {
-    if (m.onde === "followup" && m.config) Object.assign(cfg, m.config);
-  }
-  return cfg;
-}
 
 /**
  * createProductionDeps — RuntimeDeps de produção.
@@ -102,7 +94,7 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
     loadSpec,
     async portsFor(orgId, agentId) {
       const spec = await loadSpec(orgId, agentId);
-      const cfg = spec ? configFollowup(spec) : {};
+      const cfg = spec ? resolveMotorConfig(spec, "followup") : {};
 
       // Mãos no CRM: só se o vault entregar o token do tenant.
       let crm: CrmPort | undefined;

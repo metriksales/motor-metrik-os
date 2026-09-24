@@ -3,13 +3,14 @@
 // mensagem, montando um RuntimeDeps de verdade. É a "tomada" onde a
 // biblioteca (motors) e as peças (messaging) se ligam ao Data Plane —
 // mantendo o pipeline plugável (ele só conhece os contratos do core).
-import type {
-  AgentSpec,
-  CrmPort,
-  LlmPort,
-  MotorPorts,
-  MotorRegistry,
-  RuntimeLog,
+import {
+  resolveMotorConfig,
+  type AgentSpec,
+  type CrmPort,
+  type LlmPort,
+  type MotorPorts,
+  type MotorRegistry,
+  type RuntimeLog,
 } from "@motor/core";
 import { defaultRegistry } from "@motor/motors";
 import {
@@ -22,15 +23,6 @@ import type { RuntimeDeps } from "./deps";
 
 const CANAIS = new Set(["ghl-native", "uazapi-multi"]);
 const SENDERS = new Set(["meta-template", "llm-freeform"]);
-
-/** Config do motor a partir do spec (mesma regra do pipeline): módulos que caem nele. */
-function configDoMotor(spec: AgentSpec, engineId: string): Record<string, unknown> {
-  const cfg: Record<string, unknown> = {};
-  for (const m of spec.modulos ?? []) {
-    if (m.onde === engineId && m.config) Object.assign(cfg, m.config);
-  }
-  return cfg;
-}
 
 export interface LiveDepsOptions {
   /** specs publicados, indexados por "orgId:agentId". */
@@ -66,7 +58,7 @@ export function createLiveDeps(opts: LiveDepsOptions): { deps: RuntimeDeps; logs
     },
     async portsFor(orgId, agentId) {
       const spec = opts.specs[`${orgId}:${agentId}`];
-      const cfg = spec ? configDoMotor(spec, "followup") : {};
+      const cfg = spec ? resolveMotorConfig(spec, "followup") : {};
 
       // canal (config) → qual Transport; fallback: humanos→uazapi, senão GHL nativo.
       const canalCfg = typeof cfg.canal === "string" ? cfg.canal : "";

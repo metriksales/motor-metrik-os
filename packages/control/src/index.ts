@@ -6,7 +6,16 @@ import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, or
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
-import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
+import {
+  aplicarPlanoDeMudanca,
+  criarProvaOperacional,
+  planejarMudanca,
+  type AgentSpec,
+  type AgentTipo,
+  type ChangeOrigin,
+  type ConnKind,
+  type OperationalProof,
+} from "@motor/core";
 import {
   type Escopo,
   ehTokenDeMaquina,
@@ -528,18 +537,29 @@ function systemDe(spec: AgentSpec): string {
     .join("\n");
 }
 
-/**
- * COMPILA o pedido do cliente (texto livre) numa nova AgentSpec: a mudança
- * entra como uma NOVA regra no cérebro. Não remove nem edita as regras
- * blindadas existentes (o guardião confere que continuam valendo) — só
- * ACRESCENTA a instrução do cliente. É o caminho sancionado do "cliente muda
- * sozinho": adicionar comportamento, nunca quebrar o núcleo.
- */
+/** COMPILA o pedido na peça certa: conversa no cérebro, automação no motor. */
 function compilarSpec(specAtual: AgentSpec, pedido: string): AgentSpec {
-  const regra = pedido.trim();
+  return aplicarPlanoDeMudanca(specAtual, planejarMudanca(pedido));
+}
+
+function placarOperacional(prova: OperationalProof) {
+  const total = prova.checks.length;
+  const passaram = prova.checks.filter((check) => check.passou).length;
   return {
-    ...specAtual,
-    cerebro: { ...specAtual.cerebro, regras: [...specAtual.cerebro.regras, regra] },
+    total,
+    passaram,
+    falharam: total - passaram,
+    taxa: total === 0 ? 0 : passaram / total,
+    aprovado: prova.aprovado,
+    limiar: 1,
+    casos: prova.checks.map((check) => ({
+      caseId: check.id,
+      nome: check.rotulo,
+      passou: check.passou,
+      falhas: check.passou ? [] : ["configuração não aplicada"],
+      entrada: {},
+      criterios: [],
+    })),
   };
 }
 
@@ -572,10 +592,44 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
     .where(and(eq(agents.id, cs.agentId), eq(agents.orgId, ctx.orgId)));
   const kit = kitParaAgente(ag?.name ?? "");
   const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+  const plano = planejarMudanca(pedido);
 
   // spec ATUAL (a publicada; senão a semente da vertical) e a spec COM a mudança
   const specAtual = (await loadPublishedSpec(ctx, cs.agentId)) ?? kit.spec;
-  const specNovo = compilarSpec(specAtual, pedido);
+  const specNovo = aplicarPlanoDeMudanca(specAtual, plano);
+
+  // Automação é provada como automação: config aplicada, cadência exata e
+  // cérebro intacto. Não usamos uma resposta de chat como evidência falsa.
+  if (plano.kind === "motor") {
+    const prova = criarProvaOperacional(specAtual, specNovo, plano);
+    const evals = placarOperacional(prova);
+    const ensaio = { modo: "operacional" as const, ...prova };
+    const [updated] = await db
+      .update(changeSets)
+      .set({
+        status: "evaluated",
+        before: prova.antes,
+        after: prova.agora,
+        impact: { tipo: "motor", plano, evals, suite: `motor.${plano.motorId}.config.v1`, ensaio },
+      })
+      .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)))
+      .returning();
+    await audit(ctx, "changeset.evaluate", changeSetId, {
+      tipo: "motor",
+      motor: plano.motorId,
+      aprovado: prova.aprovado,
+      suite: `motor.${plano.motorId}.config.v1`,
+    });
+    return { changeSet: updated, evals, ensaio, plano };
+  }
+
+  if (plano.kind === "documento" || plano.kind === "ferramenta") {
+    throw new Error(
+      plano.kind === "ferramenta"
+        ? "conexões são feitas na área Conexões — não alterei a conversa do agente"
+        : "documentos precisam de revisão antes de entrar na base",
+    );
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   const temCerebro = !!apiKey;
@@ -652,11 +706,11 @@ export async function avaliarMudanca(ctx: Ctx, changeSetId: string) {
 
   const [updated] = await db
     .update(changeSets)
-    .set({ status: "evaluated", impact: { evals, suite: kit.id, ensaio } })
+    .set({ status: "evaluated", impact: { tipo: "conversa", plano, evals, suite: kit.id, ensaio } })
     .where(and(eq(changeSets.id, changeSetId), eq(changeSets.orgId, ctx.orgId)))
     .returning();
   await audit(ctx, "changeset.evaluate", changeSetId, { taxa: evals.taxa, aprovado: evals.aprovado, suite: kit.id, ensaio: ensaio.modo });
-  return { changeSet: updated, evals, ensaio };
+  return { changeSet: updated, evals, ensaio, plano };
 }
 
 /**
@@ -693,7 +747,8 @@ export async function specRodando(ctx: Ctx, agentId: string) {
  * cada ataque; sem, o FakeBrain roteirizado confere as travas base — e o
  * resultado vem SINALIZADO (modo) pra UI nunca vender roteiro como real.
  */
-export async function rodarTestes(ctx: Ctx, agentId: string) {
+export async function rodarTestes(ctx: Ctx, agentId: string, modoTeste: "ar" | "ensaio" = "ar", changeSetId?: string) {
+  // gasta chamada de IA → exige permissão de ajustar (S-006)
   exigirPermissao(ctx, "ajustar");
   const [ag] = await db
     .select()
@@ -702,8 +757,29 @@ export async function rodarTestes(ctx: Ctx, agentId: string) {
   if (!ag) throw new NaoEncontrado("agente");
   const kit = kitParaAgente(ag.name ?? "");
   const publicada = await loadPublishedSpec(ctx, agentId);
-  const spec = publicada ?? kit.spec;
+  let spec = publicada ?? kit.spec;
   const base: "publicada" | "semente" = publicada ? "publicada" : "semente";
+  let mudanca: { id: string; intent: string } | null = null;
+
+  if (modoTeste === "ensaio") {
+    const baseQuery = db
+      .select()
+      .from(changeSets)
+      .where(and(
+        eq(changeSets.agentId, agentId),
+        eq(changeSets.orgId, ctx.orgId),
+        sql`${changeSets.status} in ('draft','evaluated','approved')`,
+        ...(changeSetId ? [eq(changeSets.id, changeSetId)] : []),
+      ));
+    const [cs] = changeSetId ? await baseQuery.limit(1) : await baseQuery.orderBy(desc(changeSets.createdAt)).limit(1);
+    if (cs) {
+      const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+      if (pedido) {
+        spec = compilarSpec(spec, pedido);
+        mudanca = { id: cs.id, intent: cs.intent ?? pedido };
+      }
+    }
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
   const modo: "real" | "roteiro" = apiKey ? "real" : "roteiro";
@@ -727,8 +803,8 @@ export async function rodarTestes(ctx: Ctx, agentId: string) {
   };
   const t0 = Date.now();
   const evals = await runEvals(kit.evals, runner, 0.75);
-  await audit(ctx, "agente.testes", agentId, { modo, base, taxa: evals.taxa, passaram: evals.passaram, total: evals.total });
-  return { modo, base, evals, ms, duracaoMs: Date.now() - t0, suite: kit.id };
+  await audit(ctx, "agente.testes", agentId, { modo, modoTeste, base, mudancaId: mudanca?.id ?? null, taxa: evals.taxa, passaram: evals.passaram, total: evals.total });
+  return { modo, modoTeste, base, mudanca, evals, ms, duracaoMs: Date.now() - t0, suite: kit.id };
 }
 
 /**
@@ -745,7 +821,7 @@ export async function rodarTestes(ctx: Ctx, agentId: string) {
  */
 export async function testarConversa(
   ctx: Ctx,
-  input: { agentId: string; historico: { role: "user" | "assistant"; content: string }[]; modo?: "ar" | "ensaio" },
+  input: { agentId: string; historico: { role: "user" | "assistant"; content: string }[]; modo?: "ar" | "ensaio"; changeSetId?: string },
 ) {
   // gasta chamada de IA → não é leitura
   exigirPermissao(ctx, "ajustar");
@@ -763,12 +839,16 @@ export async function testarConversa(
   // "com o ensaio": o último pedido em preparo entra por cima, como no avaliar
   let ensaioAplicado: string | null = null;
   if (input.modo === "ensaio") {
-    const [cs] = await db
+    const baseQuery = db
       .select()
       .from(changeSets)
-      .where(and(eq(changeSets.agentId, input.agentId), eq(changeSets.orgId, ctx.orgId), sql`${changeSets.status} in ('draft','evaluated','approved')`))
-      .orderBy(desc(changeSets.createdAt))
-      .limit(1);
+      .where(and(
+        eq(changeSets.agentId, input.agentId),
+        eq(changeSets.orgId, ctx.orgId),
+        sql`${changeSets.status} in ('draft','evaluated','approved')`,
+        ...(input.changeSetId ? [eq(changeSets.id, input.changeSetId)] : []),
+      ));
+    const [cs] = input.changeSetId ? await baseQuery.limit(1) : await baseQuery.orderBy(desc(changeSets.createdAt)).limit(1);
     if (cs) {
       const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
       if (pedido) {
@@ -819,8 +899,22 @@ export async function publicarMudanca(ctx: Ctx, changeSetId: string) {
     .where(and(eq(agents.id, cs.agentId), eq(agents.orgId, ctx.orgId)));
   const kit = kitParaAgente(ag?.name ?? "");
   const pedido = String((cs.patch as any)?.pedido ?? cs.intent ?? "").trim();
+  const plano = planejarMudanca(pedido);
+  if (plano.kind === "documento" || plano.kind === "ferramenta") {
+    throw new Error(plano.kind === "ferramenta" ? "use a área Conexões para ligar uma ferramenta" : "documento ainda precisa de revisão");
+  }
+  const impact = (cs.impact ?? {}) as any;
+  if (cs.status !== "evaluated" && cs.status !== "approved") {
+    throw new Error("rode o teste antes de publicar");
+  }
+  if (impact?.evals?.aprovado !== true) {
+    throw new Error("o guardião não aprovou esta mudança");
+  }
+  if (plano.kind === "conversa" && impact?.ensaio?.modo !== "real") {
+    throw new Error("a conversa precisa de um ensaio real antes de publicar");
+  }
   const specAtual = (await loadPublishedSpec(ctx, cs.agentId)) ?? kit.spec;
-  const specNovo = compilarSpec(specAtual, pedido);
+  const specNovo = aplicarPlanoDeMudanca(specAtual, plano);
   return publicar(ctx, { agentId: cs.agentId, spec: specNovo, changeSetId, runtimeVersion: "web-1" });
 }
 

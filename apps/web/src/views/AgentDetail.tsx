@@ -286,7 +286,7 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
               height: 38,
               padding: "0 16px",
               ...(l.estado === "nucleo"
-                ? { background: "rgba(232,176,75,.13)", border: "1px solid rgba(232,176,75,.55)", color: "var(--txt)", fontWeight: 600 }
+                ? { background: "rgba(59,130,246,.13)", border: "1px solid rgba(59,130,246,.55)", color: "var(--txt)", fontWeight: 600 }
                 : l.estado === "on"
                   ? { background: "var(--surface)", border: "1px solid var(--line)", color: "var(--txt-2)", fontWeight: 500 }
                   : { background: "var(--surface-2)", border: "1px dashed var(--line-hi)", color: "var(--txt-4)", fontWeight: 500 }),
@@ -298,7 +298,7 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
               className="text-[9px] font-semibold rounded-[5px] px-1.5 py-0.5"
               style={
                 l.estado === "nucleo"
-                  ? { color: "#ecc06a", background: "rgba(232,176,75,.18)" }
+                  ? { color: "#60a5fa", background: "rgba(59,130,246,.18)" }
                   : l.estado === "on"
                     ? { color: "var(--emerald)", background: "rgba(63,185,80,.12)" }
                     : { color: "var(--txt-4)" }
@@ -370,13 +370,13 @@ function ComoFuncionaTab({ agent, onMelhorar, irTestar }: { agent: Agent; onMelh
             </div>
           ))}
           {(agent.upgrades ?? []).map((u) => (
-            <div key={u.name} className="card p-4 flex flex-col" style={{ borderColor: "rgba(232,176,75,.35)", background: "linear-gradient(150deg, rgba(232,176,75,.06), var(--surface))" }}>
+            <div key={u.name} className="card p-4 flex flex-col" style={{ borderColor: "rgba(59,130,246,.35)", background: "linear-gradient(150deg, rgba(59,130,246,.06), var(--surface))" }}>
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="flex items-center gap-2 min-w-0">
-                  <u.icon size={15} style={{ color: "#e8b04b" }} className="flex-none" />
+                  <u.icon size={15} style={{ color: "#3b82f6" }} className="flex-none" />
                   <b className="text-[13px] truncate">{u.name}</b>
                 </span>
-                <span className="mono-label !text-[8px] flex-none" style={{ color: "#ecc06a" }}>novo</span>
+                <span className="mono-label !text-[8px] flex-none" style={{ color: "#60a5fa" }}>novo</span>
               </div>
               <p className="text-[11.5px] text-[var(--txt-3)] leading-relaxed mb-3 flex-1">{u.blurb}</p>
               <button className="btn btn-primary btn-sm self-start" onClick={() => setModal(u)}>Ligar em 1 minuto <ArrowRight size={13} /></button>
@@ -434,7 +434,7 @@ function Fluxo({ agent }: { agent: Agent }) {
                   <div className="text-[12px]" style={{ color: "#f85149" }}><b>por quê:</b> {p.porque}</div>
                   {p.sugestao && (
                     <div className="text-[12.5px] text-[var(--txt-2)] mt-2 flex gap-1.5">
-                      <Lightbulb size={14} style={{ color: "#e8b04b" }} className="flex-none mt-[1px]" /> {p.sugestao}
+                      <Lightbulb size={14} style={{ color: "#3b82f6" }} className="flex-none mt-[1px]" /> {p.sugestao}
                     </div>
                   )}
                   {fix[i] ? (
@@ -553,10 +553,10 @@ function LogsTab({ agent, onCorrigir }: { agent: Agent; onCorrigir: (seed: strin
           )}
         </div>
 
-        <div className="card p-5" style={{ borderColor: "#e8b04b2e", background: "linear-gradient(165deg, rgba(232,176,75,.07), var(--surface))" }}>
+        <div className="card p-5" style={{ borderColor: "#3b82f62e", background: "linear-gradient(165deg, rgba(59,130,246,.07), var(--surface))" }}>
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#e8b04b" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
-            <Pill color="#e8b04b">rotina · 8h</Pill>
+            <div className="flex items-center gap-2"><Sparkles size={16} style={{ color: "#3b82f6" }} /><span className="font-display font-semibold text-[14.5px]">Análise do dia</span></div>
+            <Pill color="#3b82f6">rotina · 8h</Pill>
           </div>
           {(() => { const saiu = temConf ? nFalhou : errosHoje; return (
             <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
@@ -654,7 +654,7 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
       {/* o que dá pra melhorar */}
       {insights.length > 0 && (
         <div>
-          <div className="mono-label flex items-center gap-1.5 mb-3"><Lightbulb size={12} style={{ color: "#e8b04b" }} /> O que dá pra melhorar</div>
+          <div className="mono-label flex items-center gap-1.5 mb-3"><Lightbulb size={12} style={{ color: "#3b82f6" }} /> O que dá pra melhorar</div>
           <div className="grid md:grid-cols-2 gap-3">
             {insights.map((ins, i) => <InsightCard key={i} ins={ins} onGo={onMelhorar} />)}
           </div>
@@ -667,7 +667,7 @@ function OQueFaz({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }
 const insMeta = {
   elogio: { icon: ThumbsUp, color: "#3fb950", tag: "indo bem" },
   critico: { icon: AlertTriangle, color: "#fbbf24", tag: "pede permissão" },
-  dica: { icon: Lightbulb, color: "#e8b04b", tag: "ideia" },
+  dica: { icon: Lightbulb, color: "#3b82f6", tag: "ideia" },
 } as const;
 
 function InsightCard({ ins, onGo }: { ins: Insight; onGo: () => void }) {
@@ -735,7 +735,7 @@ function Turbinar({ agent, onMelhorar }: { agent: Agent; onMelhorar?: () => void
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-medium truncate">{f.name}</div>
-                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#e8b04b" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você" : "operado pela Metrik"}</span>
+                <span className="text-[10.5px]" style={{ color: f.fonte === "mcp" ? "#3b82f6" : "var(--txt-4)" }}>{f.fonte === "mcp" ? "criada por você" : "operado pela Metrik"}</span>
               </div>
               <span className="pill flex-none" style={{ color: f.on ? "#3fb950" : "var(--txt-4)", borderColor: f.on ? "#3fb95040" : "var(--line)", background: f.on ? "#3fb95012" : "var(--surface-2)" }}>
                 {f.on ? <><span className="live-dot" style={{ width: 6, height: 6, background: "#3fb950" }} /> ligado</> : "desligado"}
@@ -844,14 +844,14 @@ const RESP: Record<string, { tipo: string; txt: string }> = {
 };
 const respMeta: Record<string, { label: string; color: string }> = {
   ajuste: { label: "ajuste", color: "#fbbf24" },
-  novo: { label: "recurso novo", color: "#e8b04b" },
+  novo: { label: "recurso novo", color: "#3b82f6" },
   regra: { label: "trava / regra", color: "#58aae4" },
 };
 const ORIG: Record<string, { label: string; color: string }> = {
   metrik: { label: "Metrik", color: "#83879a" },
   chat: { label: "chat", color: "#58aae4" },
   ajuste: { label: "botão", color: "#fbbf24" },
-  claude: { label: "Claude Code", color: "#e8b04b" },
+  claude: { label: "Claude Code", color: "#3b82f6" },
   codex: { label: "Codex", color: "#58aae4" },
 };
 
@@ -860,7 +860,7 @@ type EnsaioSit = { nome: string; pergunta: string; antes: string; agora: string 
 type Destino = "fato" | "regra" | "doc";
 const DESTINO_META: Record<Destino, { emoji: string; label: string; cor: string; desc: string }> = {
   fato: { emoji: "🧾", label: "Lista · fato exato", cor: "#3fb950", desc: "ela passa a responder sempre igual — entra no cérebro depois do ensaio rápido." },
-  regra: { emoji: "⚙️", label: "Motor · comportamento", cor: "#e8b04b", desc: "muda o jeito dela agir — o guardião testa no ensaio antes de valer." },
+  regra: { emoji: "⚙️", label: "Motor · comportamento", cor: "#3b82f6", desc: "muda o jeito dela agir — o guardião testa no ensaio antes de valer." },
   doc: { emoji: "📚", label: "Biblioteca · documento", cor: "#58aae4", desc: "conteúdo longo — fica guardado; a busca inteligente entra na próxima atualização da Metrik." },
 };
 /** palpite de destino (sem cérebro é heurística — o cliente SEMPRE confirma) */
@@ -914,8 +914,8 @@ const DEMO_HIST: HistRow[] = [
 ];
 type HistRow = { origem: string; oque: string; quando: string; estado: string; prova?: string; rendeu?: string };
 const BADGE_ORIGEM: Record<string, { label: string; cor: string }> = {
-  chat: { label: "VOCÊ", cor: "#ecc06a" },
-  ajuste: { label: "MÓDULO", cor: "#ecc06a" },
+  chat: { label: "VOCÊ", cor: "#60a5fa" },
+  ajuste: { label: "MÓDULO", cor: "#60a5fa" },
   metrik: { label: "METRIK", cor: "#58aae4" },
   claude: { label: "METRIK", cor: "#58aae4" },
   codex: { label: "METRIK", cor: "#58aae4" },
@@ -959,10 +959,10 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(6,8,12,.6)", backdropFilter: "blur(6px)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#151a24", border: "1px solid rgba(232,176,75,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.8)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#151a24", border: "1px solid rgba(59,130,246,.4)", boxShadow: "0 30px 70px -30px rgba(0,0,0,.8)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-1">
           <div>
-            <div className="mono-label !text-[9px]" style={{ color: "#ecc06a" }}>Ligar · {u.name}</div>
+            <div className="mono-label !text-[9px]" style={{ color: "#60a5fa" }}>Ligar · {u.name}</div>
             <div className="font-display font-bold text-[16px] tracking-tight mt-1">
               {(u.config?.length ?? 0) > 0 ? `${u.config!.length} ${u.config!.length === 1 ? "escolha" : "escolhas"} — já vem pronto` : "Já vem pronto"}
             </div>
@@ -980,7 +980,7 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
                     {c.opcoes.map((o) => {
                       const sel = escolhas[i] === o;
                       return (
-                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[11.5px] rounded-lg px-3 py-1.5 transition-colors" style={sel ? { background: "#e8b04b", color: "#08090d", fontWeight: 600 } : { border: "1px solid var(--line-hi)", color: "var(--txt-2)" }}>
+                        <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[11.5px] rounded-lg px-3 py-1.5 transition-colors" style={sel ? { background: "#3b82f6", color: "#08090d", fontWeight: 600 } : { border: "1px solid var(--line-hi)", color: "var(--txt-2)" }}>
                           {o}{sel ? " ✓" : ""}
                         </button>
                       );
@@ -989,7 +989,7 @@ function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; onClose:
                 </div>
               ))}
             </div>
-            <div className="rounded-xl px-3.5 py-3 mt-4" style={{ background: "rgba(232,176,75,.08)", border: "1px solid rgba(232,176,75,.3)" }}>
+            <div className="rounded-xl px-3.5 py-3 mt-4" style={{ background: "rgba(59,130,246,.08)", border: "1px solid rgba(59,130,246,.3)" }}>
               <p className="text-[12.5px] leading-relaxed m-0">{u.resultado ?? u.blurb}</p>
             </div>
             {fase === "erro" && <div className="text-[11.5px] mt-3" style={{ color: "#f85149" }}>{erro}</div>}
@@ -1125,7 +1125,7 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
       {/* o telefone — a conversa */}
       <div className="rounded-2xl overflow-hidden border border-[var(--line)] min-w-0" style={{ background: WA.fundo }}>
         <div className="flex items-center gap-3 px-4 py-2.5" style={{ background: WA.topo }}>
-          <div className="rounded-full p-1 flex-none" style={{ background: "var(--deep)", border: "1px solid rgba(232,176,75,.5)" }}>
+          <div className="rounded-full p-1 flex-none" style={{ background: "var(--deep)", border: "1px solid rgba(59,130,246,.5)" }}>
             <Robot state="ativo" color={agent.color} size={28} />
           </div>
           <div className="flex-1 min-w-0">
@@ -1204,11 +1204,11 @@ function TestarTab({ agent, onMelhorar, seed }: { agent: Agent; onMelhorar: (see
 
       {/* rail: a IA orienta o teste + placar honesto */}
       <div className="space-y-4">
-        <div className="card p-4" style={{ borderColor: "rgba(232,176,75,.35)", background: "linear-gradient(150deg, rgba(232,176,75,.07), var(--surface))" }}>
-          <div className="mono-label !text-[9px] mb-2.5" style={{ color: "#ecc06a" }}>Ela sugere o que testar</div>
+        <div className="card p-4" style={{ borderColor: "rgba(59,130,246,.35)", background: "linear-gradient(150deg, rgba(59,130,246,.07), var(--surface))" }}>
+          <div className="mono-label !text-[9px] mb-2.5" style={{ color: "#60a5fa" }}>Ela sugere o que testar</div>
           <div className="space-y-1.5">
             {sugestoes.map((s) => (
-              <button key={s} onClick={() => void enviarTeste(s)} className="block w-full text-left text-[12px] rounded-[9px] px-3 py-2 transition-colors hover:border-[rgba(232,176,75,.4)]" style={{ background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+              <button key={s} onClick={() => void enviarTeste(s)} className="block w-full text-left text-[12px] rounded-[9px] px-3 py-2 transition-colors hover:border-[rgba(59,130,246,.4)]" style={{ background: "var(--surface-2)", border: "1px solid var(--line)" }}>
                 “{s}”
               </button>
             ))}
@@ -1317,7 +1317,7 @@ function RodandoAgora({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhora
         {regras.map((r, i) => {
           const fato = ehFato(r);
           const sua = fato || ehSua(r);
-          const badge = fato ? { t: "🧾 fato seu", c: "#3fb950" } : sua ? { t: "✦ sua", c: "#ecc06a" } : { t: "🔒 núcleo", c: "#838a99" };
+          const badge = fato ? { t: "🧾 fato seu", c: "#3fb950" } : sua ? { t: "✦ sua", c: "#60a5fa" } : { t: "🔒 núcleo", c: "#838a99" };
           return (
             <div key={i} className="flex items-start gap-2.5 py-2 border-b border-[var(--line)] last:border-0">
               <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none mt-0.5" style={{ color: badge.c, background: `${badge.c}14`, border: `1px solid ${badge.c}35` }}>{badge.t}</span>
@@ -1377,7 +1377,7 @@ function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar
       <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
         <div className="font-display font-semibold text-[16px] tracking-tight">Tudo que {agent.name} <span className="grad-text">sabe</span> — e onde vive</div>
         <div className="flex items-center gap-4">
-          <span className="text-[10.5px] text-[var(--txt-4)]"><b style={{ color: "#3fb950" }}>{fatos.length}</b> fatos · <b style={{ color: "#58aae4" }}>{docs.length}</b> docs · <b style={{ color: "#ecc06a" }}>{regras.length}</b> regras</span>
+          <span className="text-[10.5px] text-[var(--txt-4)]"><b style={{ color: "#3fb950" }}>{fatos.length}</b> fatos · <b style={{ color: "#58aae4" }}>{docs.length}</b> docs · <b style={{ color: "#60a5fa" }}>{regras.length}</b> regras</span>
           <button className="btn btn-primary btn-sm" onClick={() => onMelhorar()}>+ Ensinar</button>
         </div>
       </div>
@@ -1417,7 +1417,7 @@ function MemoriaRobo({ agent, onMelhorar, irTestar }: { agent: Agent; onMelhorar
           )}
         </div>
 
-        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(232,176,75,.35)", background: "var(--surface)" }}>
+        <div className="rounded-xl p-3.5" style={{ border: "1px solid rgba(59,130,246,.35)", background: "var(--surface)" }}>
           <div className="flex items-center gap-2 mb-0.5"><span className="text-[15px]">⚙️</span><b className="text-[13px]">Motor — como ela age</b></div>
           <div className="text-[10px] text-[var(--txt-4)] mb-2.5">comportamento: só entra passando pelo ensaio</div>
           {regras.length === 0 ? (
@@ -1448,7 +1448,7 @@ function EnsaioProgresso() {
   return (
     <div className="card p-5">
       <div className="flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
-        <Loader2 size={15} className="animate-spin flex-none" style={{ color: "#e8b04b" }} />
+        <Loader2 size={15} className="animate-spin flex-none" style={{ color: "#3b82f6" }} />
         <span className="flex-1">{msg}</span>
         <span className="tick flex-none">{s}s</span>
       </div>
@@ -1572,7 +1572,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
           <h3 className="font-display text-[24px] font-bold tracking-tight m-0">Tudo que {agent.name} <span className="grad-text">já aprendeu</span></h3>
           <div className="flex gap-6 text-right">
             <div><div className="num text-[24px] leading-none">{nAr}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">no ar</div></div>
-            <div><div className="num text-[24px] leading-none" style={{ color: "#ecc06a" }}>{nSuas}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">suas</div></div>
+            <div><div className="num text-[24px] leading-none" style={{ color: "#60a5fa" }}>{nSuas}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">suas</div></div>
             <div><div className="num text-[24px] leading-none" style={{ color: "#58aae4" }}>{nMet}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">da Metrik</div></div>
             <div><div className="num text-[24px] leading-none" style={{ color: nSeg > 0 ? "#f85149" : "#3fb950" }}>{nSeg}</div><div className="text-[10px] text-[var(--txt-3)] mt-1">seguradas 🛡</div></div>
           </div>
@@ -1613,15 +1613,15 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
 
       {/* ── PASSO 1 · fala ou escreve, do seu jeito (canvas Porta Única) ── */}
       <div className="flex gap-3.5">
-        <StepBadge n={1} cor="#e8b04b" ativo={envio.fase === "idle" || envio.fase === "clarificar"} />
-        <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "rgba(232,176,75,.3)", background: "linear-gradient(150deg, rgba(232,176,75,.06), var(--surface))" }}>
+        <StepBadge n={1} cor="#3b82f6" ativo={envio.fase === "idle" || envio.fase === "clarificar"} />
+        <div className="card p-5 flex-1 min-w-0" style={{ borderColor: "rgba(59,130,246,.3)", background: "linear-gradient(150deg, rgba(59,130,246,.06), var(--surface))" }}>
           <div className="font-display font-bold text-[16px] tracking-tight mb-3">Fala ou escreve — <span className="grad-text">do seu jeito</span></div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setGravando((g) => !g)}
               title={gravando ? "parar — o áudio vira texto no campo" : "falar em vez de digitar"}
               className="grid place-items-center rounded-full flex-none transition-transform hover:scale-105"
-              style={{ width: 54, height: 54, background: gravando ? "#f85149" : "var(--grad)", boxShadow: gravando ? "0 0 0 5px rgba(248,81,73,.18)" : "0 12px 26px -14px rgba(232,176,75,.7)" }}
+              style={{ width: 54, height: 54, background: gravando ? "#f85149" : "var(--grad)", boxShadow: gravando ? "0 0 0 5px rgba(248,81,73,.18)" : "0 12px 26px -14px rgba(59,130,246,.7)" }}
             >
               <Mic size={22} style={{ color: "#08090d" }} />
             </button>
@@ -1700,7 +1700,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
         <div className="flex-1 min-w-0 space-y-4">
           {envio.fase === "registrando" && (
             <div className="card p-5 flex items-center gap-2.5 text-[12.5px] text-[var(--txt-2)]">
-              <Loader2 size={15} className="animate-spin" style={{ color: "#e8b04b" }} /> anotando o pedido…
+              <Loader2 size={15} className="animate-spin" style={{ color: "#3b82f6" }} /> anotando o pedido…
             </div>
           )}
           {envio.fase === "ensaiando" && <EnsaioProgresso />}
@@ -1723,9 +1723,9 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
       {/* ── ENSAIO: a simulação claríssima — antes vs agora + guardião ── */}
       {envio.fase === "pronto" && envio.evals && (
         <Reveal>
-          <div className="card p-5 md:p-6" style={{ borderColor: "#e8b04b2e" }}>
+          <div className="card p-5 md:p-6" style={{ borderColor: "#3b82f62e" }}>
             <div className="flex items-center gap-2 mb-1">
-              <FlaskConical size={17} style={{ color: "#e8b04b" }} />
+              <FlaskConical size={17} style={{ color: "#3b82f6" }} />
               <span className="font-display font-semibold text-[16px]">O ensaio da sua mudança</span>
             </div>
             <p className="text-[13.5px] text-[var(--txt-2)] mb-4">Você pediu: <b className="text-[var(--txt)]">“{envio.pedido}”</b></p>
@@ -1758,7 +1758,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
                       <div className="px-4 py-2.5 bg-[var(--surface-2)] text-[12.5px] text-[var(--txt-2)] flex items-center gap-2 flex-wrap">
                         <span><span className="text-[var(--txt-4)]">situação:</span> {s.pergunta}</span>
                         {s.nome === "do seu pedido" && (
-                          <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none" style={{ color: "#ecc06a", background: "rgba(232,176,75,.14)", border: "1px solid rgba(232,176,75,.4)" }}>do SEU pedido</span>
+                          <span className="text-[9px] font-bold rounded-[6px] px-2 py-0.5 flex-none" style={{ color: "#60a5fa", background: "rgba(59,130,246,.14)", border: "1px solid rgba(59,130,246,.4)" }}>do SEU pedido</span>
                         )}
                       </div>
                       <div className="grid md:grid-cols-2">
@@ -1821,7 +1821,7 @@ function MelhorarTab({ agent, initialTexto, irTestar, irComoFunciona }: { agent:
         <Reveal>
           <div className="card p-5 flex items-center gap-3" style={{ borderColor: envio.fase === "publicado" ? "#3fb95040" : "var(--line)", background: envio.fase === "publicado" ? "rgba(63,185,80,.06)" : undefined }}>
             {envio.fase === "publicando" ? (
-              <><Loader2 size={18} className="animate-spin" style={{ color: "#e8b04b" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
+              <><Loader2 size={18} className="animate-spin" style={{ color: "#3b82f6" }} /> <span className="text-[13.5px] text-[var(--txt-2)]">publicando a nova versão…</span></>
             ) : (
               <>
                 <div className="grid place-items-center rounded-full flex-none" style={{ width: 34, height: 34, background: "rgba(63,185,80,.14)", border: "1px solid rgba(63,185,80,.34)" }}><Check size={17} style={{ color: "#3fb950" }} /></div>

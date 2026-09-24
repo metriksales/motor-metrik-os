@@ -44,7 +44,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           detalhe: l.erro ?? undefined,
           valorCentavos: l.valorCentavos,
           agente: a?.name ?? l.motor ?? "motor",
-          color: a?.color ?? "#e8b04b",
+          color: a?.color ?? "#3b82f6",
           id: l.id,
           raw: l,
         };
@@ -128,7 +128,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
             <ul className="space-y-1">
               {feed.map((r, i) => {
                   const conf = conferir(r);
-                  const st = r.status === "run" ? { icon: Loader2, color: "#e8b04b" } : { icon: SELO_META[conf.veredito].icon, color: SELO_META[conf.veredito].cor };
+                  const st = r.status === "run" ? { icon: Loader2, color: "#3b82f6" } : { icon: SELO_META[conf.veredito].icon, color: SELO_META[conf.veredito].cor };
                   const dinheiroLinha = (r.valorCentavos ?? 0) > 0;
                   const nova = vistos.current !== null && !vistos.current.has(r.id);
                   const abrir = () =>
@@ -142,7 +142,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
                       key={r.id}
                       onClick={abrir}
                       role="button"
-                      initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(232,176,75,.14)" } : false}
+                      initial={nova ? { opacity: 0, y: -12, backgroundColor: "rgba(59,130,246,.14)" } : false}
                       animate={{ opacity: 1, y: 0, backgroundColor: "rgba(0,0,0,0)" }}
                       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1], backgroundColor: { duration: 2 } }}
                       className={cx(
