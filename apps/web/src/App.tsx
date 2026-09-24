@@ -103,7 +103,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex overflow-hidden relative">
 
-      {/* SIDEBAR — a coluna estrutural do Motor OS */}
+      {/* SIDEBAR — a coluna estrutural do Metrik-OS */}
       <aside className={cx("app-sidebar relative z-20 flex-none hidden md:flex flex-col", compactSide ? "app-sidebar--compact" : "app-sidebar--expanded")}>
         <div className="app-sidebar-brand-row">
           <button type="button" className="app-brand" onClick={() => go("inicio")} aria-label="Ir para o Início" title={compactSide ? "Metrik · Início" : undefined}>
@@ -111,7 +111,7 @@ export default function App() {
             {!compactSide && (
               <span className="app-brand-copy">
                 <strong>Metrik</strong>
-                <small>Motor OS</small>
+                <small>Metrik-OS</small>
               </span>
             )}
           </button>

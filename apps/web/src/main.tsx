@@ -36,7 +36,7 @@ function Centered({ children }: { children: React.ReactNode }) {
       <div className="grid-bg" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
       <div style={{ textAlign: "center", position: "relative" }}>
         <div className="font-display" style={{ fontWeight: 700, fontSize: 24, letterSpacing: "-0.02em", marginBottom: 6 }}>
-          Metrik <span className="grad-text">Motor OS</span>
+          <span className="grad-text">Metrik-OS</span>
         </div>
         <p style={{ color: "var(--txt-3)", fontSize: 13.5, marginBottom: 22 }}>
           sua operação trabalhando sozinha — entre pra observar
