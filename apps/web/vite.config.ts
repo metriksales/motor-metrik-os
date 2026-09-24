@@ -106,8 +106,14 @@ export default defineConfig(({ mode }) => {
   }
   // Trava de segurança (S-003): segredo NUNCA vai pro bundle. Qualquer VITE_*
   // com cara de token derruba o build antes de publicar.
+  // "PUBLIC"/"PUBLISHABLE" no nome = declaradamente público (ex.: a chave
+  // publicável do Clerk, que sobrou de configuração antiga). O que a trava
+  // procura é segredo de servidor vazando para o navegador.
   const proibidas = Object.keys(env).filter(
-    (k) => k.startsWith("VITE_") && /TOKEN|SECRET|KEY|PASSWORD|SENHA/i.test(k),
+    (k) =>
+      k.startsWith("VITE_") &&
+      /TOKEN|SECRET|KEY|PASSWORD|SENHA/i.test(k) &&
+      !/PUBLIC|PUBLISHABLE/i.test(k),
   );
   if (proibidas.length > 0) {
     throw new Error(
@@ -124,6 +130,12 @@ export default defineConfig(({ mode }) => {
     console.warn(
       "\n⚠️  build de produção com VITE_ALLOW_DEMO=1: vai ao ar a VITRINE, com dados de demonstração.\n",
     );
+  }
+
+  // Sobra da saída do Clerk (S-045): a variável não faz mais nada e pode ser
+  // apagada no projeto da Vercel.
+  if (env.VITE_CLERK_PUBLISHABLE_KEY) {
+    console.warn("\nℹ️  VITE_CLERK_PUBLISHABLE_KEY não é mais usada — dá para removê-la do projeto.\n");
   }
 
   return {
