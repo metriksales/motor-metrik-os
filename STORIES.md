@@ -21,7 +21,7 @@ Atualizado em 2026-09-24 13:40.
 | S-008 | Publicação atômica e à prova de concorrência | 1 | backlog |
 | S-009 | Porteiro de verdade: eval obrigatório e fiel à produção | 1 | backlog |
 | S-010 | Integridade do banco: FKs, uniques e ledger append-only | 1 | concluída |
-| S-011 | Isolamento no banco com RLS | 1 | backlog |
+| S-011 | Isolamento no banco com RLS | 1 | concluída |
 | S-012 | Observabilidade do control plane e do runtime | 1 | backlog |
 | S-013 | Front enxuto: código morto, tipos e lint | 1 | backlog |
 | S-014 | Dados ao vivo com um só polling e fuso fixo | 1 | backlog |
@@ -35,7 +35,7 @@ Atualizado em 2026-09-24 13:40.
 | S-022 | Permissões e modo desenvolvedor | 3 | backlog |
 | S-023 | Runtime multi-tenant: extrair o motor da skill (GHL + Kommo) | 2 | backlog |
 | S-024 | Estado, filas e idempotência no Redis | 2 | backlog |
-| S-025 | Cofre de credenciais por conta | 1 | backlog |
+| S-025 | Cofre de credenciais por conta | 1 | em andamento |
 | S-026 | Canais reais de entrada e saída | 2 | backlog |
 | S-027 | Resiliência e custo das integrações | 2 | backlog |
 | S-028 | Migrar os clientes atuais para a plataforma | 4 | backlog |
@@ -55,7 +55,8 @@ Atualizado em 2026-09-24 13:40.
 | S-042 | Página Início | 3 | backlog |
 | S-043 | Página do agente | 3 | backlog |
 | S-044 | Página Conta e Conexões | 3 | backlog |
-| S-045 | Autenticação e gestão de usuários própria | 1 | concluido |
+| S-045 | Autenticação e gestão de usuários própria | 1 | concluída |
+| S-046 | Proteger as tabelas de identidade | 1 | backlog |
 
 ---
 
@@ -461,9 +462,9 @@ O que foi corrigido, achado a achado:
 
 ## S-011 · Isolamento no banco com RLS
 
-- **status:** backlog
+- **status:** concluída
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-24
 
 **Missão.** A plataforma passa a guardar credenciais e conversas completas de todos os clientes. O filtro por conta no código já falhou na auditoria; o banco precisa recusar leitura cruzada mesmo quando o código esquece.
 
@@ -481,11 +482,15 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] Prova de conceito de contexto por request com o driver atual (ou registro de por que não)
-- [ ] Políticas nas tabelas de tenant
-- [ ] Papel de aplicação sem bypass; migrações com papel separado
-- [ ] Teste: query sem contexto de conta retorna zero linhas
-- [ ] Docs descrevendo o que existe de fato
+- [x] Prova de conceito — **o driver atual não servia**: `drizzle-orm/neon-http` faz `throw new Error("No transactions support in neon-http driver")`, e o transporte HTTP só carrega cinco cabeçalhos `Neon-*`, nenhum de sessão. Sem transação não há onde declarar a conta. Trocado para `neon-serverless` (WebSocket), sem dependência nova.
+- [x] Políticas nas tabelas de tenant — `agents`, `agent_specs`, `change_sets`, `releases`, `connections`, `contact_states`, `runtime_logs`, `machine_tokens`, `audit_log`, `credentials`. `memberships` e `invites` têm política de **dois donos** (conta ou pessoa) na LEITURA, e escrita só por dentro da conta.
+- [x] Papel de aplicação sem bypass — `metrik_app`, que não é dono das tabelas; toda conexão faz `SET ROLE` ao abrir. Migração roda pelo dono, em conexão própria do drizzle-kit.
+- [x] Teste: query sem contexto devolve zero linhas — e mais três, inclusive escrita com `org_id` mentido sendo recusada pelo banco.
+- [x] Docs descrevendo o que existe de fato — AGENTS.md e BACKEND.md.
+
+**Como verifiquei.** 15 arquivos de teste verdes na CI contra `postgres:16`. Em produção: `pedirCodigo` responde 200 (prova o `SET ROLE` e a função `tem_convite_pendente`), e segredo/token inventados devolvem 401 e não 500 (provam que as funções `SECURITY DEFINER` do bootstrap existem).
+
+**O que NÃO está coberto, e virou S-046.** `users`, `login_codes`, `sessions` e `organizations` ficaram sem política. As três primeiras são identidade e não têm `org_id`; a última é a âncora do tenant, lida no bootstrap. Política por conta não é a ferramenta para elas.
 
 ---
 
@@ -856,9 +861,9 @@ O que foi corrigido, achado a achado:
 
 ## S-025 · Cofre de credenciais por conta
 
-- **status:** backlog
+- **status:** em andamento
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-24
 
 **Missão.** Com tudo hospedado, a Metrik guarda os tokens de CRM, WhatsApp e IA de todos os clientes. Sem cofre não há produto: o runtime não tem mãos e a credencial não tem onde morar em segurança.
 
@@ -877,11 +882,15 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] Credencial criptografada com chave por conta
-- [ ] Resolução falha se a credencial não é da conta (teste)
-- [ ] Nunca aparece em resposta de API, em log ou para uma IA
-- [ ] Refresh do OAuth GHL antes de expirar; 401 dispara refresh uma vez
-- [ ] Todo acesso à credencial registrado nos Logs
+- [x] Credencial criptografada com chave por conta — AES-256-GCM, chave derivada por HKDF com o `orgId` como sal, e o `orgId` no AAD (mover a linha para outra conta, direto no banco, não abre). Chave-mestra versionada, com `COFRE_CHAVES_ANTIGAS` só para decifrar: é o que permite rotacionar sem parar o sistema.
+- [x] Resolução falha se a credencial não é da conta — testado por três ângulos: conta errada na decifragem, linha movida entre contas, e o cofre de uma conta não aparecendo na listagem da outra.
+- [x] Nunca aparece em resposta de API, em log ou para uma IA — **não existe ação para ler o segredo**; ele sai só em `usarCredencial`, que é interno. O teste varre o JSON INTEIRO da resposta, não um campo.
+- [ ] **Refresh do OAuth GHL antes de expirar; 401 dispara refresh uma vez.** A estrutura está pronta (campo de renovação cifrado, validade guardada), o disparo não. Não implementei às cegas: escrever a chamada ao endpoint do GHL sem poder exercitá-la contra uma conta real entregaria código que parece pronto e nunca rodou. **Destravar exige as credenciais do app GHL (client id e secret) e uma subconta de teste.**
+- [x] Todo acesso à credencial registrado nos Logs — e no caminho descobriu-se que **ninguém lia `audit_log`**: havia escrita desde o começo e nenhuma leitura, o que equivale a não ter trilha. `listarAuditoria` resolve.
+
+**Como verifiquei.** 16 testes de criptografia que tentam o que um atacante tentaria (conta errada, linha movida, um bit virado, chave errada) e 4 de ponta a ponta pela porta única.
+
+**Pendência de operação.** `COFRE_CHAVE` precisa existir na Vercel, no projeto `motor-metrik-os-web`. Sem ela o cofre não abre — e o resto do sistema segue de pé.
 
 ---
 
@@ -1509,3 +1518,36 @@ Decisões e o porquê:
 - **Respostas que não entregam quem é cliente.** Pedir código responde igual exista ou não a conta; código errado, expirado ou inexistente dão a mesma recusa.
 - O parâmetro `getToken` continua nas ~70 chamadas do front, agora ignorado: trocar tudo de uma vez seria diff grande sem ganho. Sai aos poucos.
 - O middleware de desenvolvimento passou a exigir **a mesma sessão** de produção — antes bastava um header para virar admin (achado M8 da auditoria).
+
+---
+
+## S-046 · Proteger as tabelas de identidade
+
+- **status:** backlog
+- **criado:** 2026-09-24
+- **atualizado:** 2026-09-24
+
+**Missão.** A S-011 pôs política de conta em tudo que tem `org_id`. Sobraram `users`, `login_codes`, `sessions` e `organizations` — e elas não sobraram por esquecimento: política POR CONTA não é a ferramenta certa para elas. As três primeiras são identidade e não têm dono único; `organizations` é a própria âncora do tenant e é lida no bootstrap, antes de existir conta.
+
+Não é despreocupante. `users` é a lista de e-mails de todos os clientes da Metrik, e `sessions` guarda hash de token vivo. Uma consulta distraída lê as duas inteiras.
+
+**Escopo.** Decidir e implementar a proteção certa para cada uma — privilégio mínimo por tabela para `metrik_app`, acesso só por função `SECURITY DEFINER` onde couber, e política por pessoa onde fizer sentido (`sessions` por `app.user_id`). Avaliar revogar `SELECT` direto de `users` para o papel da aplicação, deixando só as funções nomeadas.
+
+**Arquivos e locais**
+
+| Caminho | Papel |
+| :--- | :--- |
+| `packages/db/drizzle/*.sql` | privilégios e políticas |
+| `packages/control/src/index.ts` | o que ainda lê essas tabelas direto |
+
+**Relacionados.** Nasce da S-011. Relaciona-se com S-045.
+
+**Checklist**
+
+- [ ] Inventário: quem lê e escreve cada uma das quatro, e por qual caminho
+- [ ] `sessions` com política por pessoa
+- [ ] Privilégio mínimo para `metrik_app` em `users` e `login_codes`
+- [ ] Decisão registrada sobre `organizations` (âncora do tenant)
+- [ ] Teste: leitura cruzada recusada pelo banco em cada uma
+
+---
