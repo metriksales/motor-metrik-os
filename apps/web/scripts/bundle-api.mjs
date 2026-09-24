@@ -2,7 +2,7 @@
 // serverless functions. Motivo: o Vercel deixa imports "@motor/*" externos e o
 // main deles aponta pra .ts — Node em produção não carrega (ERR_MODULE_NOT_FOUND).
 // Aqui o esbuild resolve os workspaces e INLINA tudo; só pacotes npm reais
-// (drizzle, neon, upstash, clerk) ficam externos — esses o Vercel traça normal.
+// (drizzle, neon) ficam externos — esses o Vercel traça normal.
 import { build } from "esbuild";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -22,7 +22,7 @@ const comum = {
   outExtension: { ".js": ".mjs" },
   // npm de verdade fica externo (o trace do Vercel os leva como JS normal)
   // `pg` é externo de propósito: só o caminho de TESTE (DB_DRIVER=pg) o usa.
-  external: ["@neondatabase/serverless", "drizzle-orm", "@upstash/*", "@clerk/*", "pg"],
+  external: ["@neondatabase/serverless", "drizzle-orm", "pg"],
   logLevel: "warning",
 };
 
