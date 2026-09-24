@@ -77,21 +77,39 @@ END $$;
 
 -- `memberships` e `invites` têm DOIS donos possíveis, e é isto que evita a
 -- saída preguiçosa de deixá-las fora do RLS por serem "tabelas de login": elas
--- são da conta, mas também são da pessoa. O seletor de contas lista várias
--- contas de uma pessoa sem furar isolamento nenhum.
+-- são da conta, mas também são da pessoa.
+--
+-- MAS LER E ESCREVER NÃO SÃO A MESMA COISA, e aqui está a diferença entre
+-- política e furo. Se a escrita também aceitasse "é da pessoa em curso",
+-- qualquer um poderia inserir um vínculo de si mesmo em QUALQUER conta — e
+-- entrar nela. Então: leitura pelos dois donos, escrita só por dentro da conta.
+--
+-- O que legitimamente escreve sem estar dentro da conta (aceitar convite,
+-- fundar a primeira conta) não vira política frouxa: vira função nomeada, lá
+-- embaixo. Operação privilegiada tem que caber numa lista que dá para ler.
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS memberships_da_conta_ou_da_pessoa ON memberships;--> statement-breakpoint
-CREATE POLICY memberships_da_conta_ou_da_pessoa ON memberships FOR ALL TO metrik_app
-	USING (org_id = conta_em_curso() OR user_id = pessoa_em_curso()::text)
-	WITH CHECK (org_id = conta_em_curso() OR user_id = pessoa_em_curso()::text);
+DROP POLICY IF EXISTS memberships_leitura ON memberships;--> statement-breakpoint
+DROP POLICY IF EXISTS memberships_escrita ON memberships;--> statement-breakpoint
+CREATE POLICY memberships_leitura ON memberships FOR SELECT TO metrik_app
+	USING (org_id = conta_em_curso() OR user_id = pessoa_em_curso()::text);
+--> statement-breakpoint
+CREATE POLICY memberships_escrita ON memberships FOR ALL TO metrik_app
+	USING (org_id = conta_em_curso())
+	WITH CHECK (org_id = conta_em_curso());
 --> statement-breakpoint
 ALTER TABLE invites ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP POLICY IF EXISTS invites_da_conta_ou_do_convidado ON invites;--> statement-breakpoint
-CREATE POLICY invites_da_conta_ou_do_convidado ON invites FOR ALL TO metrik_app
+DROP POLICY IF EXISTS invites_leitura ON invites;--> statement-breakpoint
+DROP POLICY IF EXISTS invites_escrita ON invites;--> statement-breakpoint
+CREATE POLICY invites_leitura ON invites FOR SELECT TO metrik_app
 	USING (
 		org_id = conta_em_curso()
 		OR email = (SELECT u.email FROM users u WHERE u.id = pessoa_em_curso())
-	)
+	);
+--> statement-breakpoint
+CREATE POLICY invites_escrita ON invites FOR ALL TO metrik_app
+	USING (org_id = conta_em_curso())
 	WITH CHECK (org_id = conta_em_curso());
 --> statement-breakpoint
 
@@ -139,6 +157,60 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 	UPDATE machine_tokens SET last_used_at = now() WHERE id = p_id
 $$;
 --> statement-breakpoint
+-- ── o que a entrada faz, e não cabe em política ──────────────────────────
+-- Estas duas escrevem vínculo SEM estar dentro de uma conta. São privilégio,
+-- e por isso são função nomeada em vez de política permissiva: dá para listar
+-- num fôlego tudo que escapa do RLS.
+
+-- Existe convite no prazo para este e-mail? É lido ANTES de haver autenticado,
+-- então não há contexto; e a resposta é só sim/não, não dá para enumerar.
+CREATE OR REPLACE FUNCTION tem_convite_pendente(p_email text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+	SELECT EXISTS (
+		SELECT 1 FROM invites
+		WHERE email = p_email AND accepted_at IS NULL AND expires_at >= now()
+	)
+$$;
+--> statement-breakpoint
+
+-- A pessoa provou o e-mail; os convites dirigidos a ele viram vínculo. Roda
+-- inteiro aqui dentro para não precisar de escrita solta em `memberships`.
+CREATE OR REPLACE FUNCTION aceitar_convites_do_email(p_user uuid, p_email text)
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+	c record;
+	n integer := 0;
+BEGIN
+	FOR c IN
+		SELECT id, org_id, role FROM invites
+		WHERE email = p_email AND accepted_at IS NULL AND expires_at >= now()
+	LOOP
+		INSERT INTO memberships (org_id, user_id, role)
+		VALUES (c.org_id, p_user::text, c.role)
+		ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role;
+		UPDATE invites SET accepted_at = now() WHERE id = c.id;
+		n := n + 1;
+	END LOOP;
+	RETURN n;
+END $$;
+--> statement-breakpoint
+
+-- A primeira conta de uma instalação nova. Só o fluxo de entrada chama, e só
+-- depois de `comoPodeEntrar` ter dito que pode.
+CREATE OR REPLACE FUNCTION fundar_conta(p_user uuid, p_nome text) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+	nova uuid;
+BEGIN
+	INSERT INTO organizations (name) VALUES (p_nome) RETURNING id INTO nova;
+	INSERT INTO memberships (org_id, user_id, role) VALUES (nova, p_user::text, 'owner');
+	RETURN nova;
+END $$;
+--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION tem_convite_pendente(text) TO metrik_app;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION aceitar_convites_do_email(uuid, text) TO metrik_app;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION fundar_conta(uuid, text) TO metrik_app;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION resolver_sessao_por_hash(text) TO metrik_app;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION resolver_token_por_hash(text) TO metrik_app;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION resolver_entrada_por_hash(text) TO metrik_app;--> statement-breakpoint

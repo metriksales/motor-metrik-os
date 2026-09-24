@@ -198,7 +198,9 @@ describe.skipIf(!temBanco)("convite", () => {
     await control.pedirCodigo({ email: emailConvidado, enviarEmail: caixaAntes });
     expect(caixaAntes.quantas()).toBe(0);
 
-    await control.convidar(ctxDona, { email: emailConvidado, role: "operator", enviarEmail: caixaConvite });
+    await control.comConta(ctxDona.orgId, () =>
+      control.convidar(ctxDona, { email: emailConvidado, role: "operator", enviarEmail: caixaConvite }),
+    );
     const tokenConvite = (caixaConvite.ultima()?.texto ?? "").match(/convite\?t=([\w-]+)/)?.[1] ?? "";
     expect(tokenConvite).toBeTruthy();
 
@@ -217,7 +219,9 @@ describe.skipIf(!temBanco)("convite", () => {
 
     // e o convite não serve de novo
     await expect(
-      control.aceitarConvite({ token: tokenConvite, userId: ctxConvidado.userId }),
+      control.comPessoa(ctxConvidado.userId, () =>
+        control.aceitarConvite({ token: tokenConvite, userId: ctxConvidado.userId }),
+      ),
     ).rejects.toThrow(/inválido ou expirado/);
   });
 
@@ -230,11 +234,13 @@ describe.skipIf(!temBanco)("convite", () => {
     const ctxDona = await control.resolverSessao(sessaoDona.token);
 
     const caixaConvite = caixaDeEntrada();
-    await control.convidar(ctxDona, {
-      email: `alvo-${Date.now()}@metrik.test`,
-      role: "operator",
-      enviarEmail: caixaConvite,
-    });
+    await control.comConta(ctxDona.orgId, () =>
+      control.convidar(ctxDona, {
+        email: `alvo-${Date.now()}@metrik.test`,
+        role: "operator",
+        enviarEmail: caixaConvite,
+      }),
+    );
     const tokenConvite = (caixaConvite.ultima()?.texto ?? "").match(/convite\?t=([\w-]+)/)?.[1] ?? "";
 
     const emailIntrusa = `intrusa-${Date.now()}@metrik.test`;
@@ -245,7 +251,9 @@ describe.skipIf(!temBanco)("convite", () => {
     const ctxIntrusa = await control.resolverSessao(intrusa.token);
 
     await expect(
-      control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
+      control.comPessoa(ctxIntrusa.userId, () =>
+        control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
+      ),
     ).rejects.toThrow(/de outro e-mail/);
   });
 
@@ -276,10 +284,12 @@ describe.skipIf(!temBanco)("trocar de conta", () => {
     const [alheia] = await db.insert(organizations).values({ name: "Conta de outra pessoa" }).returning();
 
     await expect(
-      control.trocarConta({ token: s.token, userId: ctx.userId, orgId: alheia.id }),
+      control.comPessoa(ctx.userId, () =>
+        control.trocarConta({ token: s.token, userId: ctx.userId, orgId: alheia.id }),
+      ),
     ).rejects.toThrow(/não encontrad/);
 
-    const contas = await control.contasDaPessoa(ctx.userId);
+    const contas = await control.comPessoa(ctx.userId, () => control.contasDaPessoa(ctx.userId));
     expect(contas).toHaveLength(1);
     expect(contas[0].orgId).toBe(ctx.orgId);
   });
@@ -301,7 +311,7 @@ describe.skipIf(!temBanco)("quem acessa a conta", () => {
       db.insert(memberships).values({ orgId, userId: idMorto, role: "admin" }),
     );
 
-    const linhas = await control.listMembers(ctx);
+    const linhas = await control.comConta(orgId, () => control.listMembers(ctx));
     expect(linhas).toHaveLength(2);
 
     // sem o join, aqui vinha um uuid cru e o dono não se reconhecia na lista

@@ -208,11 +208,16 @@ describe.skipIf(!temBanco)("o banco recusa sozinho (RLS)", () => {
     const minha = await novaConta(`rls-escrita-${Date.now()}`);
     const alheia = await novaConta(`rls-alvo-${Date.now()}`);
 
+    // o drizzle embrulha o erro do Postgres, então a mensagem não vem limpa —
+    // o que importa é que foi recusado E que nada entrou na conta alvo
     await expect(
       bd.comConta(minha, () =>
         bd.db.insert(bd.agents).values({ orgId: alheia, name: "Invasor", tipo: "resposta" }),
       ),
-    ).rejects.toThrow(/row-level security|violates row-level/i);
+    ).rejects.toThrow();
+
+    const naAlheia = await bd.comConta(alheia, () => bd.db.select().from(bd.agents));
+    expect(naAlheia).toHaveLength(0);
   });
 
   test("a aplicação não é dona das tabelas — é isso que faz a política valer", async () => {

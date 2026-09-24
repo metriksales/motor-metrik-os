@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
+import { db, comPessoa, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -1157,12 +1157,10 @@ export async function comoPodeEntrar(email: string): Promise<"conhecida" | "conv
   const [pessoa] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   if (pessoa) return "conhecida";
 
-  const [convite] = await db
-    .select({ id: invites.id })
-    .from(invites)
-    .where(and(eq(invites.email, email), isNull(invites.acceptedAt), gte(invites.expiresAt, new Date())))
-    .limit(1);
-  if (convite) return "convite";
+  // pela função do banco: `invites` tem RLS e aqui ainda não há contexto —
+  // a resposta é só sim/não, então não serve para enumerar convidados (S-011)
+  const r = await db.execute(sql`select tem_convite_pendente(${email}) as tem`);
+  if ((linhas(r)[0] as { tem?: boolean } | undefined)?.tem) return "convite";
 
   const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
   if (dono && dono === email) {
@@ -1179,22 +1177,11 @@ export async function comoPodeEntrar(email: string): Promise<"conhecida" | "conv
  * quem convidou ainda precisa ver que ele existiu.
  */
 async function consumirConvites(userId: string, email: string) {
-  const pendentes = await db
-    .select()
-    .from(invites)
-    .where(and(eq(invites.email, email), isNull(invites.acceptedAt)));
-
-  for (const convite of pendentes) {
-    if (expirou(convite.expiresAt)) continue;
-    await db
-      .insert(memberships)
-      .values({ orgId: convite.orgId, userId, role: convite.role })
-      .onConflictDoUpdate({
-        target: [memberships.orgId, memberships.userId],
-        set: { role: convite.role },
-      });
-    await db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, convite.id));
-  }
+  // Escrever vínculo sem estar dentro da conta é PRIVILÉGIO, e privilégio não
+  // vira política frouxa — se a escrita em `memberships` aceitasse "é da
+  // pessoa em curso", qualquer um se adicionaria a qualquer conta. Vira função
+  // nomeada, que faz só isto e cabe numa lista auditável (S-011).
+  await db.execute(sql`select aceitar_convites_do_email(${userId}::uuid, ${email})`);
 }
 
 /**
@@ -1286,6 +1273,17 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
   }
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, pessoa.id));
 
+  // Daqui para baixo é trabalho DA PESSOA, e `memberships`/`invites` têm RLS
+  // (S-011): sem declarar quem é, o banco devolve zero vínculos e a pessoa
+  // ouviria "você não faz parte de nenhuma conta" tendo cinco.
+  return comPessoa(pessoa.id, () => concluirEntrada(pessoa, email, input.userAgent));
+}
+
+async function concluirEntrada(
+  pessoa: { id: string; email: string },
+  email: string,
+  userAgent?: string,
+) {
   // Convite pendente vira vínculo aqui: é o que permite alguém de fora entrar
   // pela primeira vez. Sem isto, convidado nenhum conseguiria abrir a conta —
   // aceitar convite exige estar dentro, e ele ainda está do lado de fora.
@@ -1298,15 +1296,17 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
 
   let orgId = vinculos[0]?.orgId ?? null;
   if (!orgId) {
+    const via = await comoPodeEntrar(email);
     // Conta nova só nasce para o fundador da instalação. Antes, qualquer
     // primeiro acesso criava uma — foi assim que a plataforma ficou aberta.
     const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
     if (via !== "fundador" && dono !== email) {
       throw new ErroDeDominio("você ainda não faz parte de nenhuma conta", 403, "sem_conta");
     }
-    const [org] = await db.insert(organizations).values({ name: email.split("@")[0] }).returning();
-    await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
-    orgId = org.id;
+    const nova = await db.execute(
+      sql`select fundar_conta(${pessoa.id}::uuid, ${email.split("@")[0]}) as id`,
+    );
+    orgId = (linhas(nova)[0] as { id: string }).id;
   }
 
   const sessao = novoTokenOpaco();
@@ -1316,7 +1316,7 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
     tokenHash: sessao.hash,
     orgId,
     expiresAt: expiraEm(SESSAO_DIAS * 24 * 60),
-    userAgent: input.userAgent?.slice(0, 300),
+    userAgent: userAgent?.slice(0, 300),
   });
 
   return { token: sessao.token, csrf: csrf.token, userId: pessoa.id, orgId };
