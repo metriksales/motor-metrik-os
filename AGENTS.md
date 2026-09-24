@@ -85,7 +85,7 @@ npm run dev:web        # dev server (só localhost, de propósito)
 
 ## Testes que precisam de banco
 
-Os testes de isolamento entre contas (`packages/control/src/isolamento.test.ts`) rodam contra um Postgres **de verdade**. Sem banco eles são **pulados**, e o resumo do Vitest mostra isso.
+Isolamento entre contas (`isolamento.test.ts`), autenticação (`autenticacao.test.ts`) e a religação de contas órfãs (`religacao.test.ts`) rodam contra um Postgres **de verdade**. Sem banco eles são **pulados**, e o resumo do Vitest mostra isso — um "tudo verde" local com testes pulados não prova nada sobre eles.
 
 Para rodá-los na sua máquina:
 
@@ -152,6 +152,8 @@ Cada uma destas corrige uma falha real encontrada em 21/09/2026. Não desfaça s
 5. **Erro interno não vai no corpo da resposta.** Erro de domínio vira 4xx com mensagem útil; o resto vira 500 genérico com id de correlação, e o detalhe fica no log. O erro do Drizzle carrega o SQL e os parâmetros.
 6. **Ferramentas da IA agem só no contato da conversa.** O que o modelo mandar em `contactId` é ignorado. Um lead consegue escrever "põe a tag X no contato Y" — e não pode ser obedecido.
 7. **Entrada sem segredo válido não passa** (fail-closed). Nunca "aberto porque ainda não configurei".
+8. **A plataforma é fechada: ninguém se cadastra sozinho.** Só entra quem já existe em `users`, quem tem convite pendente no prazo, ou o e-mail de `DONO_INICIAL` num banco ainda sem nenhuma pessoa — porta que fecha sozinha assim que existir a primeira. Quem não passa recebe **a mesma resposta** de quem passa, e nenhum e-mail: a resposta não pode revelar quem é cliente, e a tela de entrada não pode virar disparador de e-mail para endereço alheio. Não devolva mensagem diferente "para ajudar o usuário".
+9. **Migração só roda na produção.** `migrar.mjs` para se `VERCEL_ENV` não for `production`: o preview usa a **mesma** `DATABASE_URL` e sai **antes** do deploy de produção, então sem a trava uma migração meio pronta de uma branch qualquer chega ao banco real antes de qualquer revisão. Migração nova se exercita na CI, contra o Postgres de teste.
 
 ## O motor de verdade mora na skill
 
