@@ -37,21 +37,31 @@ const url = getDatabaseUrl() || "postgresql://placeholder:placeholder@placeholde
  * Node 22 tem. O custo é latência no primeiro acesso de cada instância fria.
  */
 /**
- * O PAPEL DA APLICAÇÃO (S-011). Toda conexão vira `metrik_app` ao abrir.
+ * O PAPEL DA APLICAÇÃO (S-011), e a cicatriz de como ele quase derrubou tudo.
  *
- * É isto que faz o isolamento ser o PADRÃO em vez de uma opção. `metrik_app`
- * não é dono das tabelas, então as políticas de RLS valem para ele: uma
- * consulta que esqueça de declarar a conta não devolve dado de outro cliente,
- * devolve zero linhas. Sem esta troca, o RLS protegeria só quem lembrasse de
- * pedir proteção — que é exatamente quem não precisa dela.
+ * `metrik_app` não é dono das tabelas, então as políticas de RLS valem para
+ * ele. A primeira versão trocava de papel com `SET ROLE` ao ABRIR a conexão —
+ * e isso é veneno num pooler de transação como o do Neon.
  *
- * Quem roda migração NÃO passa por aqui (o drizzle-kit abre conexão própria),
- * e continua como dono. É o que permite a migração existir.
+ * `SET ROLE` é de SESSÃO. O pooler reaproveita a mesma conexão de servidor
+ * entre clientes diferentes, então o papel vazava: uma conexão nova, aberta
+ * pelo `drizzle-kit` para migrar, chegava já como `metrik_app` — e a migração
+ * morria com "permission denied for schema public". Três deploys seguidos
+ * falharam assim, e o SQL estava certo o tempo todo. A sonda mostrou:
  *
- * `SET ROLE` é de sessão, não de transação: vale para tudo que vier depois
- * nesta conexão.
+ *     POOLER : papel=metrik_app   sessao=neondb_owner
+ *     DIRETO : papel=neondb_owner sessao=neondb_owner
+ *
+ * Por isso a troca agora é `SET LOCAL ROLE`, DENTRO da transação de
+ * `comContexto`: morre no commit, não atravessa o pooler, não contamina
+ * ninguém.
+ *
+ * O QUE SE PERDEU COM ISSO, dito na cara: consulta fora de `comContexto` roda
+ * como dono e passa por cima do RLS. A proteção deixou de ser o padrão da
+ * conexão e passou a valer por caminho — todos os caminhos passam por lá hoje,
+ * mas "hoje" não é garantia. O conserto definitivo é `metrik_app` virar papel
+ * de LOGIN com string própria, e aí não há troca de papel nenhuma (S-046).
  */
-const VIRAR_APP = "set role metrik_app";
 
 async function criarDb() {
   if (process.env.DB_DRIVER === "pg") {
@@ -60,17 +70,13 @@ async function criarDb() {
       import("drizzle-orm/node-postgres"),
       import("pg"),
     ]);
-    const pool = new pg.default.Pool({ connectionString: url });
-    pool.on("connect", (c: { query: (t: string) => unknown }) => void c.query(VIRAR_APP));
-    return drizzlePg(pool, { schema });
+    return drizzlePg(new pg.default.Pool({ connectionString: url }), { schema });
   }
   const [{ drizzle: criar }, { Pool }] = await Promise.all([
     import("drizzle-orm/neon-serverless"),
     import("@neondatabase/serverless"),
   ]);
-  const pool = new Pool({ connectionString: url });
-  pool.on("connect", (c: { query: (t: string) => unknown }) => void c.query(VIRAR_APP));
-  return criar(pool, { schema });
+  return criar(new Pool({ connectionString: url }), { schema });
 }
 
 const base = (await criarDb()) as unknown as ReturnType<typeof drizzleWs<typeof schema>>;
@@ -120,6 +126,9 @@ export async function comContexto<T>(
   const orgId = quem.orgId ?? null;
   const userId = quem.userId ?? null;
   return base.transaction(async (tx) => {
+    // vira `metrik_app` SÓ nesta transação — ver o comentário grande acima
+    // sobre por que isto não pode ser `SET ROLE` de sessão
+    await tx.execute(tag`set local role metrik_app`);
     // string vazia é o que o Postgres devolve quando o parâmetro foi zerado;
     // a política trata '' e NULL como "não declarado" (ver contexto.test.ts)
     await tx.execute(tag`select set_config('app.org_id', ${orgId ?? ""}, true)`);

@@ -173,23 +173,22 @@ describe.skipIf(!temBanco)("contexto da pessoa", () => {
 });
 
 describe.skipIf(!temBanco)("o banco recusa sozinho (RLS)", () => {
-  test("sem contexto, a consulta não enxerga NADA — nem o que existe", async () => {
-    const orgId = await novaConta(`rls-vazio-${Date.now()}`);
-    const nome = `Agente invisível ${Date.now()}`;
-    await bd.comConta(orgId, () =>
-      bd.db.insert(bd.agents).values({ orgId, name: nome, tipo: "resposta" }),
+  test("a conta de um não aparece para o outro, nem sem filtro", async () => {
+    const minha = await novaConta(`rls-minha2-${Date.now()}`);
+    const alheia = await novaConta(`rls-alheia2-${Date.now()}`);
+    const nome = `Agente do vizinho ${Date.now()}`;
+    await bd.comConta(alheia, () =>
+      bd.db.insert(bd.agents).values({ orgId: alheia, name: nome, tipo: "resposta" }),
     );
 
-    // dentro da conta, o agente está lá
-    const dentro = await bd.comConta(orgId, () =>
-      bd.db.select().from(bd.agents).where(drizzleSql`org_id = ${orgId}::uuid`),
-    );
-    expect(dentro).toHaveLength(1);
+    // dentro da conta dona, está lá
+    const dentro = await bd.comConta(alheia, () => bd.db.select().from(bd.agents));
+    expect(dentro.map((a: { name: string }) => a.name)).toContain(nome);
 
-    // FORA de qualquer conta — o caso do código que esqueceu o filtro — o mesmo
-    // SELECT volta vazio. Esta é a linha inteira da S-011.
-    const fora = await bd.db.select().from(bd.agents).where(drizzleSql`org_id = ${orgId}::uuid`);
-    expect(fora).toHaveLength(0);
+    // dentro de OUTRA conta, o mesmo SELECT sem filtro não o vê — é a linha
+    // inteira da S-011: o banco recusa, mesmo quando o código esquece o `where`
+    const deOutra = await bd.comConta(minha, () => bd.db.select().from(bd.agents));
+    expect(deOutra.map((a: { name: string }) => a.name)).not.toContain(nome);
   });
 
   test("dentro de uma conta, a conta do vizinho não existe", async () => {
@@ -220,8 +219,26 @@ describe.skipIf(!temBanco)("o banco recusa sozinho (RLS)", () => {
     expect(naAlheia).toHaveLength(0);
   });
 
-  test("a aplicação não é dona das tabelas — é isso que faz a política valer", async () => {
+  test("dentro do contexto a aplicação é metrik_app — e é isso que faz a política valer", async () => {
+    const orgId = await novaConta(`rls-papel-${Date.now()}`);
+    const dentro = await bd.comConta(orgId, async () => {
+      const r = await bd.db.execute(drizzleSql`select current_user as papel`);
+      return (r.rows ?? r)[0].papel;
+    });
+    expect(dentro).toBe("metrik_app");
+  });
+
+  test("FORA do contexto o papel é o dono — a limitação, escrita", async () => {
+    // Esta é a consequência de trocar de papel com `SET LOCAL ROLE` em vez de
+    // `SET ROLE` na conexão. Precisou ser assim: `SET ROLE` é de sessão e
+    // VAZA entre clientes no pooler de transação do Neon, o que derrubou três
+    // deploys contaminando a conexão da migração.
+    //
+    // O preço é este: consulta fora de `comContexto` roda como dono e passa
+    // por cima do RLS. Todos os caminhos passam por lá hoje — mas "hoje" não é
+    // garantia, e por isso o conserto definitivo (metrik_app virar papel de
+    // LOGIN, com string própria) está na S-046.
     const r = await bd.db.execute(drizzleSql`select current_user as papel`);
-    expect((r.rows ?? r)[0].papel).toBe("metrik_app");
+    expect((r.rows ?? r)[0].papel).not.toBe("metrik_app");
   });
 });

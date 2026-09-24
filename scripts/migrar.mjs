@@ -38,6 +38,23 @@ if (!url) {
   process.exit(0);
 }
 
+/**
+ * MIGRAÇÃO NÃO PASSA PELO POOLER.
+ *
+ * O endpoint com `-pooler` do Neon é um pooler de TRANSAÇÃO: ele reaproveita a
+ * mesma conexão de servidor entre clientes, então estado de sessão atravessa
+ * de um para outro. Foi assim que três deploys seguidos morreram — o
+ * `SET ROLE` da aplicação vazou para a conexão que o `drizzle-kit` abriu, e a
+ * migração encontrou "permission denied for schema public" sendo dona do banco.
+ *
+ * Migração é DDL e quer uma sessão inteira e previsível. O endpoint direto é o
+ * mesmo host sem o sufixo, e não custa nada: é uma conexão só, por deploy.
+ */
+const urlDireta = url.replace("-pooler.", ".");
+if (urlDireta !== url) {
+  console.log("migrar: usando o endpoint direto do Neon (migração não passa por pooler)");
+}
+
 console.log("migrar: aplicando migrações pendentes…");
 
 // CAPTURAR A SAÍDA, EM VEZ DE HERDAR.
@@ -50,7 +67,7 @@ const r = spawnSync("npm", ["run", "db:migrate", "--workspace", "@motor/db"], {
   cwd: raiz,
   shell: process.platform === "win32",
   encoding: "utf8",
-  env: { ...process.env, DATABASE_URL: url },
+  env: { ...process.env, DATABASE_URL: urlDireta },
 });
 
 /** Tira os códigos de terminal — inclusive os que apagam a linha. */
@@ -172,7 +189,7 @@ if (r.status !== 0) {
   if (r.error) console.error(`falha ao executar: ${r.error.message}`);
   console.error("────────────────────────────────────────────────────────");
 
-  await explicar(url);
+  await explicar(urlDireta);
   process.exit(1);
 }
 
