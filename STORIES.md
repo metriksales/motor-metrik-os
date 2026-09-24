@@ -20,7 +20,7 @@ Atualizado em 2026-09-24 13:40.
 | S-007 | Tela honesta: nenhum dado demo fora do modo demo | 0 | concluido |
 | S-008 | Publicação atômica e à prova de concorrência | 1 | backlog |
 | S-009 | Porteiro de verdade: eval obrigatório e fiel à produção | 1 | backlog |
-| S-010 | Integridade do banco: FKs, uniques e ledger append-only | 1 | backlog |
+| S-010 | Integridade do banco: FKs, uniques e ledger append-only | 1 | concluída |
 | S-011 | Isolamento no banco com RLS | 1 | backlog |
 | S-012 | Observabilidade do control plane e do runtime | 1 | backlog |
 | S-013 | Front enxuto: código morto, tipos e lint | 1 | backlog |
@@ -429,9 +429,9 @@ O que foi corrigido, achado a achado:
 
 ## S-010 · Integridade do banco: FKs, uniques e ledger append-only
 
-- **status:** backlog
+- **status:** concluída
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-24
 
 **Missão.** Os docs prometem ledger append-only e releases imutáveis; o banco não garante nada disso, e uma conta inexistente cria linhas órfãs. Garantia que só existe na disciplina do código some no primeiro atalho.
 
@@ -449,11 +449,13 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] FKs de conta nas tabelas de tenant
-- [ ] Uniques em `releases(agent_id, spec_version)` e `connections(org_id, kind)`
-- [ ] UPDATE/DELETE bloqueados em `releases` e `audit_log`
-- [ ] Decisão sobre `change_sets` registrada e doc alinhado
-- [ ] Restrições exercitadas por script de invariantes num Neon de teste
+- [x] FKs de conta nas tabelas de tenant — `contact_states`, `agent_specs`, `change_sets`, `releases`, `runtime_logs`, `audit_log`; mais `change_sets.agent_id`, `releases.agent_id` e `connections.agent_id`. `runtime_logs.agent_id` fica de fora de propósito: o log sobrevive à reorganização da frota.
+- [x] Uniques em `releases(agent_id, spec_version)` e `connections(org_id, kind)` — este último **parcial, excluindo WhatsApp**: dois CRMs na mesma conta é ambiguidade, dois números de WhatsApp é caso real.
+- [x] UPDATE/DELETE bloqueados em `releases` e `audit_log`, por gatilho. DELETE tem escape deliberado (`SET LOCAL app.expurgo = 'on'`), porque a LGPD exige poder esquecer.
+- [x] Decisão sobre `change_sets`: **permanece mutável**, porque o status é o andamento da mudança (`draft` → `published`). O que precisa ser imutável é o resultado (`releases`) e o registro de quem mexeu (`audit_log`). Registrado no BACKEND.md.
+- [x] Restrições exercitadas: `packages/control/src/integridade.test.ts`, 11 testes que tentam violar cada invariante contra um Postgres de verdade.
+
+**Como verifiquei.** Migração 0009 confere o banco ANTES de criar as restrições e falha nomeando conta, tabela e contagem — erro de catálogo cru não diz o que consertar, e o deploy pararia às cegas. 0010 cria FKs e uniques; 0011 instala os gatilhos. Os testes rodam na CI contra `postgres:16`, cada um em transação desfeita no fim, com savepoint em torno de cada recusa esperada (sem ele, o comando seguinte morreria de "transaction is aborted" e o teste passaria pelo motivo errado).
 
 ---
 
