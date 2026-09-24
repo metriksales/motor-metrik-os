@@ -81,7 +81,12 @@ async function chamarAuth(acao: string, body?: Record<string, unknown>) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const dados = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((dados as { error?: string })?.error ?? `erro ${res.status}`);
+  if (!res.ok) {
+    const { error, requestId } = dados as { error?: string; requestId?: string };
+    // o id de correlação vai junto: é com ele que se acha a linha no log do
+    // servidor, já que a mensagem interna nunca volta pro cliente (S-006)
+    throw new Error(requestId ? `${error ?? "erro"} (ref ${requestId.slice(0, 8)})` : error ?? `erro ${res.status}`);
+  }
   return dados;
 }
 

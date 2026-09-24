@@ -3637,3 +3637,21 @@ html[data-theme="light"] .est-feature-copy small { color: #707985; }
   font-size: 11.5px;
   color: var(--txt-4);
 }
+
+/* Preenchimento automático do Chrome: ele pinta o campo de branco e ignora
+   `background`. O jeito de vencer é uma sombra interna gigante na cor da
+   superfície, com o texto forçado por `-webkit-text-fill-color`. */
+.auth-campo input:-webkit-autofill,
+.auth-campo input:-webkit-autofill:hover,
+.auth-campo input:-webkit-autofill:focus,
+.auth-campo input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--txt);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  caret-color: var(--txt);
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+}
+.auth-campo input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px rgba(59, 130, 246, 0.14);
+  box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
