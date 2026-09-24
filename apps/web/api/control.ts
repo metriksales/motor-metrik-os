@@ -38,6 +38,14 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   publicar: "admin",
   reverter: "admin",
   upsertConnection: "admin",
+  // O cofre (S-025) é sempre `admin`. Note que NÃO existe ação para LER o
+  // segredo: ele sai em um único lugar, `usarCredencial`, que é interno e não
+  // está no despacho. Um token de máquina comprometido não extrai credencial
+  // de cliente — ele nem tem por onde pedir.
+  auditoria: "leitura",
+  credenciais: "admin",
+  guardarCredencial: "admin",
+  revogarCredencial: "admin",
   criarToken: "admin",
   revogarToken: "admin",
 };
@@ -157,6 +165,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await control.listConnections(ctx);
       case "upsertConnection":
         return await control.upsertConnection(ctx, body);
+      case "auditoria":
+        return await control.listarAuditoria(ctx, {
+          limite: lerLimite(req.query.limite),
+          acao: req.query.acao ? String(req.query.acao) : undefined,
+        });
+      case "credenciais":
+        return await control.listarCredenciais(ctx);
+      case "guardarCredencial":
+        return await control.guardarCredencial(ctx, body);
+      case "revogarCredencial":
+        return await control.revogarCredencial(ctx, String(body.id ?? ""));
       default:
         throw new control.EntradaInvalida("ação desconhecida");
       }
@@ -180,6 +199,7 @@ const SOMENTE_POST = new Set([
   "createAgent", "propor", "aprovar", "avaliar", "publicarMudanca", "publicar", "reverter",
   "setEstado", "assumirContato", "devolverContato", "upsertConnection", "log",
   "criarToken", "revogarToken", "testar", "rodarTestes",
+  "guardarCredencial", "revogarCredencial",
 ]);
 
 function lerLimite(valor: unknown): number | undefined {

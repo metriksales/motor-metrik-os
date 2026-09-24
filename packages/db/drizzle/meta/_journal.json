@@ -92,6 +92,13 @@
       "when": 1790270603658,
       "tag": "0012_rls_por_conta",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790272761576,
+      "tag": "0013_cofre_de_credenciais",
+      "breakpoints": true
     }
   ]
 }

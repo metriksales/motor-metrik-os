@@ -294,6 +294,50 @@ export const runtimeLogs = pgTable(
   (t) => [index("runtime_logs_org_at").on(t.orgId, t.at)]
 );
 
+/**
+ * COFRE (S-025) — onde mora a credencial de CADA cliente.
+ *
+ * Com tudo hospedado, a Metrik guarda o token do CRM, do WhatsApp e da IA de
+ * todos os assinantes. O valor em claro NUNCA fica aqui: o que se guarda é o
+ * resultado do AES-256-GCM, com a chave derivada por conta. Vazar este banco
+ * sem a chave-mestra não entrega credencial nenhuma.
+ *
+ * `dica` são os últimos caracteres do segredo — o bastante para a pessoa
+ * reconhecer qual token é, e insuficiente para usar. É o que a tela mostra,
+ * porque a tela nunca mostra o valor.
+ */
+export const credentials = pgTable(
+  "credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    /** nome dado pela pessoa; permite duas credenciais do mesmo tipo */
+    rotulo: text("rotulo").notNull().default("padrao"),
+    /** iv + tag + texto cifrado, em base64 */
+    segredoCifrado: text("segredo_cifrado").notNull(),
+    /** token de renovação do OAuth, quando houver — cifrado igual */
+    renovacaoCifrada: text("renovacao_cifrada"),
+    /** qual chave-mestra cifrou; é o que torna a rotação possível */
+    chaveVersao: integer("chave_versao").notNull().default(1),
+    /** últimos caracteres do segredo, para reconhecer sem revelar */
+    dica: text("dica"),
+    /** dados NÃO secretos: id da subconta, base url, escopos */
+    meta: jsonb("meta"),
+    expiraEm: timestamp("expira_em", { withTimezone: true }),
+    criadoEm: timestamp("criado_em", { withTimezone: true }).defaultNow().notNull(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).defaultNow().notNull(),
+    ultimoUsoEm: timestamp("ultimo_uso_em", { withTimezone: true }),
+    revogadaEm: timestamp("revogada_em", { withTimezone: true }),
+  },
+  (t) => [
+    index("credentials_org").on(t.orgId),
+    uniqueIndex("credentials_org_kind_rotulo").on(t.orgId, t.kind, t.rotulo),
+  ],
+);
+
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").defaultRandom().primaryKey(),
   orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),

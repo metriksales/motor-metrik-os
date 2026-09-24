@@ -12,6 +12,8 @@
  *
  * Pulado sem banco (a CI sempre roda).
  */
+import { randomBytes } from "node:crypto";
+import { sql as drizzleSql } from "drizzle-orm";
 import { beforeAll, describe, expect, test } from "vitest";
 
 const urlDeTeste = process.env.TEST_DATABASE_URL;
@@ -63,6 +65,8 @@ beforeAll(async () => {
   if (!temBanco) return;
   process.env.DATABASE_URL = urlDeTeste;
   process.env.DB_DRIVER = "pg";
+  // chave só deste teste — o cofre recusa subir sem uma (S-025)
+  process.env.COFRE_CHAVE = `1:${Buffer.from(randomBytes(32)).toString("base64")}`;
   // o mesmo bundle que vai para produção
   control = await import("../api/_bundled/control.mjs");
   bd = await import("@motor/db");
@@ -158,5 +162,93 @@ describe.skipIf(!temBanco)("porta única da Control API", () => {
   test("toda resposta carrega o id de correlação", async () => {
     const r = await chamar({ action: "agents" });
     expect(r.cabecalhos["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe.skipIf(!temBanco)("cofre pela porta única (S-025)", () => {
+  const SEGREDO = "pit-9f3a-token-do-crm-do-cliente";
+
+  async function contaComToken(marca: string) {
+    const [org] = await bd.db.insert(bd.organizations).values({ name: `${marca}-${Date.now()}` }).returning();
+    const ctx = { orgId: org.id, actor: "teste", role: "owner", via: "sessao" };
+    const { token } = await control.comConta(org.id, () =>
+      control.criarMachineToken(ctx, { name: "cofre", scopes: ["admin"] }),
+    );
+    return { orgId: org.id as string, ctx, token };
+  }
+
+  test("guardar não devolve o segredo, e listar também não", async () => {
+    const { token } = await contaComToken("cofre-a");
+
+    const guardou = await chamar({
+      action: "guardarCredencial",
+      token,
+      metodo: "POST",
+      body: { kind: "ghl", segredo: SEGREDO, meta: { subconta: "abc" } },
+    });
+    expect(guardou.status).toBe(200);
+
+    // a varredura é no JSON INTEIRO: o segredo não pode estar em campo nenhum,
+    // nem num que alguém acrescente sem pensar depois
+    expect(JSON.stringify(guardou.corpo)).not.toContain(SEGREDO);
+    expect((guardou.corpo as { dica: string }).dica).toBe("…ente");
+
+    const lista = await chamar({ action: "credenciais", token });
+    expect(lista.status).toBe(200);
+    expect(JSON.stringify(lista.corpo)).not.toContain(SEGREDO);
+    expect((lista.corpo as unknown[]).length).toBe(1);
+  });
+
+  test("não existe ação para ler o segredo", async () => {
+    const { token } = await contaComToken("cofre-b");
+    await chamar({
+      action: "guardarCredencial",
+      token,
+      metodo: "POST",
+      body: { kind: "kommo", segredo: SEGREDO },
+    });
+
+    // as tentativas óbvias de quem procura o valor pela API
+    for (const acao of ["usarCredencial", "lerCredencial", "credencial", "segredo"]) {
+      const r = await chamar({ action: acao, token });
+      expect(r.status, `a ação "${acao}" não deveria existir`).toBe(400);
+    }
+  });
+
+  test("o cofre de uma conta não aparece na outra", async () => {
+    const a = await contaComToken("cofre-c");
+    const b = await contaComToken("cofre-d");
+
+    await chamar({
+      action: "guardarCredencial",
+      token: a.token,
+      metodo: "POST",
+      body: { kind: "uazapi", segredo: SEGREDO },
+    });
+
+    const daOutra = await chamar({ action: "credenciais", token: b.token });
+    expect(daOutra.corpo).toEqual([]);
+  });
+
+  test("por dentro, o segredo volta inteiro — e o uso fica na auditoria", async () => {
+    const { orgId, ctx, token } = await contaComToken("cofre-e");
+    await chamar({
+      action: "guardarCredencial",
+      token,
+      metodo: "POST",
+      body: { kind: "ghl", segredo: SEGREDO },
+    });
+
+    const usado = await control.comConta(orgId, () => control.usarCredencial(ctx, { kind: "ghl" }));
+    expect(usado.segredo).toBe(SEGREDO);
+
+    // pelo MESMO módulo que escreveu: o bundle tem a própria cópia de
+    // @motor/db, e misturar os dois já me custou uma rodada de CI
+    const trilha = await control.comConta(orgId, () => control.listarAuditoria(ctx));
+    const acoes = trilha.map((l: { action: string }) => l.action);
+    expect(acoes).toContain("credencial.guardada");
+    expect(acoes).toContain("credencial.usada");
+    // e a trilha não guarda o valor, só o fato
+    expect(JSON.stringify(trilha)).not.toContain(SEGREDO);
   });
 });

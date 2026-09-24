@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, comPessoa, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
+import { db, comPessoa, credentials, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -43,6 +43,7 @@ import {
 } from "./sessao.js";
 import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
 import { exigirPermissao, type Papel } from "./permissoes.js";
+import { cifrar, decifrar, dicaDe, lerChaves } from "./cofre.js";
 
 export * from "./tokens.js";
 export * from "./webhooks.js";
@@ -50,6 +51,7 @@ export * from "./erros.js";
 export * from "./permissoes.js";
 export * from "./sessao.js";
 export * from "./email.js";
+export * from "./cofre.js";
 
 /**
  * Confere que o agente é DESTA conta e devolve a linha (S-006). Toda função que
@@ -1454,4 +1456,189 @@ export function listarConvites(ctx: Ctx) {
     .from(invites)
     .where(and(eq(invites.orgId, ctx.orgId), isNull(invites.acceptedAt)))
     .orderBy(desc(invites.createdAt));
+}
+
+// ═══ COFRE DE CREDENCIAIS (S-025) ═══
+//
+// Com tudo hospedado, a Metrik guarda o token do CRM, do WhatsApp e da IA de
+// todos os assinantes. A regra que organiza este bloco é uma só: O SEGREDO SAI
+// DAQUI EM EXATAMENTE UM LUGAR, `usarCredencial`, que é interno e registra o
+// acesso. Nenhuma função exposta pela API devolve valor — nem a de listar, nem
+// a de guardar, nem por engano numa mensagem de erro.
+//
+// A criptografia está em cofre.ts, separada de propósito.
+
+/** O que a tela pode ver de uma credencial: tudo, menos o que importa. */
+export type CredencialVisivel = {
+  id: string;
+  kind: string;
+  rotulo: string;
+  dica: string | null;
+  meta: unknown;
+  expiraEm: Date | null;
+  criadoEm: Date;
+  ultimoUsoEm: Date | null;
+};
+
+function visivel(linha: typeof credentials.$inferSelect): CredencialVisivel {
+  return {
+    id: linha.id,
+    kind: linha.kind,
+    rotulo: linha.rotulo,
+    dica: linha.dica,
+    meta: linha.meta,
+    expiraEm: linha.expiraEm,
+    criadoEm: linha.criadoEm,
+    ultimoUsoEm: linha.ultimoUsoEm,
+  };
+}
+
+/**
+ * Guarda uma credencial. Devolve o que a tela mostra — nunca o segredo, nem
+ * mesmo logo depois de recebê-lo. Quem mandou o valor já o tem; devolvê-lo
+ * seria só mais um lugar por onde ele pode vazar.
+ */
+export async function guardarCredencial(
+  ctx: Ctx,
+  input: {
+    kind: string;
+    segredo: string;
+    rotulo?: string;
+    renovacao?: string;
+    meta?: Record<string, unknown>;
+    expiraEm?: Date | string | null;
+  },
+): Promise<CredencialVisivel> {
+  exigirPermissao(ctx, "gerenciar");
+  const kind = String(input.kind ?? "").trim();
+  if (!kind) throw new EntradaInvalida("falta o tipo da credencial");
+  const segredo = String(input.segredo ?? "");
+  if (!segredo) throw new EntradaInvalida("falta o segredo");
+
+  const { atual } = lerChaves();
+  const rotulo = String(input.rotulo ?? "padrao").trim() || "padrao";
+  const expira = input.expiraEm ? new Date(input.expiraEm) : null;
+
+  const [linha] = await db
+    .insert(credentials)
+    .values({
+      orgId: ctx.orgId,
+      kind,
+      rotulo,
+      segredoCifrado: cifrar(atual, ctx.orgId, segredo),
+      renovacaoCifrada: input.renovacao ? cifrar(atual, ctx.orgId, input.renovacao) : null,
+      chaveVersao: atual.versao,
+      dica: dicaDe(segredo),
+      meta: input.meta ?? null,
+      expiraEm: expira,
+    })
+    .onConflictDoUpdate({
+      target: [credentials.orgId, credentials.kind, credentials.rotulo],
+      set: {
+        segredoCifrado: cifrar(atual, ctx.orgId, segredo),
+        renovacaoCifrada: input.renovacao ? cifrar(atual, ctx.orgId, input.renovacao) : null,
+        chaveVersao: atual.versao,
+        dica: dicaDe(segredo),
+        meta: input.meta ?? null,
+        expiraEm: expira,
+        atualizadoEm: new Date(),
+        revogadaEm: null,
+      },
+    })
+    .returning();
+
+  // a auditoria registra QUE houve credencial nova, nunca o valor
+  await audit(ctx, "credencial.guardada", linha.id, { kind, rotulo });
+  return visivel(linha);
+}
+
+/** O que a conta tem guardado. Sem segredo, por construção. */
+export async function listarCredenciais(ctx: Ctx): Promise<CredencialVisivel[]> {
+  exigirPermissao(ctx, "ajustar");
+  const linhas = await db
+    .select()
+    .from(credentials)
+    .where(and(eq(credentials.orgId, ctx.orgId), isNull(credentials.revogadaEm)))
+    .orderBy(desc(credentials.criadoEm));
+  return linhas.map(visivel);
+}
+
+export async function revogarCredencial(ctx: Ctx, id: string): Promise<{ ok: true }> {
+  exigirPermissao(ctx, "gerenciar");
+  const [linha] = await db
+    .update(credentials)
+    .set({ revogadaEm: new Date(), atualizadoEm: new Date() })
+    .where(and(eq(credentials.id, id), eq(credentials.orgId, ctx.orgId)))
+    .returning();
+  if (!linha) throw new NaoEncontrado("credencial");
+  await audit(ctx, "credencial.revogada", id, { kind: linha.kind, rotulo: linha.rotulo });
+  return { ok: true };
+}
+
+/**
+ * O ÚNICO lugar por onde o segredo sai.
+ *
+ * Interno: não está no despacho da API, e não deve estar. Quem chama é o
+ * runtime, para poder falar com o CRM do cliente — e cada uso vira linha na
+ * auditoria, que é o que responde "quando foi usado o token deste cliente".
+ *
+ * A conta não vem por parâmetro solto: vem do ctx, e a consulta filtra por ela
+ * (e o RLS confere de novo, do lado do banco). Mesmo assim a decifragem exige
+ * a conta certa — a credencial de um cliente não abre com a chave de outro.
+ */
+export async function usarCredencial(
+  ctx: Ctx,
+  alvo: { kind: string; rotulo?: string },
+): Promise<{ segredo: string; renovacao: string | null; meta: unknown; expiraEm: Date | null } | null> {
+  const chaves = lerChaves();
+  const [linha] = await db
+    .select()
+    .from(credentials)
+    .where(
+      and(
+        eq(credentials.orgId, ctx.orgId),
+        eq(credentials.kind, alvo.kind),
+        eq(credentials.rotulo, alvo.rotulo ?? "padrao"),
+        isNull(credentials.revogadaEm),
+      ),
+    );
+  if (!linha) return null;
+
+  const segredo = decifrar(chaves, ctx.orgId, linha.segredoCifrado);
+  const renovacao = linha.renovacaoCifrada
+    ? decifrar(chaves, ctx.orgId, linha.renovacaoCifrada)
+    : null;
+
+  await db
+    .update(credentials)
+    .set({ ultimoUsoEm: new Date() })
+    .where(eq(credentials.id, linha.id));
+  await audit(ctx, "credencial.usada", linha.id, { kind: linha.kind, rotulo: linha.rotulo });
+
+  return { segredo, renovacao, meta: linha.meta, expiraEm: linha.expiraEm };
+}
+
+/**
+ * A trilha de auditoria da conta.
+ *
+ * Existia gente escrevendo em `audit_log` desde o começo e NINGUÉM lendo: a
+ * trilha era só de escrita, o que equivale a não ter trilha. É ela que
+ * responde "quem mexeu nisso, e quando foi usado o token deste cliente".
+ *
+ * Exige `ajustar`: saber quem fez o quê é mais do que um leitor precisa.
+ */
+export async function listarAuditoria(
+  ctx: Ctx,
+  opts: { limite?: number; acao?: string } = {},
+) {
+  exigirPermissao(ctx, "ajustar");
+  const limite = Math.min(Math.max(opts.limite ?? 100, 1), 500);
+  const filtros = [eq(auditLog.orgId, ctx.orgId)];
+  if (opts.acao) filtros.push(eq(auditLog.action, opts.acao));
+  return db
+    .select()
+    .from(auditLog)
+    .where(and(...filtros))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limite);
 }
