@@ -35,13 +35,17 @@ function caixaDeEntrada(): EmailPort & { ultima(): Mensagem | undefined; codigo(
  * ninguém entra, e é justamente isso que os testes abaixo exercitam.
  */
 async function fundar(email: string) {
-  const { db, users, organizations, memberships } = await import("@motor/db");
+  const { db, users, organizations, memberships, comConta } = await import("@motor/db");
   const [pessoa] = await db.insert(users).values({ email }).returning();
   const [org] = await db
     .insert(organizations)
     .values({ name: email.split("@")[0] })
     .returning();
-  await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
+  // `memberships` tem RLS (S-011), e a ESCRITA exige estar dentro da conta —
+  // é o que impede alguém de se adicionar à conta dos outros
+  await comConta(org.id, () =>
+    db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" }),
+  );
   return { userId: pessoa.id, orgId: org.id };
 }
 
@@ -195,7 +199,9 @@ describe.skipIf(!temBanco)("convite", () => {
     await control.pedirCodigo({ email: emailConvidado, enviarEmail: caixaAntes });
     expect(caixaAntes.quantas()).toBe(0);
 
-    await control.convidar(ctxDona, { email: emailConvidado, role: "operator", enviarEmail: caixaConvite });
+    await control.comConta(ctxDona.orgId, () =>
+      control.convidar(ctxDona, { email: emailConvidado, role: "operator", enviarEmail: caixaConvite }),
+    );
     const tokenConvite = (caixaConvite.ultima()?.texto ?? "").match(/convite\?t=([\w-]+)/)?.[1] ?? "";
     expect(tokenConvite).toBeTruthy();
 
@@ -214,11 +220,13 @@ describe.skipIf(!temBanco)("convite", () => {
 
     // e o convite não serve de novo
     await expect(
-      control.aceitarConvite({ token: tokenConvite, userId: ctxConvidado.userId }),
+      control.comPessoa(ctxConvidado.userId, () =>
+        control.aceitarConvite({ token: tokenConvite, userId: ctxConvidado.userId }),
+      ),
     ).rejects.toThrow(/inválido ou expirado/);
   });
 
-  test("convite de outro e-mail não é aceito por quem não é o dono dele", async () => {
+  test("convite de outro e-mail não é sequer visível para quem não é o dono", async () => {
     const emailDona = `dona2-${Date.now()}@metrik.test`;
     const caixaDona = caixaDeEntrada();
     await fundar(emailDona);
@@ -227,11 +235,13 @@ describe.skipIf(!temBanco)("convite", () => {
     const ctxDona = await control.resolverSessao(sessaoDona.token);
 
     const caixaConvite = caixaDeEntrada();
-    await control.convidar(ctxDona, {
-      email: `alvo-${Date.now()}@metrik.test`,
-      role: "operator",
-      enviarEmail: caixaConvite,
-    });
+    await control.comConta(ctxDona.orgId, () =>
+      control.convidar(ctxDona, {
+        email: `alvo-${Date.now()}@metrik.test`,
+        role: "operator",
+        enviarEmail: caixaConvite,
+      }),
+    );
     const tokenConvite = (caixaConvite.ultima()?.texto ?? "").match(/convite\?t=([\w-]+)/)?.[1] ?? "";
 
     const emailIntrusa = `intrusa-${Date.now()}@metrik.test`;
@@ -242,8 +252,14 @@ describe.skipIf(!temBanco)("convite", () => {
     const ctxIntrusa = await control.resolverSessao(intrusa.token);
 
     await expect(
-      control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
-    ).rejects.toThrow(/de outro e-mail/);
+      control.comPessoa(ctxIntrusa.userId, () =>
+        control.aceitarConvite({ token: tokenConvite, userId: ctxIntrusa.userId }),
+      ),
+      // Com o RLS (S-011) a recusa ficou MAIS forte, não menos: o convite de
+      // outra pessoa não é sequer legível, então a resposta é "inválido ou
+      // expirado" em vez de "é de outro e-mail". Quem tenta não consegue
+      // distinguir convite alheio de convite inexistente.
+    ).rejects.toThrow(/inválido ou expirado/);
   });
 
   test("quem não gerencia não convida", async () => {
@@ -273,10 +289,12 @@ describe.skipIf(!temBanco)("trocar de conta", () => {
     const [alheia] = await db.insert(organizations).values({ name: "Conta de outra pessoa" }).returning();
 
     await expect(
-      control.trocarConta({ token: s.token, userId: ctx.userId, orgId: alheia.id }),
+      control.comPessoa(ctx.userId, () =>
+        control.trocarConta({ token: s.token, userId: ctx.userId, orgId: alheia.id }),
+      ),
     ).rejects.toThrow(/não encontrad/);
 
-    const contas = await control.contasDaPessoa(ctx.userId);
+    const contas = await control.comPessoa(ctx.userId, () => control.contasDaPessoa(ctx.userId));
     expect(contas).toHaveLength(1);
     expect(contas[0].orgId).toBe(ctx.orgId);
   });
@@ -292,11 +310,13 @@ describe.skipIf(!temBanco)("quem acessa a conta", () => {
     const ctx = await control.resolverSessao(s.token);
 
     // vínculo da época do Clerk: texto que não corresponde a pessoa nenhuma
-    const { db, memberships } = await import("@motor/db");
+    const { db, memberships, comConta } = await import("@motor/db");
     const idMorto = `user_2clerk${Date.now()}`;
-    await db.insert(memberships).values({ orgId, userId: idMorto, role: "admin" });
+    await comConta(orgId, () =>
+      db.insert(memberships).values({ orgId, userId: idMorto, role: "admin" }),
+    );
 
-    const linhas = await control.listMembers(ctx);
+    const linhas = await control.comConta(orgId, () => control.listMembers(ctx));
     expect(linhas).toHaveLength(2);
 
     // sem o join, aqui vinha um uuid cru e o dono não se reconhecia na lista

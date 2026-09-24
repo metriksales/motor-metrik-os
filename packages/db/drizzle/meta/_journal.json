@@ -85,6 +85,13 @@
       "when": 1790264980548,
       "tag": "0011_ledger_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790270603658,
+      "tag": "0012_rls_por_conta",
+      "breakpoints": true
     }
   ]
 }

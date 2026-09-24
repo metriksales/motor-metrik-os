@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
+import { db, comPessoa, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -42,7 +42,7 @@ import {
   novoTokenOpaco,
 } from "./sessao.js";
 import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
-import { exigirPermissao } from "./permissoes.js";
+import { exigirPermissao, type Papel } from "./permissoes.js";
 
 export * from "./tokens.js";
 export * from "./webhooks.js";
@@ -100,12 +100,14 @@ export async function resolverEntrada(
   segredo: string,
 ): Promise<{ orgId: string; agentId: string; connectionId: string; kind: string } | null> {
   if (!ehSegredoEntrada(segredo)) return null;
-  const [row] = await db
-    .select()
-    .from(connections)
-    .where(eq(connections.inboundSecretHash, hashSegredo(segredo)));
-  if (!row || !row.agentId) return null;
-  return { orgId: row.orgId, agentId: row.agentId, connectionId: row.id, kind: row.kind };
+  const achado = await db.execute(
+    sql`select * from resolver_entrada_por_hash(${hashSegredo(segredo)})`,
+  );
+  const row = linhas(achado)[0] as
+    | { connection_id: string; org_id: string; agent_id: string; kind: string }
+    | undefined;
+  if (!row) return null;
+  return { orgId: row.org_id, agentId: row.agent_id, connectionId: row.connection_id, kind: row.kind };
 }
 
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
@@ -186,19 +188,24 @@ export async function revogarMachineToken(ctx: Ctx, id: string) {
  */
 export async function resolverMachineToken(tokenEmClaro: string): Promise<Ctx | null> {
   if (!ehTokenDeMaquina(tokenEmClaro)) return null;
-  const hash = hashToken(tokenEmClaro);
-  const [row] = await db
-    .select()
-    .from(machineTokens)
-    .where(and(eq(machineTokens.tokenHash, hash), isNull(machineTokens.revokedAt)));
+  // Busca pela FUNÇÃO do banco, não pela tabela: com o RLS ligado, a tabela
+  // não é legível sem conta declarada — e aqui a conta é justamente o que
+  // estamos tentando descobrir. A função atravessa o RLS, mas só responde a
+  // quem já tem o hash certo; não serve para listar nada (S-011).
+  const achado = await db.execute(
+    sql`select * from resolver_token_por_hash(${hashToken(tokenEmClaro)})`,
+  );
+  const row = linhas(achado)[0] as
+    | { token_id: string; org_id: string; nome: string; escopos: unknown }
+    | undefined;
   if (!row) return null;
 
-  const scopes = normalizarEscopos(row.scopes);
-  await db.update(machineTokens).set({ lastUsedAt: new Date() }).where(eq(machineTokens.id, row.id));
+  const scopes = normalizarEscopos(row.escopos as Escopo[]);
+  await db.execute(sql`select marcar_uso_do_token(${row.token_id}::uuid)`);
 
   return {
-    orgId: row.orgId,
-    actor: `token:${row.name}`,
+    orgId: row.org_id,
+    actor: `token:${row.nome}`,
     role: papelDoToken(scopes),
     via: "maquina",
     scopes,
@@ -1121,6 +1128,15 @@ async function audit(ctx: Ctx, action: string, target?: string, data?: unknown) 
   await db.insert(auditLog).values({ orgId: ctx.orgId, actor: ctx.actor, action, target, data });
 }
 
+/**
+ * As linhas de um `db.execute`. O node-postgres devolve `{ rows }` e o driver
+ * do Neon devolve o array direto — normalizar aqui evita espalhar o `?? r`.
+ */
+function linhas(resultado: unknown): Record<string, unknown>[] {
+  const r = resultado as { rows?: Record<string, unknown>[] } | Record<string, unknown>[];
+  return Array.isArray(r) ? r : (r.rows ?? []);
+}
+
 // ═══ AUTENTICAÇÃO PRÓPRIA (S-045) — sem Clerk, sem senha ═══
 
 /**
@@ -1141,12 +1157,10 @@ export async function comoPodeEntrar(email: string): Promise<"conhecida" | "conv
   const [pessoa] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   if (pessoa) return "conhecida";
 
-  const [convite] = await db
-    .select({ id: invites.id })
-    .from(invites)
-    .where(and(eq(invites.email, email), isNull(invites.acceptedAt), gte(invites.expiresAt, new Date())))
-    .limit(1);
-  if (convite) return "convite";
+  // pela função do banco: `invites` tem RLS e aqui ainda não há contexto —
+  // a resposta é só sim/não, então não serve para enumerar convidados (S-011)
+  const r = await db.execute(sql`select tem_convite_pendente(${email}) as tem`);
+  if ((linhas(r)[0] as { tem?: boolean } | undefined)?.tem) return "convite";
 
   const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
   if (dono && dono === email) {
@@ -1163,22 +1177,11 @@ export async function comoPodeEntrar(email: string): Promise<"conhecida" | "conv
  * quem convidou ainda precisa ver que ele existiu.
  */
 async function consumirConvites(userId: string, email: string) {
-  const pendentes = await db
-    .select()
-    .from(invites)
-    .where(and(eq(invites.email, email), isNull(invites.acceptedAt)));
-
-  for (const convite of pendentes) {
-    if (expirou(convite.expiresAt)) continue;
-    await db
-      .insert(memberships)
-      .values({ orgId: convite.orgId, userId, role: convite.role })
-      .onConflictDoUpdate({
-        target: [memberships.orgId, memberships.userId],
-        set: { role: convite.role },
-      });
-    await db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, convite.id));
-  }
+  // Escrever vínculo sem estar dentro da conta é PRIVILÉGIO, e privilégio não
+  // vira política frouxa — se a escrita em `memberships` aceitasse "é da
+  // pessoa em curso", qualquer um se adicionaria a qualquer conta. Vira função
+  // nomeada, que faz só isto e cabe numa lista auditável (S-011).
+  await db.execute(sql`select aceitar_convites_do_email(${userId}::uuid, ${email})`);
 }
 
 /**
@@ -1270,6 +1273,17 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
   }
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, pessoa.id));
 
+  // Daqui para baixo é trabalho DA PESSOA, e `memberships`/`invites` têm RLS
+  // (S-011): sem declarar quem é, o banco devolve zero vínculos e a pessoa
+  // ouviria "você não faz parte de nenhuma conta" tendo cinco.
+  return comPessoa(pessoa.id, () => concluirEntrada(pessoa, email, input.userAgent));
+}
+
+async function concluirEntrada(
+  pessoa: { id: string; email: string },
+  email: string,
+  userAgent?: string,
+) {
   // Convite pendente vira vínculo aqui: é o que permite alguém de fora entrar
   // pela primeira vez. Sem isto, convidado nenhum conseguiria abrir a conta —
   // aceitar convite exige estar dentro, e ele ainda está do lado de fora.
@@ -1282,15 +1296,17 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
 
   let orgId = vinculos[0]?.orgId ?? null;
   if (!orgId) {
+    const via = await comoPodeEntrar(email);
     // Conta nova só nasce para o fundador da instalação. Antes, qualquer
     // primeiro acesso criava uma — foi assim que a plataforma ficou aberta.
     const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
     if (via !== "fundador" && dono !== email) {
       throw new ErroDeDominio("você ainda não faz parte de nenhuma conta", 403, "sem_conta");
     }
-    const [org] = await db.insert(organizations).values({ name: email.split("@")[0] }).returning();
-    await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
-    orgId = org.id;
+    const nova = await db.execute(
+      sql`select fundar_conta(${pessoa.id}::uuid, ${email.split("@")[0]}) as id`,
+    );
+    orgId = (linhas(nova)[0] as { id: string }).id;
   }
 
   const sessao = novoTokenOpaco();
@@ -1300,7 +1316,7 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
     tokenHash: sessao.hash,
     orgId,
     expiresAt: expiraEm(SESSAO_DIAS * 24 * 60),
-    userAgent: input.userAgent?.slice(0, 300),
+    userAgent: userAgent?.slice(0, 300),
   });
 
   return { token: sessao.token, csrf: csrf.token, userId: pessoa.id, orgId };
@@ -1312,32 +1328,30 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
  */
 export async function resolverSessao(token: string): Promise<(Ctx & { userId: string; email: string }) | null> {
   if (!token) return null;
-  const [linha] = await db
-    .select()
-    .from(sessions)
-    .where(and(eq(sessions.tokenHash, hash(token)), isNull(sessions.revokedAt)));
-  if (!linha || expirou(linha.expiresAt)) return null;
+  const achado = await db.execute(sql`select * from resolver_sessao_por_hash(${hash(token)})`);
+  const linha = linhas(achado)[0] as
+    | { session_id: string; user_id: string; org_id: string | null; expires_at: string; email: string }
+    | undefined;
+  if (!linha) return null;
+  if (expirou(new Date(linha.expires_at))) return null;
+  if (!linha.org_id) return null;
 
-  const [pessoa] = await db.select().from(users).where(eq(users.id, linha.userId));
-  if (!pessoa) return null;
-
-  if (!linha.orgId) return null;
-  const [vinculo] = await db
-    .select()
-    .from(memberships)
-    .where(and(eq(memberships.orgId, linha.orgId), eq(memberships.userId, pessoa.id)));
   // perdeu o acesso à conta desde o último uso → sessão não vale mais para ela
+  const papel = await db.execute(
+    sql`select papel_na_conta(${linha.user_id}::uuid, ${linha.org_id}::uuid) as papel`,
+  );
+  const vinculo = (linhas(papel)[0] as { papel: Papel | null } | undefined)?.papel;
   if (!vinculo) return null;
 
-  await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, linha.id));
+  await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, linha.session_id));
 
   return {
-    orgId: linha.orgId,
-    actor: pessoa.email,
-    role: vinculo.role,
+    orgId: linha.org_id,
+    actor: linha.email,
+    role: vinculo,
     via: "sessao",
-    userId: pessoa.id,
-    email: pessoa.email,
+    userId: linha.user_id,
+    email: linha.email,
   };
 }
 

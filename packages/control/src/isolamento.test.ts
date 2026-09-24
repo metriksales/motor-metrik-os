@@ -22,6 +22,30 @@ let agenteDeB = "";
 const ctxA = () => ({ orgId: contaA, actor: "teste-a", role: "owner" as const });
 const ctxB = () => ({ orgId: contaB, actor: "teste-b", role: "owner" as const });
 
+/**
+ * Chama o control JÁ dentro da conta do próprio ctx.
+ *
+ * Com o RLS ligado (S-011) nenhuma ação enxerga nada sem declarar de quem é a
+ * requisição, e o ctx que cada teste monta já diz qual conta é. O proxy evita
+ * embrulhar as trinta chamadas deste arquivo à mão — e, de quebra, deixa claro
+ * que a partir de agora "chamar o control" é sempre chamar dentro de uma conta.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const app: any = new Proxy(
+  {},
+  {
+    get:
+      (_alvo, nome: string) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (...args: any[]) => {
+        const ctx = args[0] as { orgId?: string } | undefined;
+        return ctx?.orgId
+          ? control.comConta(ctx.orgId, () => control[nome](...args))
+          : control[nome](...args);
+      },
+  },
+);
+
 beforeAll(async () => {
   if (!temBanco) return;
   process.env.DATABASE_URL = urlDeTeste;
@@ -35,25 +59,25 @@ beforeAll(async () => {
   contaA = a.id;
   contaB = b.id;
 
-  agenteDeA = (await control.createAgent(ctxA(), { name: "SDR da A", tipo: "resposta" })).id;
-  agenteDeB = (await control.createAgent(ctxB(), { name: "SDR da B", tipo: "resposta" })).id;
+  agenteDeA = (await app.createAgent(ctxA(), { name: "SDR da A", tipo: "resposta" })).id;
+  agenteDeB = (await app.createAgent(ctxB(), { name: "SDR da B", tipo: "resposta" })).id;
 });
 
 describe.skipIf(!temBanco)("uma conta não alcança a outra", () => {
   test("listar agentes devolve só os da própria conta", async () => {
-    const daA = await control.listAgents(ctxA());
+    const daA = await app.listAgents(ctxA());
     const ids = daA.map((x: { id: string }) => x.id);
     expect(ids).toContain(agenteDeA);
     expect(ids).not.toContain(agenteDeB);
   });
 
   test("ler agente da outra conta não encontra (404, não 403 — não confirma existência)", async () => {
-    await expect(control.getAgent(ctxA(), agenteDeB)).resolves.toBeFalsy();
+    await expect(app.getAgent(ctxA(), agenteDeB)).resolves.toBeFalsy();
   });
 
   test("propor mudança em agente de outra conta é recusado", async () => {
     await expect(
-      control.proporMudanca(ctxA(), {
+      app.proporMudanca(ctxA(), {
         agentId: agenteDeB,
         origin: "api",
         intent: "mexer no agente alheio",
@@ -64,44 +88,44 @@ describe.skipIf(!temBanco)("uma conta não alcança a outra", () => {
 
   test("gravar execução em agente de outra conta é recusado", async () => {
     await expect(
-      control.registrarLog(ctxA(), { agentId: agenteDeB, ok: true, resumo: "log injetado" }),
+      app.registrarLog(ctxA(), { agentId: agenteDeB, ok: true, resumo: "log injetado" }),
     ).rejects.toThrow(/não encontrado nesta conta/);
   });
 
   test("pausar agente de outra conta é recusado", async () => {
     await expect(
-      control.setAgentEstado(ctxA(), { agentId: agenteDeB, estado: "pausado" }),
+      app.setAgentEstado(ctxA(), { agentId: agenteDeB, estado: "pausado" }),
     ).rejects.toThrow(/não encontrado nesta conta/);
   });
 
   test("aprovar mudança de outra conta é recusado", async () => {
-    const cs = await control.proporMudanca(ctxB(), {
+    const cs = await app.proporMudanca(ctxB(), {
       agentId: agenteDeB,
       origin: "api",
       intent: "mudança da conta B",
       patch: {},
     });
-    await expect(control.aprovarMudanca(ctxA(), cs.id)).rejects.toThrow(/não encontrado nesta conta/);
+    await expect(app.aprovarMudanca(ctxA(), cs.id)).rejects.toThrow(/não encontrado nesta conta/);
     // e a mudança continua intocada na conta dona
-    const daB = await control.listChangeSets(ctxB(), agenteDeB);
+    const daB = await app.listChangeSets(ctxB(), agenteDeB);
     expect(daB.find((x: { id: string }) => x.id === cs.id)?.status).toBe("draft");
   });
 
   test("token de máquina de uma conta resolve só para ela", async () => {
-    const { token } = await control.criarMachineToken(ctxA(), { name: "teste", scopes: ["log"] });
-    const ctx = await control.resolverMachineToken(token);
+    const { token } = await app.criarMachineToken(ctxA(), { name: "teste", scopes: ["log"] });
+    const ctx = await app.resolverMachineToken(token);
     expect(ctx.orgId).toBe(contaA);
     expect(ctx.orgId).not.toBe(contaB);
     expect(ctx.via).toBe("maquina");
 
     // revogado deixa de valer
-    const [t] = await control.listarMachineTokens(ctxA());
-    await control.revogarMachineToken(ctxA(), t.id);
-    expect(await control.resolverMachineToken(token)).toBeNull();
+    const [t] = await app.listarMachineTokens(ctxA());
+    await app.revogarMachineToken(ctxA(), t.id);
+    expect(await app.resolverMachineToken(token)).toBeNull();
   });
 
   test("o sino de pendências não mostra agente de outra conta", async () => {
-    const pendencias = await control.listPendencias(ctxA());
+    const pendencias = await app.listPendencias(ctxA());
     for (const p of pendencias) {
       expect(p.agentName).not.toBe("SDR da B");
     }
