@@ -1106,8 +1106,70 @@ async function audit(ctx: Ctx, action: string, target?: string, data?: unknown) 
 // ═══ AUTENTICAÇÃO PRÓPRIA (S-045) — sem Clerk, sem senha ═══
 
 /**
+ * QUEM PODE ENTRAR (S-045). A plataforma é fechada: a tela de entrada está na
+ * internet aberta, e sem esta porteira qualquer endereço do mundo pedia um
+ * código, recebia e virava dono de uma conta nova.
+ *
+ * Três caminhos legítimos, e só eles:
+ *  - "conhecida": a pessoa já existe em `users` (alguém já a colocou aqui);
+ *  - "convite":   existe convite pendente e no prazo para este e-mail;
+ *  - "fundador":  o banco não tem NENHUMA pessoa ainda e o e-mail é o que
+ *                 `DONO_INICIAL` nomeia — é assim que uma instalação nova
+ *                 ganha o primeiro acesso sem deixar a porta aberta.
+ *
+ * Devolve `null` quando nenhum caminho serve.
+ */
+export async function comoPodeEntrar(email: string): Promise<"conhecida" | "convite" | "fundador" | null> {
+  const [pessoa] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (pessoa) return "conhecida";
+
+  const [convite] = await db
+    .select({ id: invites.id })
+    .from(invites)
+    .where(and(eq(invites.email, email), isNull(invites.acceptedAt), gte(invites.expiresAt, new Date())))
+    .limit(1);
+  if (convite) return "convite";
+
+  const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
+  if (dono && dono === email) {
+    const [alguem] = await db.select({ id: users.id }).from(users).limit(1);
+    if (!alguem) return "fundador";
+  }
+
+  return null;
+}
+
+/**
+ * Convites pendentes deste e-mail viram vínculo. Idempotente: rodar de novo
+ * não duplica nem rebaixa papel. Um convite vencido é ignorado, não apagado —
+ * quem convidou ainda precisa ver que ele existiu.
+ */
+async function consumirConvites(userId: string, email: string) {
+  const pendentes = await db
+    .select()
+    .from(invites)
+    .where(and(eq(invites.email, email), isNull(invites.acceptedAt)));
+
+  for (const convite of pendentes) {
+    if (expirou(convite.expiresAt)) continue;
+    await db
+      .insert(memberships)
+      .values({ orgId: convite.orgId, userId, role: convite.role })
+      .onConflictDoUpdate({
+        target: [memberships.orgId, memberships.userId],
+        set: { role: convite.role },
+      });
+    await db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, convite.id));
+  }
+}
+
+/**
  * Passo 1: a pessoa pede um código. Sempre respondemos a mesma coisa, exista
  * a conta ou não — dizer "este e-mail não tem cadastro" entrega quem é cliente.
+ *
+ * Quem não pode entrar recebe a MESMA resposta, e nenhum e-mail. Não mandamos
+ * aviso de "você não tem conta": isso transformaria a tela de entrada num
+ * disparador de e-mail para qualquer endereço que alguém digitasse.
  */
 export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPort }) {
   const email = normalizarEmail(input.email);
@@ -1123,6 +1185,15 @@ export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPor
     throw new ErroDeDominio("muitos pedidos de código; tente de novo em alguns minutos", 429, "muitos_pedidos");
   }
 
+  const email_ = input.enviarEmail ?? criarEmail();
+
+  if (!(await comoPodeEntrar(email))) {
+    // Fica no log do servidor, que é onde o operador procura "por que fulano
+    // não recebeu o código". A resposta ao cliente não muda.
+    console.info(`[auth] código negado para ${email}: sem cadastro e sem convite`);
+    return { enviado: true, modo: email_.modo };
+  }
+
   const { codigo, hash: codeHash } = novoCodigo();
   await db.insert(loginCodes).values({
     email,
@@ -1130,7 +1201,6 @@ export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPor
     expiresAt: expiraEm(CODIGO_MINUTOS),
   });
 
-  const email_ = input.enviarEmail ?? criarEmail();
   const r = await email_.enviar({
     para: email,
     assunto: "Seu código de entrada no Metrik-OS",
@@ -1171,14 +1241,22 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
 
   await db.update(loginCodes).set({ usedAt: new Date() }).where(eq(loginCodes.id, registro.id));
 
-  // usuário (cria no primeiro acesso)
+  // Confere de novo quem pode entrar: o código sozinho não é autorização. Um
+  // convite pode ter sido revogado ou expirado entre o pedido e a digitação.
+  const via = await comoPodeEntrar(email);
+  if (!via) throw new ErroDeDominio("este e-mail não tem acesso à plataforma", 403, "sem_acesso");
+
   let [pessoa] = await db.select().from(users).where(eq(users.email, email));
   if (!pessoa) {
     [pessoa] = await db.insert(users).values({ email }).returning();
   }
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, pessoa.id));
 
-  // conta ativa: a primeira de que a pessoa participa; sem nenhuma, cria a dela
+  // Convite pendente vira vínculo aqui: é o que permite alguém de fora entrar
+  // pela primeira vez. Sem isto, convidado nenhum conseguiria abrir a conta —
+  // aceitar convite exige estar dentro, e ele ainda está do lado de fora.
+  await consumirConvites(pessoa.id, email);
+
   const vinculos = await db
     .select({ orgId: memberships.orgId })
     .from(memberships)
@@ -1186,6 +1264,12 @@ export async function entrarComCodigo(input: { email: string; codigo: string; us
 
   let orgId = vinculos[0]?.orgId ?? null;
   if (!orgId) {
+    // Conta nova só nasce para o fundador da instalação. Antes, qualquer
+    // primeiro acesso criava uma — foi assim que a plataforma ficou aberta.
+    const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
+    if (via !== "fundador" && dono !== email) {
+      throw new ErroDeDominio("você ainda não faz parte de nenhuma conta", 403, "sem_conta");
+    }
     const [org] = await db.insert(organizations).values({ name: email.split("@")[0] }).returning();
     await db.insert(memberships).values({ orgId: org.id, userId: pessoa.id, role: "owner" });
     orgId = org.id;
