@@ -54,8 +54,8 @@ async function criarDb() {
 
 const base = (await criarDb()) as unknown as ReturnType<typeof drizzleWs<typeof schema>>;
 
-/** A transação da conta em curso, se houver alguma. */
-type Ambiente = { tx: typeof base; orgId: string };
+/** O contexto em curso: de quem é a requisição, na visão do banco. */
+type Ambiente = { tx: typeof base; orgId: string | null; userId: string | null };
 const ambiente = new AsyncLocalStorage<Ambiente>();
 
 /**
@@ -77,26 +77,57 @@ export const db = new Proxy(base, {
 }) as typeof base;
 
 /**
- * Roda `corpo` numa transação que DECLARA a conta ao banco.
+ * Roda `corpo` numa transação que DECLARA ao banco de quem é a requisição.
  *
- * É o ponto único por onde o control plane passa. Enquanto o RLS não está
- * ligado, isto não muda comportamento nenhum — o valor só aparece quando as
- * políticas entram, e aí toda query fora daqui enxerga zero linhas.
+ * Duas coordenadas, porque o sistema tem dois tipos de pergunta:
+ *  - `orgId`: "o que é desta conta" — quase tudo;
+ *  - `userId`: "o que é desta pessoa, em qualquer conta" — o seletor de contas
+ *    lista várias contas de uma pessoa, e convite é dirigido a alguém.
+ *
+ * Sem a segunda, a saída preguiçosa seria deixar `organizations`, `memberships`
+ * e `invites` fora do RLS por serem "tabelas de login". Elas têm dono; o que
+ * faltava era dizer quem.
  *
  * `set_config(..., true)` é o `SET LOCAL` que aceita parâmetro: `SET LOCAL`
  * não aceita bind, e montar o comando por concatenação com um id vindo de fora
  * é injeção de SQL esperando acontecer.
  */
-export async function comConta<T>(orgId: string, corpo: () => Promise<T>): Promise<T> {
+export async function comContexto<T>(
+  quem: { orgId?: string | null; userId?: string | null },
+  corpo: () => Promise<T>,
+): Promise<T> {
+  const orgId = quem.orgId ?? null;
+  const userId = quem.userId ?? null;
   return base.transaction(async (tx) => {
-    await tx.execute(tag`select set_config('app.org_id', ${orgId}, true)`);
-    return ambiente.run({ tx: tx as unknown as typeof base, orgId }, corpo);
+    // string vazia é o que o Postgres devolve quando o parâmetro foi zerado;
+    // a política trata '' e NULL como "não declarado" (ver contexto.test.ts)
+    await tx.execute(tag`select set_config('app.org_id', ${orgId ?? ""}, true)`);
+    await tx.execute(tag`select set_config('app.user_id', ${userId ?? ""}, true)`);
+    return ambiente.run({ tx: tx as unknown as typeof base, orgId, userId }, corpo);
   });
 }
 
-/** A conta declarada ao banco agora, se houver. Serve para teste e diagnóstico. */
+/** Atalho para o caso comum: trabalho dentro de uma conta. */
+export function comConta<T>(orgId: string, corpo: () => Promise<T>): Promise<T> {
+  return comContexto({ orgId }, corpo);
+}
+
+/**
+ * Trabalho que é da PESSOA e atravessa contas: listar as contas dela, aceitar
+ * convite, encerrar sessão. Não há uma conta em curso, e forçar uma seria
+ * mentira.
+ */
+export function comPessoa<T>(userId: string, corpo: () => Promise<T>): Promise<T> {
+  return comContexto({ userId }, corpo);
+}
+
+/** O que foi declarado ao banco agora. Serve para teste e diagnóstico. */
 export function contaEmCurso(): string | null {
   return ambiente.getStore()?.orgId ?? null;
+}
+
+export function pessoaEmCurso(): string | null {
+  return ambiente.getStore()?.userId ?? null;
 }
 
 export type Db = typeof db;

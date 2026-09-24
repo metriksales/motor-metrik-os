@@ -46,6 +46,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // CONTEXTO DE CONTA (S-011), e onde ele legitimamente não existe.
+  //
+  // `pedirCodigo` e `entrar` acontecem ANTES de haver qualquer autenticado: a
+  // busca é por e-mail e por hash de código, e não há conta nem pessoa a
+  // declarar. É limite real, não atalho — e por isso essas duas só tocam
+  // tabelas de identidade (`users`, `login_codes`), que não têm `org_id`.
+  //
+  // O resto já sabe quem é, e declara: ver `comPessoa` abaixo.
   try {
     switch (acao) {
       case "pedirCodigo": {
@@ -85,18 +93,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case "contas": {
         const ctx = await control.resolverSessao(tokenSessao);
         if (!ctx) return res.status(401).json({ error: "não autorizado" });
-        return res.json(await control.contasDaPessoa(ctx.userId));
+        // trabalho da PESSOA, que atravessa contas: é por isso que o contexto
+        // tem `app.user_id` além de `app.org_id` (S-011)
+        return res.json(await control.comPessoa(ctx.userId, () => control.contasDaPessoa(ctx.userId)));
       }
 
       case "trocarConta": {
         if (!mutacao) return res.status(405).json({ error: "use POST" });
         const ctx = await control.resolverSessao(tokenSessao);
         if (!ctx) return res.status(401).json({ error: "não autorizado" });
-        const r = await control.trocarConta({
-          token: tokenSessao,
-          userId: ctx.userId,
-          orgId: String(body.orgId ?? ""),
-        });
+        const r = await control.comPessoa(ctx.userId, () =>
+          control.trocarConta({
+            token: tokenSessao,
+            userId: ctx.userId,
+            orgId: String(body.orgId ?? ""),
+          }),
+        );
         return res.json(r);
       }
 
@@ -104,7 +116,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!mutacao) return res.status(405).json({ error: "use POST" });
         const ctx = await control.resolverSessao(tokenSessao);
         if (!ctx) return res.status(401).json({ error: "entre primeiro para aceitar o convite" });
-        const r = await control.aceitarConvite({ token: String(body.token ?? ""), userId: ctx.userId });
+        const r = await control.comPessoa(ctx.userId, () =>
+          control.aceitarConvite({ token: String(body.token ?? ""), userId: ctx.userId }),
+        );
         return res.json(r);
       }
 
