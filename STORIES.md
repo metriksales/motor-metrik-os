@@ -121,7 +121,7 @@ Atualizado em 2026-09-23 14:05.
 - [x] Runner único (Vitest); o teste do group-reader roda nele
 - [x] JID real trocado por fictício no teste
 - [x] CI verde numa execução real (`35991123301`, 24/09: 38 testes, incluindo os de banco)
-- [ ] CI obrigatória no `main` (proteção de branch — depende do mestre)
+- [x] Barreira antes do push: hook `.githooks/pre-push` versionado (proteção de branch do GitHub é paga — ver Notas)
 
 **Notas.** Verificado nesta máquina com Node v24.19.0: `npm run ci` sai com código 0 — typecheck em **12 alvos** (8 pacotes, runtime, front, `api/` e o alvo `tsconfig.node.json`), lint com **0 erros e 95 avisos**, **5 testes** passando, e `npm run build:web` gerando os bundles das funções e o `dist`.
 
@@ -129,7 +129,7 @@ Os 95 avisos são a dívida que a auditoria mapeou (≈50 `any`, variáveis sem 
 
 **Achado do dia 24/09:** com o gatilho só em `pull_request`, este repositório **não criava execução nenhuma** — o Actions estava habilitado e a organização tinha franquia sobrando (282 e 583 minutos usados em outros repositórios), mas o workflow ainda não existia na branch padrão, e é de lá que o repositório lê a lista de workflows. Acrescentar o gatilho de `push` (mais `workflow_dispatch`) resolveu na hora: execução `35991123301`, verde, com **38 testes**. Depois que isto for mesclado no `main`, o gatilho de `pull_request` passa a valer e o `docs/**` pode sair.
 
-Falta só exigir a checagem no `main`: é proteção de branch, muda como todo mundo passa a empurrar código, então é decisão do mestre.
+**Proteção do `main` (24/09):** tentei ligar a exigência da checagem, pelos dois caminhos do GitHub — proteção de branch clássica e *ruleset*. Os dois respondem `403 Upgrade to GitHub Pro or make this repository public`: **é recurso pago em repositório privado**, e a organização está no plano gratuito. A alternativa entregue é o hook `.githooks/pre-push`, que roda `npm run ci` antes de enviar (ativa-se com `git config core.hooksPath .githooks`). É rede, não trava: mora na máquina de quem empurra e dá para pular com `--no-verify`. A trava de verdade depende de o mestre decidir pagar o GitHub Team.
 
 ---
 

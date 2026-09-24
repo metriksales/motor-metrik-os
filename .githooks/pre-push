@@ -1,0 +1,27 @@
+#!/bin/sh
+# Roda a esteira antes de empurrar código (S-002).
+#
+# Por que um hook e não proteção de branch: exigir a CI no `main` é recurso pago
+# do GitHub em repositório privado, e a organização está no plano gratuito. Este
+# hook é a barreira possível — ela mora na sua máquina, então é uma rede, não
+# uma trava: quem quiser, pula com `git push --no-verify`.
+#
+# Para ativar (uma vez por clone):
+#   git config core.hooksPath .githooks
+
+if [ "$PULAR_CI" = "1" ]; then
+  echo "pre-push: pulando a esteira (PULAR_CI=1)"
+  exit 0
+fi
+
+echo "pre-push: rodando npm run ci (use PULAR_CI=1 para pular)"
+
+if ! npm run ci; then
+  echo ""
+  echo "pre-push: a esteira falhou — o push foi cancelado."
+  echo "Conserte, ou use 'git push --no-verify' se souber o que está fazendo."
+  exit 1
+fi
+
+echo "pre-push: esteira verde."
+exit 0
