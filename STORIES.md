@@ -56,7 +56,7 @@ Atualizado em 2026-09-24 13:40.
 | S-043 | Página do agente | 3 | backlog |
 | S-044 | Página Conta e Conexões | 3 | backlog |
 | S-045 | Autenticação e gestão de usuários própria | 1 | concluída |
-| S-046 | Proteger as tabelas de identidade | 1 | backlog |
+| S-046 | Proteger as tabelas de identidade | 1 | em andamento |
 
 ---
 
@@ -1523,7 +1523,7 @@ Decisões e o porquê:
 
 ## S-046 · Proteger as tabelas de identidade
 
-- **status:** backlog
+- **status:** em andamento (parte 1 concluída)
 - **criado:** 2026-09-24
 - **atualizado:** 2026-09-24
 
@@ -1544,10 +1544,18 @@ Não é despreocupante. `users` é a lista de e-mails de todos os clientes da Me
 
 **Checklist**
 
-- [ ] Inventário: quem lê e escreve cada uma das quatro, e por qual caminho
-- [ ] `sessions` com política por pessoa
-- [ ] Privilégio mínimo para `metrik_app` em `users` e `login_codes`
-- [ ] Decisão registrada sobre `organizations` (âncora do tenant)
-- [ ] Teste: leitura cruzada recusada pelo banco em cada uma
+- [x] Inventário: quem lê e escreve cada uma das quatro, e por qual caminho
+- [x] `sessions` com política por pessoa
+- [x] `login_codes` SEM política nenhuma — acesso só pelas funções nomeadas
+- [x] `users` com leitura por pessoa ou por conta compartilhada, e sem escrita
+- [x] Decisão registrada sobre `organizations`: política por conta em curso OU por participação da pessoa (é o que o seletor de contas precisa)
+- [x] Teste: leitura cruzada recusada pelo banco em cada uma (`identidade.test.ts`, 9 testes)
+- [ ] **Parte 2:** `metrik_app` vira papel de LOGIN, com `DATABASE_URL_APP` própria — é o que faz o RLS virar o padrão da conexão em vez de valer só dentro de `comContexto`
+
+**O que a parte 1 revelou.** `aceitarConvite` estava quebrado desde a S-011: roda dentro de `comPessoa`, que declara a pessoa mas não a conta, e a política de escrita de `memberships` exige a conta — o banco recusava o vínculo. Os dois testes que existiam só exercitavam as RECUSAS, então o caminho de sucesso nunca foi exercitado. Consertado com `aceitar_convite_por_hash`.
+
+**Por que a parte 2 depende de você.** A `DATABASE_URL` é gerenciada pela integração Neon↔Vercel e não é editável pelo agente construtor. O papel de login precisa de senha própria e de uma variável nova, criadas à mão.
+
+**A limitação enquanto a parte 2 não sai.** A aplicação conecta como DONA do banco, e dono atravessa RLS. Tudo nesta história vale dentro de `comContexto`, onde a conexão vira `metrik_app` — fora dele, não. Está escrito em teste, em `contexto.test.ts`.
 
 ---
