@@ -132,9 +132,9 @@ Falta só o último item: a CI precisa rodar uma vez num PR para o GitHub conhec
 
 ## S-003 · Auth de máquina por conta, sem segredo no browser
 
-- **status:** backlog
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-23 13:12
 
 **Missão.** Um único `CONTROL_PLANE_SECRET` dá papel admin em **qualquer** conta, escolhida pelo header `x-org-id`. Com a plataforma hospedando as credenciais e as conversas de todos os clientes, esse caminho é inaceitável.
 
@@ -144,21 +144,36 @@ Falta só o último item: a CI precisa rodar uma vez num PR para o GitHub conhec
 
 | Caminho | Papel |
 | :--- | :--- |
-| `apps/web/api/_auth.ts:11-16` | caminho a substituir |
-| `apps/web/src/lib/api.ts:10-12` | fallback a remover |
-| `packages/db/src/schema.ts` | tabela `machine_tokens` (planejada) |
-| `packages/control/src/index.ts` | emitir/revogar token; `Ctx` com escopos |
+| `packages/control/src/tokens.ts` | criado — parte pura: geração, hash, extração do pedido, escopos |
+| `packages/control/src/tokens.test.ts` | criado — 7 testes |
+| `packages/control/src/index.ts` | `criarMachineToken`, `listarMachineTokens`, `revogarMachineToken`, `resolverMachineToken`; `Ctx` ganhou `via` e `scopes` |
+| `packages/db/src/schema.ts` | tabela `machine_tokens` (hash único, escopos, revogação, FK da conta) |
+| `packages/db/drizzle/0005_silent_rockslide.sql` | migração gerada |
+| `apps/web/api/_auth.ts` | reescrito: conta vem do token, headers ignorados |
+| `apps/web/api/control.ts` | escopo exigido por ação + rotas `criarToken`/`tokens`/`revogarToken` |
+| `apps/web/src/lib/api.ts`, `src/vite-env.d.ts` | fallback `VITE_MOTOR_TOKEN` removido |
+| `apps/web/vite.config.ts` | build falha com `VITE_*` que pareça segredo; dev server só em `localhost` |
+| `.env.example`, `DEPLOY.md` | `CONTROL_PLANE_SECRET` removido; documentado como máquina autentica |
 
-**Relacionados.** Depende de S-002. Destrava S-034.
+**Relacionados.** Depende de S-002. Destrava S-034. O modelo de escopos é provisório até as permissões finas da S-022.
 
 **Checklist**
 
-- [ ] Tabela de tokens com hash, conta, escopos, criação e revogação
-- [ ] `resolveCtx` resolve a conta pelo token; `x-org-id` é ignorado
-- [ ] Comparação em tempo constante
-- [ ] Token fora do escopo recebe 403
-- [ ] `VITE_MOTOR_TOKEN` removido; build de produção falha se a variável existir
-- [ ] Teste: token da conta A não alcança a conta B
+- [x] Tabela de tokens com hash, conta, escopos, criação e revogação
+- [x] `resolveCtx` resolve a conta pelo token; `x-org-id` é ignorado
+- [x] Token fora do escopo recebe 403
+- [x] `VITE_MOTOR_TOKEN` removido; build de produção falha se a variável existir
+- [x] `CONTROL_PLANE_SECRET` global retirado
+- [ ] Teste de ponta a ponta contra o banco: token da conta A não alcança a conta B
+
+**Notas.** Verificado: `npm run ci` verde (12 alvos de typecheck, 0 erros de lint, **12 testes**, sendo 7 novos de token) e `npm run build:web` gerando bundle **sem** nenhum vestígio de `x-motor-token` ou `VITE_MOTOR_TOKEN` (conferido com busca no `dist`).
+
+Decisões tomadas aqui:
+- Token no formato `mos_` + 32 bytes; o banco guarda **sha256**, e a busca é por hash — não há comparação de segredo em tempo linear, então a questão de tempo constante deixa de existir neste caminho.
+- Escopos `log` · `leitura` · `mudanca` · `admin`, com `admin` implicando os demais. A tabela ação → escopo mora em `apps/web/api/control.ts`.
+- O `papelDoToken` é uma ponte provisória: enquanto o control plane decide por papel, um token vira `viewer`, `operator` ou `admin`. A S-022 troca isso por permissão de verdade.
+
+**O que ficou faltando:** o último item do checklist exige um Neon de teste, que ainda não existe nesta máquina. O caminho está coberto por tipos e pelos testes da parte pura, mas **o isolamento entre contas ainda não foi exercitado contra um banco real** — fica para a S-006, que monta os testes de isolamento.
 
 ---
 

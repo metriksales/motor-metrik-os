@@ -2,11 +2,21 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates } from "@motor/db";
+import { db, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
 import type { AgentSpec, AgentTipo, ChangeOrigin, ConnKind } from "@motor/core";
+import {
+  type Escopo,
+  ehTokenDeMaquina,
+  hashToken,
+  normalizarEscopos,
+  novoToken,
+  papelDoToken,
+} from "./tokens.js";
+
+export * from "./tokens.js";
 
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
 export { getDatabaseUrl } from "@motor/db";
@@ -15,6 +25,94 @@ export interface Ctx {
   orgId: string;
   actor: string;
   role: "owner" | "admin" | "operator" | "viewer";
+  /** por onde entrou: sessão de pessoa ou token de máquina */
+  via?: "sessao" | "maquina";
+  /** escopos do token de máquina (vazio quando é sessão de pessoa) */
+  scopes?: Escopo[];
+}
+
+// ═══ TOKENS DE MÁQUINA (S-003) — a conta vem do token, nunca de header ═══
+
+/**
+ * Cria um token de máquina para a conta do contexto. Devolve o valor em claro
+ * UMA vez — depois disso só existe o hash. Quem cria precisa ser admin/owner.
+ */
+export async function criarMachineToken(
+  ctx: Ctx,
+  input: { name: string; scopes?: Escopo[] },
+): Promise<{ token: string; id: string; prefix: string; scopes: Escopo[] }> {
+  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("sem permissão pra criar token");
+  const scopes = normalizarEscopos(input.scopes ?? ["log"]);
+  if (scopes.length === 0) throw new Error("escopos inválidos");
+  const { token, hash, prefix } = novoToken();
+  const [row] = await db
+    .insert(machineTokens)
+    .values({
+      orgId: ctx.orgId,
+      name: input.name,
+      tokenHash: hash,
+      prefix,
+      scopes,
+      createdBy: ctx.actor,
+    })
+    .returning();
+  await audit(ctx, "machine_token.create", row.id, { name: input.name, scopes });
+  return { token, id: row.id, prefix, scopes };
+}
+
+/** Tokens da conta (sem o valor, que não existe mais em lugar nenhum). */
+export function listarMachineTokens(ctx: Ctx) {
+  return db
+    .select({
+      id: machineTokens.id,
+      name: machineTokens.name,
+      prefix: machineTokens.prefix,
+      scopes: machineTokens.scopes,
+      createdBy: machineTokens.createdBy,
+      createdAt: machineTokens.createdAt,
+      lastUsedAt: machineTokens.lastUsedAt,
+      revokedAt: machineTokens.revokedAt,
+    })
+    .from(machineTokens)
+    .where(eq(machineTokens.orgId, ctx.orgId))
+    .orderBy(desc(machineTokens.createdAt));
+}
+
+export async function revogarMachineToken(ctx: Ctx, id: string) {
+  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("sem permissão pra revogar token");
+  const [row] = await db
+    .update(machineTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(machineTokens.id, id), eq(machineTokens.orgId, ctx.orgId), isNull(machineTokens.revokedAt)))
+    .returning();
+  if (!row) throw new Error("token não encontrado nesta conta");
+  await audit(ctx, "machine_token.revoke", id, {});
+  return { ok: true };
+}
+
+/**
+ * Resolve o token de máquina em contexto. A CONTA sai daqui — do banco, pelo
+ * hash do token — e não de `x-org-id`. Token revogado ou inexistente = null.
+ */
+export async function resolverMachineToken(tokenEmClaro: string): Promise<Ctx | null> {
+  if (!ehTokenDeMaquina(tokenEmClaro)) return null;
+  const hash = hashToken(tokenEmClaro);
+  const [row] = await db
+    .select()
+    .from(machineTokens)
+    .where(and(eq(machineTokens.tokenHash, hash), isNull(machineTokens.revokedAt)));
+  if (!row) return null;
+
+  const scopes = normalizarEscopos(row.scopes);
+  await db.update(machineTokens).set({ lastUsedAt: new Date() }).where(eq(machineTokens.id, row.id));
+
+  return {
+    orgId: row.orgId,
+    actor: `token:${row.name}`,
+    role: papelDoToken(scopes),
+    via: "maquina",
+    scopes,
+  };
 }
 
 /**

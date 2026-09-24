@@ -33,6 +33,37 @@ export const memberships = pgTable(
   (t) => [uniqueIndex("memberships_org_user").on(t.orgId, t.userId)]
 );
 
+/**
+ * Tokens de MÁQUINA — o que agentes, Claude Code/Codex e automações usam para
+ * falar com a Control API. Um token pertence a UMA conta e carrega escopos; a
+ * conta NUNCA vem de header (S-003). Guardamos só o hash: o valor em claro é
+ * mostrado uma única vez, na criação.
+ */
+export const machineTokens = pgTable(
+  "machine_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** sha256 do token em claro, em hex */
+    tokenHash: text("token_hash").notNull(),
+    /** início do token, só para a pessoa reconhecer na lista */
+    prefix: text("prefix").notNull(),
+    /** escopos: log | leitura | mudanca | admin */
+    scopes: jsonb("scopes").notNull().default(["log"]),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("machine_tokens_hash_unique").on(t.tokenHash),
+    index("machine_tokens_org_idx").on(t.orgId),
+  ],
+);
+
 export const agents = pgTable(
   "agents",
   {

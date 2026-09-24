@@ -120,8 +120,22 @@ export default defineConfig(({ mode }) => {
   for (const k of ["CLERK_SECRET_KEY", "DATABASE_URL"]) {
     if (env[k] && !process.env[k]) process.env[k] = env[k];
   }
+  // Trava de segurança (S-003): segredo NUNCA vai pro bundle. Qualquer VITE_*
+  // com cara de token derruba o build antes de publicar.
+  const proibidas = Object.keys(env).filter(
+    (k) => k.startsWith("VITE_") && /TOKEN|SECRET|KEY|PASSWORD|SENHA/i.test(k) && k !== "VITE_CLERK_PUBLISHABLE_KEY",
+  );
+  if (proibidas.length > 0) {
+    throw new Error(
+      `variável de ambiente com segredo exposta ao browser: ${proibidas.join(", ")}. ` +
+        "Tudo com prefixo VITE_ é embutido no JavaScript público — use uma env de servidor.",
+    );
+  }
+
   return {
     plugins: [react(), localControlApi(env.CLERK_SECRET_KEY)],
-    server: { port: 5175, host: true },
+    // localhost de propósito: o middleware de dev é uma porta admin sem sessão;
+    // com host:true ele ficava exposto na rede local (achado M8 da auditoria).
+    server: { port: 5175, host: "localhost" },
   };
 });

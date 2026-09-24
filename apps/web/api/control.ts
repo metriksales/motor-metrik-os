@@ -4,6 +4,43 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as control from "./_bundled/control.mjs";
 import { resolveCtx } from "./_auth.js";
 
+/** ação → escopo mínimo de um token de máquina. O que não estiver aqui exige `admin`. */
+const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> = {
+  // ingestão do Flight Recorder: é para isso que existe o escopo mais estreito
+  log: "log",
+  // leitura
+  agents: "leitura",
+  getAgent: "leitura",
+  spec: "leitura",
+  changesets: "leitura",
+  rodando: "leitura",
+  members: "leitura",
+  assumidos: "leitura",
+  releases: "leitura",
+  logs: "leitura",
+  stats: "leitura",
+  pendencias: "leitura",
+  connections: "leitura",
+  tokens: "leitura",
+  // propõe e testa, mas não publica
+  createAgent: "mudanca",
+  propor: "mudanca",
+  avaliar: "mudanca",
+  testar: "mudanca",
+  rodarTestes: "mudanca",
+  setEstado: "mudanca",
+  assumirContato: "mudanca",
+  devolverContato: "mudanca",
+  // publica, reverte, mexe em conexão e em token → só `admin`
+  aprovar: "admin",
+  publicarMudanca: "admin",
+  publicar: "admin",
+  reverter: "admin",
+  upsertConnection: "admin",
+  criarToken: "admin",
+  revogarToken: "admin",
+};
+
 // Porta ÚNICA de mudança: front, Claude Code, Codex e API batem AQUI.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // guard do banco ANTES da auth: sem Neon, o fluxo Clerk (que provisiona org
@@ -24,9 +61,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!ctx) return res.status(401).json({ error: "não autorizado" });
 
   const action = String(req.query.action ?? "");
+
+  // Escopo exigido por ação. Vale para TOKEN DE MÁQUINA (S-003): um token de
+  // ingestão (escopo `log`) não alcança leitura, mudança nem publicação.
+  // Sessão de pessoa não passa por aqui — quem manda nela é o papel.
+  if (ctx.via === "maquina") {
+    const exigido = ESCOPO_POR_ACAO[action] ?? "admin";
+    if (!control.escopoPermite(ctx.scopes ?? [], exigido)) {
+      return res.status(403).json({ error: `token sem escopo "${exigido}" para esta ação` });
+    }
+  }
+
   const body = (req.body ?? {}) as any;
   try {
     switch (action) {
+      case "criarToken":
+        return res.json(await control.criarMachineToken(ctx, body));
+      case "tokens":
+        return res.json(await control.listarMachineTokens(ctx));
+      case "revogarToken":
+        return res.json(await control.revogarMachineToken(ctx, String(body.id ?? "")));
       case "agents":
         return res.json(await control.listAgents(ctx));
       case "getAgent":
