@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { db, comPessoa, credentials, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, loginCodes, invites } from "@motor/db";
+import { db, comPessoa, credentials, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -1156,8 +1156,11 @@ function linhas(resultado: unknown): Record<string, unknown>[] {
  * Devolve `null` quando nenhum caminho serve.
  */
 export async function comoPodeEntrar(email: string): Promise<"conhecida" | "convite" | "fundador" | null> {
-  const [pessoa] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-  if (pessoa) return "conhecida";
+  // pela função do banco: `users` tem RLS (S-046) e aqui ainda não há pessoa
+  // declarada — é justamente o contexto que está sendo produzido. A resposta é
+  // só o id, então não serve para descobrir quem mais está na plataforma.
+  const quem = await db.execute(sql`select pessoa_por_email(${email}) as id`);
+  if ((linhas(quem)[0] as { id?: string | null } | undefined)?.id) return "conhecida";
 
   // pela função do banco: `invites` tem RLS e aqui ainda não há contexto —
   // a resposta é só sim/não, então não serve para enumerar convidados (S-011)
@@ -1166,8 +1169,8 @@ export async function comoPodeEntrar(email: string): Promise<"conhecida" | "conv
 
   const dono = normalizarEmail(process.env.DONO_INICIAL ?? "");
   if (dono && dono === email) {
-    const [alguem] = await db.select({ id: users.id }).from(users).limit(1);
-    if (!alguem) return "fundador";
+    const povoada = await db.execute(sql`select existe_alguma_pessoa() as tem`);
+    if (!(linhas(povoada)[0] as { tem?: boolean } | undefined)?.tem) return "fundador";
   }
 
   return null;
@@ -1200,11 +1203,10 @@ export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPor
 
   // trava de força bruta: poucos pedidos por e-mail em janela curta
   const desde = new Date(Date.now() - 15 * 60_000);
-  const recentes = await db
-    .select({ id: loginCodes.id })
-    .from(loginCodes)
-    .where(and(eq(loginCodes.email, email), gte(loginCodes.createdAt, desde)));
-  if (recentes.length >= 5) {
+  const quantos = await db.execute(
+    sql`select pedidos_recentes(${email}, ${desde.toISOString()}::timestamptz) as n`,
+  );
+  if (((linhas(quantos)[0] as { n?: number } | undefined)?.n ?? 0) >= 5) {
     throw new ErroDeDominio("muitos pedidos de código; tente de novo em alguns minutos", 429, "muitos_pedidos");
   }
 
@@ -1218,11 +1220,9 @@ export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPor
   }
 
   const { codigo, hash: codeHash } = novoCodigo();
-  await db.insert(loginCodes).values({
-    email,
-    codeHash,
-    expiresAt: expiraEm(CODIGO_MINUTOS),
-  });
+  await db.execute(
+    sql`select guardar_codigo(${email}, ${codeHash}, ${expiraEm(CODIGO_MINUTOS).toISOString()}::timestamptz)`,
+  );
 
   const r = await email_.enviar({
     para: email,
@@ -1241,39 +1241,36 @@ export async function pedirCodigo(input: { email: string; enviarEmail?: EmailPor
  */
 export async function entrarComCodigo(input: { email: string; codigo: string; userAgent?: string }) {
   const email = normalizarEmail(input.email);
-  const [registro] = await db
-    .select()
-    .from(loginCodes)
-    .where(and(eq(loginCodes.email, email), isNull(loginCodes.usedAt)))
-    .orderBy(desc(loginCodes.createdAt))
-    .limit(1);
+  // `login_codes` não tem política nenhuma (S-046): nem a aplicação a lê
+  // direto. Quem lê um código em trânsito entra como a pessoa.
+  const achado = await db.execute(sql`select * from codigo_vigente(${email})`);
+  const registro = linhas(achado)[0] as
+    | { code_id: string; code_hash: string; expires_at: string; attempts: number }
+    | undefined;
 
   // Mesma resposta para "não existe", "expirou" e "errado": não dá pistas.
   const recusa = () => new ErroDeDominio("código inválido ou expirado", 401, "codigo_invalido");
   if (!registro) throw recusa();
-  if (expirou(registro.expiresAt)) throw recusa();
+  if (expirou(new Date(registro.expires_at))) throw recusa();
   if (registro.attempts >= CODIGO_TENTATIVAS) throw recusa();
 
-  if (!iguais(hash(String(input.codigo ?? "")), registro.codeHash)) {
-    await db
-      .update(loginCodes)
-      .set({ attempts: registro.attempts + 1 })
-      .where(eq(loginCodes.id, registro.id));
+  if (!iguais(hash(String(input.codigo ?? "")), registro.code_hash)) {
+    await db.execute(sql`select queimar_tentativa(${registro.code_id}::uuid)`);
     throw recusa();
   }
 
-  await db.update(loginCodes).set({ usedAt: new Date() }).where(eq(loginCodes.id, registro.id));
+  await db.execute(sql`select marcar_codigo_usado(${registro.code_id}::uuid)`);
 
   // Confere de novo quem pode entrar: o código sozinho não é autorização. Um
   // convite pode ter sido revogado ou expirado entre o pedido e a digitação.
   const via = await comoPodeEntrar(email);
   if (!via) throw new ErroDeDominio("este e-mail não tem acesso à plataforma", 403, "sem_acesso");
 
-  let [pessoa] = await db.select().from(users).where(eq(users.email, email));
-  if (!pessoa) {
-    [pessoa] = await db.insert(users).values({ email }).returning();
-  }
-  await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, pessoa.id));
+  // achar-ou-criar numa chamada só: sem janela entre conferir e inserir, e sem
+  // precisar de escrita solta em `users`, que não tem política de escrita.
+  const garantida = await db.execute(sql`select * from garantir_pessoa(${email})`);
+  const encontrada = linhas(garantida)[0] as { user_id: string; email: string };
+  const pessoa = { id: encontrada.user_id, email: encontrada.email };
 
   // Daqui para baixo é trabalho DA PESSOA, e `memberships`/`invites` têm RLS
   // (S-011): sem declarar quem é, o banco devolve zero vínculos e a pessoa
@@ -1345,7 +1342,7 @@ export async function resolverSessao(token: string): Promise<(Ctx & { userId: st
   const vinculo = (linhas(papel)[0] as { papel: Papel | null } | undefined)?.papel;
   if (!vinculo) return null;
 
-  await db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, linha.session_id));
+  await db.execute(sql`select tocar_sessao(${linha.session_id}::uuid)`);
 
   return {
     orgId: linha.org_id,
@@ -1359,7 +1356,8 @@ export async function resolverSessao(token: string): Promise<(Ctx & { userId: st
 
 export async function sairDaSessao(token: string) {
   if (!token) return { ok: true };
-  await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.tokenHash, hash(token)));
+  // sair vale mesmo sem contexto declarado: quem tem o token pode encerrá-lo
+  await db.execute(sql`select encerrar_sessao(${hash(token)})`);
   return { ok: true };
 }
 
@@ -1423,29 +1421,29 @@ export async function convidar(
 
 /** Aceite do convite — precisa de sessão: a pessoa entra e então aceita. */
 export async function aceitarConvite(input: { token: string; userId: string }) {
-  const [convite] = await db
-    .select()
-    .from(invites)
-    .where(and(eq(invites.tokenHash, hash(input.token)), isNull(invites.acceptedAt)));
-  if (!convite || expirou(convite.expiresAt)) throw new ErroDeDominio("convite inválido ou expirado", 401, "convite_invalido");
-
-  const [pessoa] = await db.select().from(users).where(eq(users.id, input.userId));
-  if (!pessoa) throw new NaoEncontrado("usuário");
-  // o convite é para um e-mail: quem aceita precisa ser aquela pessoa
-  if (pessoa.email !== convite.email) {
-    throw new ErroDeDominio("este convite é de outro e-mail", 403, "convite_de_outro");
+  // ISTO ESTAVA QUEBRADO ATÉ A S-046, e nenhum teste pegou porque só havia
+  // teste das recusas. O aceite roda dentro de `comPessoa`, que declara a
+  // pessoa mas NÃO a conta — e a política de escrita de `memberships` exige a
+  // conta. O banco recusava o vínculo, silenciosamente.
+  //
+  // O conserto não é afrouxar a política ("quem tem o token pode se
+  // vincular" é o buraco que a S-011 fechou): é uma função nomeada que confere
+  // o token E o e-mail antes de escrever, e cabe na lista de escapes do RLS.
+  try {
+    const r = await db.execute(
+      sql`select * from aceitar_convite_por_hash(${input.userId}::uuid, ${hash(input.token)})`,
+    );
+    const linha = linhas(r)[0] as { org_id: string; papel: Papel };
+    return { orgId: linha.org_id, role: linha.papel };
+  } catch (e) {
+    // A função levanta o MESMO erro para convite inexistente, vencido, já
+    // aceito e "de outro e-mail". Quem tenta não distingue os casos — antes,
+    // o 403 "este convite é de outro e-mail" confirmava que ele existia.
+    if (String((e as { message?: string })?.message ?? "").includes("convite_invalido")) {
+      throw new ErroDeDominio("convite inválido ou expirado", 401, "convite_invalido");
+    }
+    throw e;
   }
-
-  await db
-    .insert(memberships)
-    .values({ orgId: convite.orgId, userId: pessoa.id, role: convite.role })
-    .onConflictDoUpdate({
-      target: [memberships.orgId, memberships.userId],
-      set: { role: convite.role },
-    });
-  await db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, convite.id));
-
-  return { orgId: convite.orgId, role: convite.role };
 }
 
 /** Convites pendentes da conta. */

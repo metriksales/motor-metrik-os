@@ -99,6 +99,13 @@
       "when": 1790272761576,
       "tag": "0013_cofre_de_credenciais",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790283906642,
+      "tag": "0014_identidade_fechada",
+      "breakpoints": true
     }
   ]
 }
