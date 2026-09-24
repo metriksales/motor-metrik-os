@@ -281,3 +281,30 @@ describe.skipIf(!temBanco)("trocar de conta", () => {
     expect(contas[0].orgId).toBe(ctx.orgId);
   });
 });
+
+describe.skipIf(!temBanco)("quem acessa a conta", () => {
+  test("a lista traz o e-mail da pessoa, e marca a identidade morta do Clerk", async () => {
+    const caixa = caixaDeEntrada();
+    const email = `lista-${Date.now()}@metrik.test`;
+    const { orgId } = await fundar(email);
+    await control.pedirCodigo({ email, enviarEmail: caixa });
+    const s = await control.entrarComCodigo({ email, codigo: caixa.codigo() });
+    const ctx = await control.resolverSessao(s.token);
+
+    // vínculo da época do Clerk: texto que não corresponde a pessoa nenhuma
+    const { db, memberships } = await import("@motor/db");
+    const idMorto = `user_2clerk${Date.now()}`;
+    await db.insert(memberships).values({ orgId, userId: idMorto, role: "admin" });
+
+    const linhas = await control.listMembers(ctx);
+    expect(linhas).toHaveLength(2);
+
+    // sem o join, aqui vinha um uuid cru e o dono não se reconhecia na lista
+    const eu = linhas.find((l: { userId: string }) => l.userId === ctx.userId);
+    expect(eu.email).toBe(email);
+    expect(eu.role).toBe("owner");
+
+    const morto = linhas.find((l: { userId: string }) => l.userId === idMorto);
+    expect(morto.email).toBeNull();
+  });
+});
