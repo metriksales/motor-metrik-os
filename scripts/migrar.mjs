@@ -84,6 +84,28 @@ async function explicar(conexao) {
     cliente = new pg.Client({ connectionString: conexao });
     await cliente.connect();
 
+    // COM QUEM ESTAMOS FALANDO. Quando a migração quebra logo no primeiro
+    // comando por falta de permissão, a causa quase nunca é o SQL: é a
+    // DATABASE_URL apontando para outro banco, ou para um papel sem direitos.
+    // Sem esta linha, isso vira uma caça ao erro dentro do SQL — que está
+    // certo o tempo todo.
+    const quem = await cliente
+      .query("select current_user as papel, current_database() as banco")
+      .then((x) => x.rows[0])
+      .catch(() => null);
+    const hospedeiro = (() => {
+      try {
+        return new URL(conexao).host;
+      } catch {
+        return "(host ilegível)";
+      }
+    })();
+    console.error(
+      quem
+        ? `conectado em ${hospedeiro} · banco "${quem.banco}" · papel "${quem.papel}"`
+        : `conectado em ${hospedeiro} (não consegui nem me identificar)`,
+    );
+
     const diario = JSON.parse(
       readFileSync(resolve(raiz, "packages/db/drizzle/meta/_journal.json"), "utf8"),
     );
