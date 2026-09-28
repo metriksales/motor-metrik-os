@@ -57,14 +57,22 @@ export function useSessao(modoDemo: boolean) {
   const carregar = useCallback(async () => {
     if (modoDemo) return;
     try {
-      const dados = (await apiAuth.eu()) as { email: string; orgId: string; role: string };
+      // AS DUAS JUNTAS, e só então mostra a tela.
+      //
+      // Em sequência, havia uma janela em que `eu` já tinha chegado e `contas`
+      // não: nessa janela o nome da conta caía no texto de reserva ("Sua
+      // conta"), porque ele sai de procurar o `orgId` dentro de `contas`. Era
+      // meio quadro de nome errado toda vez que a tela abria.
+      //
+      // `contas` pode falhar sem derrubar a sessão — quem decide se você está
+      // dentro é o `eu`. Por isso ela vira lista vazia em vez de exceção.
+      const [dados, listaDeContas] = await Promise.all([
+        apiAuth.eu() as Promise<{ email: string; orgId: string; role: string }>,
+        (apiAuth.contas() as Promise<Conta[]>).catch(() => [] as Conta[]),
+      ]);
       setEu(dados);
+      setContas(listaDeContas);
       setEstado("dentro");
-      try {
-        setContas((await apiAuth.contas()) as Conta[]);
-      } catch {
-        setContas([]);
-      }
     } catch {
       setEu(null);
       setEstado("fora");
@@ -107,9 +115,19 @@ export function useSessao(modoDemo: boolean) {
         contas,
         trocarConta: async (orgId: string) => {
           await apiAuth.trocarConta(orgId);
+          // SEM `location.reload()`, de propósito.
+          //
+          // Quem garante que nada da conta anterior sobrevive é o
+          // `key={orgId}` no `AgentsProvider` (ver main.tsx): mudar a chave
+          // remonta a árvore inteira e refaz todo fetch. O reload era uma
+          // segunda camada em cima disso — e era ela que deixava a troca feia.
+          //
+          // O motivo é do navegador, não do React: ao recarregar, ele SEGURA o
+          // último quadro pintado até o documento novo estar pronto. Como o
+          // reload vinha logo depois de atualizar o estado, sem dar ao React a
+          // chance de pintar, o quadro segurado era o da conta ANTIGA. Daí a
+          // conta velha aparecer por um instante DEPOIS de a página recarregar.
           await carregar();
-          // a conta mudou: tudo em tela precisa ser relido do zero
-          window.location.reload();
         },
         sair: async () => {
           await apiAuth.sair();
