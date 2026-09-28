@@ -21,7 +21,7 @@ export async function resolveCtx(req: VercelRequest): Promise<Ctx | null> {
     HEADER_CSRF,
     csrfValido,
     origemConfere,
-  } = await import("./_bundled/control.mjs");
+  } = await import("./_bundled/motor.mjs");
 
   // 1. Sessão própria (S-045) — o caminho das pessoas. Cookie httpOnly com
   // token opaco; a conta e o papel saem do banco.

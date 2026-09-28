@@ -73,7 +73,15 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
         erro: l.erro,
         meta: l.meta,
       })
-      .catch(() => {});
+      // Não derruba o motor — mas também não engole. Era `.catch(() => {})`, e
+      // foi assim que uma recusa de RLS (o runtime escrevendo sem contexto de
+      // conta, por carregar a própria cópia de @motor/db) ficou invisível: o
+      // Flight Recorder parou de gravar e ninguém soube. Uma linha no log do
+      // servidor custa nada e é a diferença entre "sumiu" e "recusado, e eis por quê".
+      .catch((e: unknown) => {
+        const motivo = e instanceof Error ? e.message : String(e);
+        console.error(`[runtime] log NÃO gravado org=${l.orgId} agent=${l.agentId} motor=${l.motor ?? "-"}: ${motivo}`);
+      });
   };
 
   async function loadSpec(orgId: string, agentId: string): Promise<AgentSpec | null> {

@@ -516,11 +516,11 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] Toda resposta com `x-request-id`; o log do erro tem o mesmo id
+- [x] Toda resposta com `x-request-id`; o log do erro tem o mesmo id — em TODOS os handlers, aceitando id de fora só se for são (9 testes contra injeção em log, `observabilidade.test.ts`)
 - [ ] Uma linha de log por execução
-- [ ] Persistência do log aguardada ou em `waitUntil`
-- [ ] Health responde o estado do banco
-- [ ] Rastreador de erros ligado e testado com erro provocado
+- [ ] Persistência do log aguardada ou em `waitUntil` — por ora o `fire-and-forget` do Flight Recorder deixou de ENGOLIR a falha: uma recusa vira linha no log do servidor com conta, agente e motivo (era `.catch(() => {})`)
+- [x] Health responde o estado do banco — `/api/health` pergunta `current_user` e devolve 503 quando o banco não responde; o papel da conexão sai só em `/api/control?action=saude`, autenticado
+- [ ] Rastreador de erros ligado e testado com erro provocado — precisa de decisão sobre o serviço
 
 ---
 
@@ -1556,6 +1556,10 @@ Não é despreocupante. `users` é a lista de e-mails de todos os clientes da Me
 **O que o Preview pegou, e valeu a etapa.** Os testes locais e de CI rodam com o driver `pg`; a produção usa `@neondatabase/serverless`, que fala WebSocket. Autenticar um papel não-padrão pelo pooler por WebSocket era a única peça que nenhum teste meu cobria — e só um deploy de verdade responderia. O Preview respondeu, contra o mesmo banco, sem tocar produção.
 
 **Verificado em produção depois da troca:** front `200`; ida-e-volta ao banco devolvendo `401` (não `500`, que seria falha de conexão); e o caminho pré-login inteiro — `pedirCodigo` com endereço sem cadastro percorre `pedidos_recentes`, `pessoa_por_email`, `tem_convite_pendente` e `existe_alguma_pessoa`, todas tocando tabelas sem política, e devolve a mesma resposta que daria a qualquer um.
+
+**O incidente que a ativação revelou (28/09, mesma tarde).** O `api/_bundled/` era gerado em DOIS pacotes, cada um com a própria cópia de `@motor/db` — dois `AsyncLocalStorage`, dois pools; o esbuild ainda eliminava `comContexto` do runtime por nunca ser chamado lá. No `webhook.ts`, o `comConta` do control não transportava contexto para o `loadSpec` do runtime. Sob a conexão de dona isso passava (dona vê tudo); sob o papel restrito, `loadSpec` devolvia `null`, o webhook respondia `200 ok` ao canal sem fazer nada, e o Flight Recorder engolia a própria recusa com `.catch(() => {})`. A regra 12 do `AGENTS.md` descrevia exatamente essa armadilha — eu a escrevi, e não conferi o caminho que ela manda conferir.
+
+Reproduzido com os pacotes reais sobre um branch descartável com os dados de produção: `comConta(control) → loadSpec(runtime)` = NULL sob restrito, ACHOU sob dona. **Gravidade: latente.** Zero conexões com segredo de entrada e agente; última escrita real do runtime em 24/09; o caminho quebrado era inalcançável e nenhuma mensagem se perdeu. **Conserto:** um pacote só (`motor.mjs`, entrada `scripts/motor-entrada.ts`), o `.catch` passou a registrar a recusa, e a armadilha virou teste de CI com a conexão restrita (`pacote-unico.test.ts`). Achado lateral, fora deste incidente: `group_reader_events` tem zero linhas apesar de a rota receber tráfego — o leitor de grupos rejeita tudo antes de gravar.
 
 **O que foi medido**, contra um branch descartável do Neon com dados reais:
 

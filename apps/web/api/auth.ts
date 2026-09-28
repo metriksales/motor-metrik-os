@@ -1,6 +1,6 @@
 import { idDaRequisicao } from "./_observabilidade.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import * as control from "./_bundled/control.mjs";
+import * as control from "./_bundled/motor.mjs";
 
 // Autenticação própria (S-045). Sem senha: pede código → entra → cookie.
 //

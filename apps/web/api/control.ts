@@ -2,7 +2,7 @@ import { idDaRequisicao } from "./_observabilidade.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 // bundle pré-compilado (scripts/bundle-api.mjs) — em runtime o Node não carrega
 // os workspaces .ts; o esbuild inlina tudo neste .mjs no build.
-import * as control from "./_bundled/control.mjs";
+import * as control from "./_bundled/motor.mjs";
 import { resolveCtx } from "./_auth.js";
 
 /** ação → escopo mínimo de um token de máquina. O que não estiver aqui exige `admin`. */

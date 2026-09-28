@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getDatabaseUrl } from "./_bundled/control.mjs";
+import { getDatabaseUrl } from "./_bundled/motor.mjs";
 import { idDaRequisicao } from "./_observabilidade.js";
 
 // Cron de FOLLOW-UP: varre os leads em cadência com toque vencido e dispara

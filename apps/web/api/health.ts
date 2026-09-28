@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getDatabaseUrl, sondarBanco } from "./_bundled/control.mjs";
+import { getDatabaseUrl, sondarBanco } from "./_bundled/motor.mjs";
 import { idDaRequisicao, registrarFalha } from "./_observabilidade.js";
 
 /**
