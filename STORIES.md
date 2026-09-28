@@ -56,7 +56,7 @@ Atualizado em 2026-09-24 13:40.
 | S-043 | Página do agente | 3 | backlog |
 | S-044 | Página Conta e Conexões | 3 | backlog |
 | S-045 | Autenticação e gestão de usuários própria | 1 | concluída |
-| S-046 | Proteger as tabelas de identidade | 1 | em andamento |
+| S-046 | Proteger as tabelas de identidade | 1 | concluido |
 
 ---
 
@@ -1523,7 +1523,7 @@ Decisões e o porquê:
 
 ## S-046 · Proteger as tabelas de identidade
 
-- **status:** em andamento (parte 1 concluída)
+- **status:** concluido
 - **criado:** 2026-09-24
 - **atualizado:** 2026-09-24
 
@@ -1551,7 +1551,11 @@ Não é despreocupante. `users` é a lista de e-mails de todos os clientes da Me
 - [x] Decisão registrada sobre `organizations`: política por conta em curso OU por participação da pessoa (é o que o seletor de contas precisa)
 - [x] Teste: leitura cruzada recusada pelo banco em cada uma (`identidade.test.ts`, 9 testes)
 - [x] **Parte 2, código:** `metrik_app` vira papel de LOGIN e a aplicação prefere `DATABASE_URL_APP`. Teste `papel-do-app.test.ts` exercita entrada, sessão, seletor de contas e cofre **com a conexão restrita**; os demais arquivos seguem conectando como dono para montar cenário, igual à produção (quem migra é o dono, quem serve é o `metrik_app`)
-- [ ] **Parte 2, ativação:** criar `DATABASE_URL_APP` na Vercel — Preview primeiro (aponta para o mesmo banco, então é teste real sem tocar produção), depois Production
+- [x] **Parte 2, ativação:** `DATABASE_URL_APP` criada na Vercel, estreada em Preview e promovida a Production em 28/09/2026. Produção confirmada em log: `[db] conectado como metrik_app — RLS é o padrão da conexão`
+
+**O que o Preview pegou, e valeu a etapa.** Os testes locais e de CI rodam com o driver `pg`; a produção usa `@neondatabase/serverless`, que fala WebSocket. Autenticar um papel não-padrão pelo pooler por WebSocket era a única peça que nenhum teste meu cobria — e só um deploy de verdade responderia. O Preview respondeu, contra o mesmo banco, sem tocar produção.
+
+**Verificado em produção depois da troca:** front `200`; ida-e-volta ao banco devolvendo `401` (não `500`, que seria falha de conexão); e o caminho pré-login inteiro — `pedirCodigo` com endereço sem cadastro percorre `pedidos_recentes`, `pessoa_por_email`, `tem_convite_pendente` e `existe_alguma_pessoa`, todas tocando tabelas sem política, e devolve a mesma resposta que daria a qualquer um.
 
 **O que foi medido**, contra um branch descartável do Neon com dados reais:
 
