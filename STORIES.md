@@ -29,7 +29,7 @@ Atualizado em 2026-09-24 13:40.
 | S-016 | Decisão D-1: papel do OS frente aos agentes no ar | — | cancelado |
 | S-017 | Definição de produto v1 | — | concluido |
 | S-018 | Frota que se reporta ao OS | — | cancelado |
-| S-019 | Conexões reais com teste e status verdadeiro | 2 | backlog |
+| S-019 | Conexões reais com teste e status verdadeiro | 2 | em andamento |
 | S-020 | Controles de operador: parada, recado, pausa e assumir | 2 | backlog |
 | S-021 | Métricas que o cliente paga | 4 | backlog |
 | S-022 | Permissões e modo desenvolvedor | 3 | backlog |
@@ -673,30 +673,38 @@ O que foi corrigido, achado a achado:
 
 ## S-019 · Conexões reais com teste e status verdadeiro
 
-- **status:** backlog
+- **status:** em andamento
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-28
 
-**Missão.** A tela de Conexões afirma que tudo está "no ar e funcionando" sem consultar nada. Conexão é a primeira coisa que quebra — token expirado, ID do CRM mudado — e o cliente precisa ver isso antes do lead reclamar.
+**Missão.** A tela de Conexões afirma que tudo está "no ar e funcionando" sem consultar nada. Conexão é a primeira coisa que quebra — token expirado, ID do CRM mudado — e o cliente precisa ver isso antes do lead reclamar. Em 28/09 uma instância de WhatsApp passou uma hora desconectada e o sistema **sabia como perguntar** (`GET /instance/status`) e nunca perguntou: `connections.status` era uma string gravada no cadastro, que a tela mostrava como se fosse um fato.
 
-**Escopo.** Conexões reais da conta com status vindo de teste ativo (token válido, IDs existem no CRM vivo, instância de WhatsApp conectada), data do último teste e botão "testar agora". O cadastro da credencial é do S-044; o cofre é do S-025.
+**Escopo.** Conexões reais da conta com status vindo de teste ativo (token válido, IDs existem no CRM vivo, instância de WhatsApp conectada), data do último teste e botão "testar agora". O cofre é do S-025. O cadastro pela tela era do S-044 e foi adiantado (ver abaixo).
 
 **Arquivos e locais**
 
 | Caminho | Papel |
 | :--- | :--- |
-| `apps/web/src/views/Conexoes.tsx` | tela |
-| `packages/control/src/index.ts:296-321` | conexões |
-| skill: `/api/validate` | validação de IDs ao vivo, já provada |
+| `packages/control/src/conexoes.ts` | um testador por tipo (uazapi, GHL, Kommo), rede injetável, frases em linguagem de cliente |
+| `packages/control/src/index.ts` → `testarConexao`, `cadastrarConexao`, `upsertConnection`, `listConnections` | o teste grava o status; o cadastro zera |
+| `packages/db/drizzle/0015_conexoes_testadas.sql` | quatro estados, data e motivo; o banco recusa `connected` |
+| `apps/web/api/control.ts` → `testarConexao`, `cadastrarConexao` | as duas ações novas |
+| `apps/web/src/views/Conexoes.tsx`, `lib/conexoes.ts`, `lib/live.ts` → `useConexoes` | a tela (logado) e o vocabulário; a maquete ficou só na vitrine |
+| `apps/web/src/views/Inicio.tsx` | o alerta em "Precisa de você" |
 
-**Relacionados.** Depende de S-023 e S-025. Alimenta S-042 e S-044.
+**Relacionados.** Depende de S-025 (cofre, feito). Adiantou os dois primeiros itens da S-044. Alimenta S-026 e S-042.
 
 **Checklist**
 
-- [ ] Status de cada conexão vem de teste ativo, com data
-- [ ] Mapa de IDs quebrado vira alerta no Início
-- [ ] "Testar agora" com resultado em linguagem do cliente
-- [ ] Sem conexão cadastrada → estado vazio honesto
+- [x] **Status de cada conexão vem de teste ativo, com data.** `connections.status` só admite `nao_testada | sem_credencial | ok | falha`, e o banco exige data em tudo que não é `nao_testada` (duas constraints na 0015). Só `testarConexao` escreve o status; `upsertConnection` volta a `nao_testada` e limpa a data — apontar para outra credencial invalida o que se sabia. Era ali que se gravava `connected` no ato do cadastro.
+- [x] **Mapa de IDs quebrado vira alerta no Início.** GHL: `GET /locations/{id}` prova token e subconta; funil, etapa e calendário citados na config são conferidos em `/opportunities/pipelines` e `/calendars/`, e a frase diz qual id não existe e o que existe no lugar. Kommo: `GET /api/v4/account` e `/api/v4/leads/pipelines`. No Início, "Precisa de você" lista as conexões com `falha` ou `sem_credencial` **antes** dos erros de execução — sem conexão não há execução.
+- [x] **"Testar agora" com resultado em linguagem do cliente.** uazapi: `GET /instance/status` com o token no header `token`; o que decide é `status.connected` + `loggedIn` — HTTP 200 sozinho não diz nada (regra medida na skill). Desconectada vira "reconecte pelo QR code"; 401 vira "recusou o token"; rede fora e tempo esgotado viram frase, nunca exceção. Nenhuma frase carrega o segredo.
+- [x] **Sem conexão cadastrada → estado vazio honesto.** "Nenhuma conexão cadastrada nesta conta", com o convite a cadastrar (ou "peça a quem administra"). Tipo sem teste (gcal, advbox, zapsign) mostra "ainda não existe teste para este tipo" com o botão desligado, em vez de fingir.
+- [ ] **Provado contra um provedor real.** Tudo acima foi exercitado com provedor FALSO, que responde as formas documentadas (spec OpenAPI 2.1.1 da uazapi; API v2 do GHL; v4 do Kommo). A primeira prova real depende de um token de instância uazapi guardado pelo cadastro na tela — o cofre continua vazio. Até lá, a promessa desta story está cumprida no código e não na operação.
+
+**Como verifiquei.** 15 testes dos testadores sem rede (cada código de resposta documentado, o campo que decide, o segredo fora da frase) e 10 contra Postgres real — na CI e num branch descartável do Neon com cópia dos dados de produção, onde a migração 0015 também foi aplicada: o cadastro nasce `nao_testada`; o banco recusa `connected` e status sem data por SQL direto; sem credencial vira `sem_credencial` com data; o status muda quando o provedor muda; recadastrar zera; outra conta recebe 404 sem gravar nada; leitor não testa, operador testa, só gerente cadastra; o segredo não aparece no JSON de nenhuma resposta.
+
+**O que entrou de fora, e por quê.** `cadastrarConexao` (cofre + conexão + teste numa transação) e o formulário na tela são da S-044 e vieram para cá porque sem eles esta story não tinha como ser provada por ninguém: o cofre não tinha porta. O teste roda dentro da transação da conta, com espera curta por chamada (4 s) — a alternativa era devolver o segredo ao handler para ele chamar o provedor, alargando o único caminho por onde o segredo anda.
 
 ---
 
@@ -1462,8 +1470,8 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] Cadastrar credencial guarda no cofre e testa na hora
-- [ ] Credencial nunca volta à tela; trocar é substituir
+- [x] Cadastrar credencial guarda no cofre e testa na hora — para WhatsApp, GHL e Kommo, pela tela de Conexões (`cadastrarConexao`, adiantado pela S-019 em 28/09). O token de IA do construtor é o último item.
+- [x] Credencial nunca volta à tela; trocar é substituir — o cofre não tem ação de leitura (S-025); o formulário apaga o campo ao receber a resposta, e cadastrar de novo com o mesmo rótulo substitui.
 - [ ] Pessoas com nome, e-mail e permissões editáveis
 - [ ] Transferência de titularidade
 - [ ] Token de IA do construtor cadastrado aqui, com aviso de custo

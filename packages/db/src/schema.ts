@@ -226,9 +226,20 @@ export const connections = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
     kind: connKindEnum("kind").notNull(),
-    status: text("status").notNull().default("disconnected"),
+    /**
+     * O que o ÚLTIMO TESTE disse (S-019): `nao_testada` | `sem_credencial` |
+     * `ok` | `falha`. Só `testarConexao` escreve aqui; o cadastro volta para
+     * `nao_testada`. O banco recusa qualquer outro valor (migração 0015) —
+     * "connected" gravado no ato do cadastro era a tela mentindo.
+     */
+    status: text("status").notNull().default("nao_testada"),
+    /** rótulo da credencial no cofre (mesmo `kind`); `null` = "padrao" */
     vaultRef: text("vault_ref"),
     meta: jsonb("meta"),
+    /** quando o último teste rodou; obrigatório sempre que o status não é `nao_testada` */
+    ultimoTesteEm: timestamp("ultimo_teste_em", { withTimezone: true }),
+    /** o resultado em linguagem de cliente ("instância desconectada — reconecte pelo QR code") */
+    ultimoTesteDetalhe: text("ultimo_teste_detalhe"),
     /** agente que atende o que entra por esta conexão (S-004) */
     agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
     /** sha256 do segredo de entrada desta conexão; o valor em claro só aparece na criação */

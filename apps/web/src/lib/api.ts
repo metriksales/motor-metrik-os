@@ -119,4 +119,11 @@ export const api = {
     control("logs", { getToken, query: agentId ? { agentId } : undefined }),
   stats: (getToken?: GetToken) => control("stats", { getToken }),
   pendencias: (getToken?: GetToken) => control("pendencias", { getToken }),
+  // conexões (S-019): a lista, "testar agora" e o cadastro que guarda no cofre e testa
+  conexoes: (getToken?: GetToken) => control("connections", { getToken }),
+  testarConexao: (id: string, getToken?: GetToken) => control("testarConexao", { body: { id }, getToken }),
+  cadastrarConexao: (
+    input: { kind: string; segredo: string; rotulo?: string; meta?: Record<string, unknown> },
+    getToken?: GetToken,
+  ) => control("cadastrarConexao", { body: input, getToken }),
 };

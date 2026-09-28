@@ -33,12 +33,15 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   setEstado: "mudanca",
   assumirContato: "mudanca",
   devolverContato: "mudanca",
+  // "testar agora" grava o que o provedor disse (S-019) — muda estado, não publica
+  testarConexao: "mudanca",
   // publica, reverte, mexe em conexão e em token → só `admin`
   aprovar: "admin",
   publicarMudanca: "admin",
   publicar: "admin",
   reverter: "admin",
   upsertConnection: "admin",
+  cadastrarConexao: "admin",
   // O cofre (S-025) é sempre `admin`. Note que NÃO existe ação para LER o
   // segredo: ele sai em um único lugar, `usarCredencial`, que é interno e não
   // está no despacho. Um token de máquina comprometido não extrai credencial
@@ -175,6 +178,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await control.listConnections(ctx);
       case "upsertConnection":
         return await control.upsertConnection(ctx, body);
+      // S-019: o provedor é consultado AQUI, com o segredo que nunca sai do
+      // pacote de controle; a resposta é o que o cliente lê na tela.
+      case "testarConexao":
+        return await control.testarConexao(ctx, { id: String(body.id ?? "") });
+      case "cadastrarConexao":
+        return await control.cadastrarConexao(ctx, body);
       case "auditoria":
         return await control.listarAuditoria(ctx, {
           limite: lerLimite(req.query.limite),
@@ -210,6 +219,7 @@ const SOMENTE_POST = new Set([
   "setEstado", "assumirContato", "devolverContato", "upsertConnection", "log",
   "criarToken", "revogarToken", "testar", "rodarTestes",
   "guardarCredencial", "revogarCredencial",
+  "testarConexao", "cadastrarConexao",
 ]);
 
 function lerLimite(valor: unknown): number | undefined {

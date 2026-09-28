@@ -27,7 +27,7 @@
 - `agents`: id, org_id, name, tipo(resposta|acao), state
 - `agent_specs`: id, agent_id, version, spec JSONB (prompt, motores, módulos, features, integrações, regras), status(draft|published), origin, created_by
 - `change_sets` (**mutável, de propósito**): id, org_id, agent_id, origin(hub_chat|hub_visual|claude_code|codex|api), actor, intent, patch, before/after, impacto, evals, approval, status
-- `connections`: id, org_id, kind(ghl|kommo|whatsapp|advbox|zapsign|gcal), cred(ref vault), status, meta
+- `connections`: id, org_id, kind(ghl|kommo|whatsapp|advbox|zapsign|gcal), vault_ref (rótulo da credencial no cofre), status(nao_testada|sem_credencial|ok|falha — **só o teste escreve**; o banco recusa outro valor), ultimo_teste_em, ultimo_teste_detalhe, meta
 - `releases` (**imutável de verdade**: gatilho recusa UPDATE): id, org_id, agent_id, spec_version, runtime_version, eval_run, git_sha — único por `(agent_id, spec_version)`
 - `executions`/logs: hot em Redis/analytics, resumo em Postgres
 - `audit_log`: **append-only de verdade** (gatilho recusa UPDATE; DELETE só com expurgo explícito)

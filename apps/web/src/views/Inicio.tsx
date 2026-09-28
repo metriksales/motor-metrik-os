@@ -4,7 +4,8 @@ import { STATS, type ViewId } from "../data";
 import { apenasNoDemo, estadoDoDado, legendaDoEstado, SEM_DADO } from "../lib/honestidade";
 import { useAgents } from "../lib/agents";
 import { useMotorAuth } from "../lib/auth";
-import { useLive, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
+import { useLive, useConexoes, reais, tempoRelativo, kpiDinheiro } from "../lib/live";
+import { nomeDaConexao, precisaDeAlguem } from "../lib/conexoes";
 import { Reveal, Skeleton } from "../ui";
 import { BadgeDelta, type DeltaType } from "../components/ui/BadgeDelta";
 import { Robot } from "../Robot";
@@ -25,6 +26,10 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
   const auth = useMotorAuth();
   const { agents } = useAgents();
   const { logs, stats, carregando, erro: erroLive } = useLive();
+  // conexões que o último teste deixou com problema — o alerta que faltou no
+  // dia em que a instância de WhatsApp passou uma hora desconectada (S-019)
+  const { conexoes } = useConexoes();
+  const conexoesComProblema = (conexoes ?? []).filter(precisaDeAlguem);
   // A vitrine pode usar atividade viva como amostra, mas nunca deve chamá-la
   // de "dados da sua conta": sem login, continua sendo demonstração.
   const dadosDaConta = !auth.demo && !!stats;
@@ -255,10 +260,23 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
               </div>
               <ul className="space-y-2 text-[13px] text-[var(--txt-2)]">
                 {stats ? (
-                  errosHoje.length > 0 ? (
-                    errosHoje.slice(0, 2).map((l) => (
-                      <li key={l.id} className="flex gap-2"><b className="text-[var(--txt)]">{agents.find((a) => a.id === l.agentId)?.name ?? "Motor"}</b> {l.erro ?? l.resumo}</li>
-                    ))
+                  errosHoje.length > 0 || conexoesComProblema.length > 0 ? (
+                    <>
+                      {/* conexão que o provedor disse estar fora vem ANTES de qualquer erro
+                          de execução: sem ela, nenhuma execução acontece (S-019) */}
+                      {conexoesComProblema.slice(0, 2).map((c) => (
+                        <li key={c.id} className="flex gap-2">
+                          <b className="text-[var(--txt)] flex-none">{nomeDaConexao(c)}</b>
+                          <span className="min-w-0">
+                            {c.ultimoTesteDetalhe ?? "com problema"}{" "}
+                            <button type="button" className="underline underline-offset-2" style={{ color: "var(--violet)" }} onClick={() => go("conexoes")}>ver conexões</button>
+                          </span>
+                        </li>
+                      ))}
+                      {errosHoje.slice(0, 2).map((l) => (
+                        <li key={l.id} className="flex gap-2"><b className="text-[var(--txt)]">{agents.find((a) => a.id === l.agentId)?.name ?? "Motor"}</b> {l.erro ?? l.resumo}</li>
+                      ))}
+                    </>
                   ) : (
                     <li>nada pendente — a frota está rodando sozinha ✓</li>
                   )
