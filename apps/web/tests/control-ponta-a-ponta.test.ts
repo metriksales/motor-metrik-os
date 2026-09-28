@@ -252,3 +252,74 @@ describe.skipIf(!temBanco)("cofre pela porta única (S-025)", () => {
     expect(JSON.stringify(trilha)).not.toContain(SEGREDO);
   });
 });
+
+describe.skipIf(!temBanco)("conexões pela porta única (S-019)", () => {
+  const SEGREDO = "token-da-instancia-uazapi-9f3a";
+
+  async function contaComToken(marca: string, scopes: string[]) {
+    const [org] = await bd.db.insert(bd.organizations).values({ name: `${marca}-${Date.now()}` }).returning();
+    const ctx = { orgId: org.id, actor: "teste", role: "owner", via: "sessao" };
+    const { token } = await control.comConta(org.id, () =>
+      control.criarMachineToken(ctx, { name: "conexoes", scopes }),
+    );
+    return { orgId: org.id as string, ctx, token };
+  }
+
+  test("cadastrar guarda, aponta e testa numa chamada — e o status é o que o teste disse", async () => {
+    const { token } = await contaComToken("conn-a", ["admin"]);
+    // sem baseUrl o testador responde antes de tocar a rede: o teste fica
+    // determinístico e não depende de provedor nenhum
+    const r = await chamar({
+      action: "cadastrarConexao",
+      token,
+      metodo: "POST",
+      body: { kind: "whatsapp", rotulo: "linha-1", segredo: SEGREDO, meta: {} },
+    });
+    expect(r.status).toBe(200);
+    const c = r.corpo as { status: string; ultimoTesteDetalhe: string; ultimoTesteEm: string; vaultRef: string };
+    expect(c.status).toBe("falha");
+    expect(c.ultimoTesteDetalhe).toMatch(/baseUrl/);
+    expect(c.ultimoTesteEm).toBeTruthy();
+    expect(c.vaultRef).toBe("linha-1");
+    expect(JSON.stringify(r.corpo)).not.toContain(SEGREDO);
+
+    const lista = await chamar({ action: "connections", token });
+    expect(lista.status).toBe(200);
+    const [unica] = lista.corpo as Record<string, unknown>[];
+    expect(unica.status).toBe("falha");
+    expect(unica.testavel).toBe(true);
+    expect(Object.keys(unica)).not.toContain("inboundSecretHash");
+    expect(JSON.stringify(lista.corpo)).not.toContain(SEGREDO);
+  });
+
+  test("testar agora: só por POST, e um token de leitura não alcança", async () => {
+    const { orgId, ctx, token } = await contaComToken("conn-b", ["admin"]);
+    const { token: leitura } = await control.comConta(orgId, () =>
+      control.criarMachineToken(ctx, { name: "leitor", scopes: ["leitura"] }),
+    );
+    const conexao = await control.comConta(orgId, () => control.upsertConnection(ctx, { kind: "whatsapp" }));
+    expect(conexao.status).toBe("nao_testada");
+
+    const porGet = await chamar({ action: "testarConexao", token, metodo: "GET", body: { id: conexao.id } });
+    expect(porGet.status).toBe(405);
+
+    const semEscopo = await chamar({ action: "testarConexao", token: leitura, metodo: "POST", body: { id: conexao.id } });
+    expect(semEscopo.status).toBe(403);
+
+    const testou = await chamar({ action: "testarConexao", token, metodo: "POST", body: { id: conexao.id } });
+    expect(testou.status).toBe(200);
+    expect((testou.corpo as { status: string }).status).toBe("sem_credencial");
+
+    // e o cadastro é coisa de admin: escopo de mudança não basta
+    const { token: mudanca } = await control.comConta(orgId, () =>
+      control.criarMachineToken(ctx, { name: "editor", scopes: ["mudanca"] }),
+    );
+    const cadastro = await chamar({
+      action: "cadastrarConexao",
+      token: mudanca,
+      metodo: "POST",
+      body: { kind: "kommo", segredo: SEGREDO },
+    });
+    expect(cadastro.status).toBe(403);
+  });
+});

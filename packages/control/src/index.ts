@@ -1,7 +1,7 @@
 // @motor/control — Control API (camada de serviço, sem framework).
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
-import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, comPessoa, credentials, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
@@ -44,8 +44,10 @@ import {
 import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
 import { exigirPermissao, type Papel } from "./permissoes.js";
 import { cifrar, decifrar, dicaDe, lerChaves } from "./cofre.js";
+import { TESTADORES, type Http, type Veredito } from "./conexoes.js";
 
 export * from "./tokens.js";
+export * from "./conexoes.js";
 export * from "./webhooks.js";
 export * from "./erros.js";
 export * from "./permissoes.js";
@@ -487,41 +489,186 @@ export async function reverter(ctx: Ctx, input: { agentId: string; toSpecVersion
   return { spec, release: rel };
 }
 
-/** conexões (integrações) do tenant */
-export function listConnections(ctx: Ctx) {
-  return db.select().from(connections).where(eq(connections.orgId, ctx.orgId));
+// ═══ CONEXÕES (S-019) — o status vem de um teste, nunca do cadastro ═══
+
+const TIPOS_DE_CONEXAO: ConnKind[] = ["ghl", "kommo", "whatsapp", "advbox", "zapsign", "gcal"];
+
+/** O que a tela vê de uma conexão: tudo, menos o hash do segredo de entrada. */
+export type ConexaoVisivel = {
+  id: string;
+  kind: ConnKind;
+  /** `nao_testada` | `sem_credencial` | `ok` | `falha` — o que o ÚLTIMO teste disse */
+  status: string;
+  /** rótulo da credencial no cofre; `null` vale "padrao" */
+  vaultRef: string | null;
+  meta: unknown;
+  agentId: string | null;
+  ultimoTesteEm: Date | null;
+  ultimoTesteDetalhe: string | null;
+  createdAt: Date;
+  /** existe um jeito de testar este tipo? (tipo sem teste: a tela diz, em vez de fingir) */
+  testavel: boolean;
+  temSegredoDeEntrada: boolean;
+};
+
+function conexaoVisivel(l: typeof connections.$inferSelect): ConexaoVisivel {
+  return {
+    id: l.id,
+    kind: l.kind,
+    status: l.status,
+    vaultRef: l.vaultRef,
+    meta: l.meta,
+    agentId: l.agentId,
+    ultimoTesteEm: l.ultimoTesteEm,
+    ultimoTesteDetalhe: l.ultimoTesteDetalhe,
+    createdAt: l.createdAt,
+    testavel: l.kind in TESTADORES,
+    temSegredoDeEntrada: l.inboundSecretHash != null,
+  };
+}
+
+function comoObjeto(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** conexões (integrações) da conta, da mais antiga à mais nova */
+export async function listConnections(ctx: Ctx): Promise<ConexaoVisivel[]> {
+  const linhas = await db
+    .select()
+    .from(connections)
+    .where(eq(connections.orgId, ctx.orgId))
+    .orderBy(connections.createdAt);
+  return linhas.map(conexaoVisivel);
 }
 
 /**
- * grava/atualiza uma conexão do tenant. Só a REFERÊNCIA do vault entra aqui
- * (vaultRef) — NUNCA o segredo em claro. O token real fica no vault; aqui só o
- * ponteiro. Upsert manual por (org_id, kind): não há unique index no schema.
+ * Grava/atualiza uma conexão da conta. Só a REFERÊNCIA do cofre entra aqui
+ * (`ref` = rótulo da credencial de mesmo `kind`) — NUNCA o segredo em claro.
+ *
+ * A conexão volta a `nao_testada`: apontar para outra credencial (ou
+ * recadastrar a mesma) invalida o que se sabia. Era aqui que se gravava
+ * `status: "connected"` sem ter perguntado a ninguém.
+ *
+ * Uma por tipo — menos WhatsApp, onde a que se atualiza é a de MESMO rótulo
+ * (dois números na mesma conta é caso real).
  */
 export async function upsertConnection(
   ctx: Ctx,
-  input: { kind: ConnKind; ref: string; meta?: Record<string, unknown> }
-) {
+  input: { kind: ConnKind; ref?: string; meta?: Record<string, unknown> },
+): Promise<ConexaoVisivel> {
   exigirPermissao(ctx, "gerenciar");
-  const [existing] = await db
-    .select()
-    .from(connections)
-    .where(and(eq(connections.orgId, ctx.orgId), eq(connections.kind, input.kind)));
+  const kind = input.kind;
+  if (!TIPOS_DE_CONEXAO.includes(kind)) throw new EntradaInvalida("tipo de conexão desconhecido");
+  const ref = String(input.ref ?? "padrao").trim() || "padrao";
+
+  const mesmaConexao = [eq(connections.orgId, ctx.orgId), eq(connections.kind, kind)];
+  if (kind === "whatsapp") {
+    mesmaConexao.push(
+      ref === "padrao"
+        ? or(isNull(connections.vaultRef), eq(connections.vaultRef, ref))!
+        : eq(connections.vaultRef, ref),
+    );
+  }
+  const [existing] = await db.select().from(connections).where(and(...mesmaConexao));
 
   let row;
   if (existing) {
     [row] = await db
       .update(connections)
-      .set({ vaultRef: input.ref, status: "connected", meta: input.meta ?? existing.meta })
+      .set({
+        vaultRef: ref,
+        meta: input.meta ?? existing.meta,
+        status: "nao_testada",
+        ultimoTesteEm: null,
+        ultimoTesteDetalhe: null,
+      })
       .where(and(eq(connections.id, existing.id), eq(connections.orgId, ctx.orgId)))
       .returning();
   } else {
     [row] = await db
       .insert(connections)
-      .values({ orgId: ctx.orgId, kind: input.kind, vaultRef: input.ref, status: "connected", meta: input.meta })
+      .values({ orgId: ctx.orgId, kind, vaultRef: ref, meta: input.meta ?? null })
       .returning();
   }
-  await audit(ctx, "connection.upsert", row.id, { kind: input.kind });
-  return row;
+  await audit(ctx, "connection.upsert", row.id, { kind, ref });
+  return conexaoVisivel(row);
+}
+
+/**
+ * "Testar agora" (S-019): pergunta ao PROVEDOR se a conexão está de pé e grava
+ * o que ele disse, com data e motivo em linguagem de cliente.
+ *
+ * O segredo sai do cofre por `usarCredencial` (que registra o uso) e vai
+ * direto ao testador — não passa pela API. É por isso que a chamada de rede
+ * acontece aqui dentro, na transação da conta: a alternativa seria devolver
+ * o segredo ao handler para ele chamar o provedor, e isso alargaria o único
+ * caminho por onde o segredo anda. A espera por chamada é curta (ESPERA_MS).
+ *
+ * `http` é injetável para os testes; em produção é o `fetch` do Node.
+ */
+export async function testarConexao(
+  ctx: Ctx,
+  input: { id: string },
+  opts: { http?: Http; agora?: () => Date } = {},
+): Promise<ConexaoVisivel & { dados: Record<string, unknown> | null }> {
+  exigirPermissao(ctx, "ajustar");
+  const id = String(input.id ?? "").trim();
+  if (!UUID.test(id)) throw new NaoEncontrado("conexão");
+  const [linha] = await db
+    .select()
+    .from(connections)
+    .where(and(eq(connections.id, id), eq(connections.orgId, ctx.orgId)));
+  if (!linha) throw new NaoEncontrado("conexão");
+
+  const testador = TESTADORES[linha.kind];
+  if (!testador) throw new EntradaInvalida(`ainda não existe teste para conexões do tipo "${linha.kind}"`);
+
+  const rotulo = linha.vaultRef ?? "padrao";
+  const credencial = await usarCredencial(ctx, { kind: linha.kind, rotulo });
+
+  let status: "sem_credencial" | "ok" | "falha";
+  let veredito: Veredito;
+  if (!credencial) {
+    status = "sem_credencial";
+    veredito = { ok: false, detalhe: `nenhuma credencial "${rotulo}" do tipo ${linha.kind} guardada no cofre desta conta` };
+  } else {
+    // o meta NÃO secreto mora na credencial (id da subconta, base url); o da
+    // conexão, quando houver, tem a última palavra
+    const meta = { ...comoObjeto(credencial.meta), ...comoObjeto(linha.meta) };
+    veredito = await testador({ segredo: credencial.segredo, meta }, opts.http ?? fetch);
+    status = veredito.ok ? "ok" : "falha";
+  }
+
+  const agora = (opts.agora ?? (() => new Date()))();
+  const [atualizada] = await db
+    .update(connections)
+    .set({ status, ultimoTesteEm: agora, ultimoTesteDetalhe: veredito.detalhe })
+    .where(and(eq(connections.id, id), eq(connections.orgId, ctx.orgId)))
+    .returning();
+  await audit(ctx, "connection.testada", id, { kind: linha.kind, status });
+  return { ...conexaoVisivel(atualizada), dados: veredito.dados ?? null };
+}
+
+/**
+ * Cadastro pela tela (primeiro item da S-044, adiantado pela S-019 — sem ele
+ * a S-019 não tinha como ser provada por ninguém): guarda a credencial no
+ * cofre, aponta a conexão para ela e testa na hora. Tudo na mesma transação —
+ * se o cofre estiver fechado, nada fica pela metade. Um teste que FALHA não
+ * desfaz o cadastro: a credencial existe, e o resultado é a informação.
+ */
+export async function cadastrarConexao(
+  ctx: Ctx,
+  input: { kind: ConnKind; segredo: string; rotulo?: string; meta?: Record<string, unknown> },
+  opts: { http?: Http; agora?: () => Date } = {},
+): Promise<ConexaoVisivel & { dados: Record<string, unknown> | null }> {
+  exigirPermissao(ctx, "gerenciar");
+  if (!TIPOS_DE_CONEXAO.includes(input.kind)) throw new EntradaInvalida("tipo de conexão desconhecido");
+  const rotulo = String(input.rotulo ?? "padrao").trim() || "padrao";
+  await guardarCredencial(ctx, { kind: input.kind, segredo: input.segredo, rotulo, meta: input.meta });
+  const conexao = await upsertConnection(ctx, { kind: input.kind, ref: rotulo });
+  return testarConexao(ctx, { id: conexao.id }, opts);
 }
 
 /**

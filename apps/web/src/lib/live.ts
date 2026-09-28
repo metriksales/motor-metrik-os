@@ -4,9 +4,10 @@
 // No modo LOGADO a regra endurece: dado real SEMPRE entra (mesmo vazio) e o
 // feed PULSA — refetch a cada 20s (pausado com a aba oculta) + relógio de 60s
 // pros "há X min" envelhecerem sozinhos.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { useMotorAuth } from "./auth";
+import type { ConexaoReal } from "./conexoes";
 
 export interface LogReal {
   id: string;
@@ -130,6 +131,56 @@ export function usePendencias(): Pendencia[] {
     return () => { vivo = false; };
   }, [auth.getToken, auth.demo]);
   return pend;
+}
+
+/**
+ * As conexões da conta, como o último teste as deixou (S-019). Só no modo
+ * logado; a vitrine não tem conta. `null` = ainda não chegou (ou erro).
+ */
+export function useConexoes(): {
+  conexoes: ConexaoReal[] | null;
+  carregando: boolean;
+  erro?: string;
+  recarregar: () => Promise<void>;
+  /** troca uma conexão na lista pelo que acabou de voltar (testar/cadastrar) */
+  substituir: (c: ConexaoReal) => void;
+} {
+  const auth = useMotorAuth();
+  const [conexoes, setConexoes] = useState<ConexaoReal[] | null>(null);
+  const [carregando, setCarregando] = useState(!auth.demo);
+  const [erro, setErro] = useState<string | undefined>(undefined);
+  const vivoRef = useRef(true);
+
+  const recarregar = useCallback(async () => {
+    if (auth.demo) return;
+    try {
+      const rows = (await api.conexoes(auth.getToken)) as ConexaoReal[];
+      if (!vivoRef.current) return;
+      if (Array.isArray(rows)) setConexoes(rows);
+      setErro(undefined);
+    } catch (e) {
+      if (vivoRef.current) setErro(e instanceof Error ? e.message : "falha ao ler as conexões");
+    } finally {
+      if (vivoRef.current) setCarregando(false);
+    }
+  }, [auth.getToken, auth.demo]);
+
+  useEffect(() => {
+    vivoRef.current = true;
+    recarregar();
+    return () => {
+      vivoRef.current = false;
+    };
+  }, [recarregar]);
+
+  const substituir = useCallback((c: ConexaoReal) => {
+    setConexoes((atual) => {
+      const lista = atual ?? [];
+      return lista.some((x) => x.id === c.id) ? lista.map((x) => (x.id === c.id ? c : x)) : [...lista, c];
+    });
+  }, []);
+
+  return { conexoes, carregando, erro, recarregar, substituir };
 }
 
 /**

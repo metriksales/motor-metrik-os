@@ -3555,7 +3555,8 @@ html[data-theme="light"] .est-feature-copy small { color: #707985; }
 
 .auth-campo { display: block; margin-bottom: 14px; }
 .auth-campo > span { display: block; margin-bottom: 7px; }
-.auth-campo input {
+.auth-campo input,
+.auth-campo select {
   width: 100%;
   min-height: 44px;
   padding: 0 13px;
@@ -3568,12 +3569,18 @@ html[data-theme="light"] .est-feature-copy small { color: #707985; }
   transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
 }
 .auth-campo input::placeholder { color: var(--txt-4); }
-.auth-campo input:focus {
+.auth-campo input:focus,
+.auth-campo select:focus {
   border-color: rgba(59, 130, 246, 0.55);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
   background: var(--surface);
 }
-.auth-campo input:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-campo input:disabled,
+.auth-campo select:disabled { opacity: 0.6; cursor: not-allowed; }
+/* o cadastro de conexão (S-019) usa os mesmos campos, mais apertados */
+.conexao-cadastro .auth-campo { margin-bottom: 10px; }
+.conexao-cadastro .auth-campo input,
+.conexao-cadastro .auth-campo select { min-height: 38px; font-size: 13px; }
 
 /* o campo do código respira: dígito grande, espaçado, centralizado */
 .auth-codigo input {

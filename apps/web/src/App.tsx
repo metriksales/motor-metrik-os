@@ -61,11 +61,12 @@ export default function App() {
 
   // celular: as 3 telas que o cliente usa toda hora ficam na barra de baixo;
   // o resto (Módulos/Conexões/Admin) entra no "Mais". Sempre há como voltar.
-  // Módulos e Conexões ainda são MAQUETE (nada ali consulta a conta). Ficam
-  // fora da navegação de quem está logado até S-019 e S-030 trazerem dado real
-  // — telas que afirmam "ligado · no ar e funcionando" sem ter consultado nada
-  // são a pior mentira do painel (S-007).
-  const MAQUETE: ViewId[] = ["modulos", "conexoes"];
+  // Módulos ainda é MAQUETE (nada ali consulta a conta). Fica fora da
+  // navegação de quem está logado até S-030 trazer dado real — telas que
+  // afirmam "ligado · no ar e funcionando" sem ter consultado nada são a pior
+  // mentira do painel (S-007). Conexões saiu daqui com a S-019: logado, ela
+  // mostra o que o último teste contra o provedor disse.
+  const MAQUETE: ViewId[] = ["modulos"];
   const navVisivel = NAV.filter((n) => auth.demo || !MAQUETE.includes(n.id));
 
   const NAV_MOBILE = navVisivel.filter((n) => ["inicio", "agentes", "aovivo"].includes(n.id));
