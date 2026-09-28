@@ -1550,7 +1550,19 @@ Não é despreocupante. `users` é a lista de e-mails de todos os clientes da Me
 - [x] `users` com leitura por pessoa ou por conta compartilhada, e sem escrita
 - [x] Decisão registrada sobre `organizations`: política por conta em curso OU por participação da pessoa (é o que o seletor de contas precisa)
 - [x] Teste: leitura cruzada recusada pelo banco em cada uma (`identidade.test.ts`, 9 testes)
-- [ ] **Parte 2:** `metrik_app` vira papel de LOGIN, com `DATABASE_URL_APP` própria — é o que faz o RLS virar o padrão da conexão em vez de valer só dentro de `comContexto`
+- [x] **Parte 2, código:** `metrik_app` vira papel de LOGIN e a aplicação prefere `DATABASE_URL_APP`. Teste `papel-do-app.test.ts` exercita entrada, sessão, seletor de contas e cofre **com a conexão restrita**; os demais arquivos seguem conectando como dono para montar cenário, igual à produção (quem migra é o dono, quem serve é o `metrik_app`)
+- [ ] **Parte 2, ativação:** criar `DATABASE_URL_APP` na Vercel — Preview primeiro (aponta para o mesmo banco, então é teste real sem tocar produção), depois Production
+
+**O que foi medido**, contra um branch descartável do Neon com dados reais:
+
+| | |
+| :--- | :--- |
+| papel `metrik_app` | `rolsuper=false`, `rolbypassrls=false`, membro de nenhum papel |
+| conexão pelo pooler | funciona — não foi preciso abrir mão do pool |
+| leitura | com o contexto da Vega, 4 agentes; trocando a conta na mesma conexão, 0 |
+| escrita | na própria conta passa; em conta alheia, em `users` e em `login_codes` recusa com `42501` |
+
+O `42501` é recusa de **política**. Na primeira tentativa eu li um `25P02` (transação abortada por uma falha anterior minha) como se fosse recusa de segurança — não era evidência de nada. Refeito com `SAVEPOINT` entre as tentativas, que é a armadilha já registrada no `AGENTS.md`.
 
 **O que a parte 1 revelou.** `aceitarConvite` estava quebrado desde a S-011: roda dentro de `comPessoa`, que declara a pessoa mas não a conta, e a política de escrita de `memberships` exige a conta — o banco recusava o vínculo. Os dois testes que existiam só exercitavam as RECUSAS, então o caminho de sucesso nunca foi exercitado. Consertado com `aceitar_convite_por_hash`.
 
