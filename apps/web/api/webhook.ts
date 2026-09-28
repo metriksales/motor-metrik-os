@@ -94,6 +94,10 @@ async function atender({
       { orgId, agentId, canal, contactId, texto: typeof b.texto === "string" ? b.texto : undefined, raw: b.raw },
       deps,
     );
+    // O Flight Recorder grava sem bloquear o motor — mas a resposta só sai
+    // depois que a linha chegou ao banco. Numa função serverless o processo
+    // congela assim que respondemos; uma gravação ainda em voo se perde (S-012).
+    await deps.flush?.();
     return res.json({ ok: true, ...out });
   } catch (e) {
     // Mensagem interna não volta pro chamador (achado A5 da auditoria).

@@ -57,11 +57,21 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
   const llm: LlmPort = makeBrain({ apiKey: env.openaiApiKey, model: env.model });
   const estado = new Map<string, unknown>(); // TODO: Upstash Redis (TTL por org).
   const now = env.now ?? (() => new Date());
-  // Flight Recorder: toda execução vira linha em runtime_logs (fire-and-forget —
-  // gravar log NUNCA derruba o motor). env.onLog continua recebendo em paralelo.
+  // Flight Recorder: cada execução vira UMA linha em runtime_logs (S-012).
+  //
+  // Fire-and-forget de propósito — gravar log NUNCA derruba o motor — mas com
+  // duas garantias que não existiam:
+  //  1. a gravação NÃO É ENGOLIDA. Era `.catch(() => {})`, e foi assim que uma
+  //     recusa de RLS (o runtime escrevendo sem contexto de conta, por carregar
+  //     a própria cópia de @motor/db) ficou invisível: o Flight Recorder parou
+  //     de gravar e ninguém soube. Agora a recusa vira linha no log do servidor.
+  //  2. a gravação PODE SER ESPERADA. Numa função serverless o processo congela
+  //     assim que a resposta sai; uma linha ainda em voo some. `flush()` espera
+  //     o que está pendente — o webhook chama antes de responder.
+  const pendentes = new Set<Promise<void>>();
   const log = (l: RuntimeLog) => {
     env.onLog?.(l);
-    void db
+    const gravacao: Promise<void> = db
       .insert(runtimeLogs)
       .values({
         orgId: l.orgId,
@@ -73,15 +83,26 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
         erro: l.erro,
         meta: l.meta,
       })
-      // Não derruba o motor — mas também não engole. Era `.catch(() => {})`, e
-      // foi assim que uma recusa de RLS (o runtime escrevendo sem contexto de
-      // conta, por carregar a própria cópia de @motor/db) ficou invisível: o
-      // Flight Recorder parou de gravar e ninguém soube. Uma linha no log do
-      // servidor custa nada e é a diferença entre "sumiu" e "recusado, e eis por quê".
+      .then(() => undefined)
       .catch((e: unknown) => {
         const motivo = e instanceof Error ? e.message : String(e);
         console.error(`[runtime] log NÃO gravado org=${l.orgId} agent=${l.agentId} motor=${l.motor ?? "-"}: ${motivo}`);
-      });
+      })
+      .finally(() => pendentes.delete(gravacao));
+    pendentes.add(gravacao);
+  };
+  async function flush() {
+    await Promise.allSettled([...pendentes]);
+  }
+
+  // O que o MOTOR registra por conta própria ("tool X falhou", "cérebro
+  // falhou") é detalhe: vai para o log do servidor e para env.onLog, não para o
+  // banco. Antes ia para o banco também, e cada execução virava duas linhas —
+  // a do motor e a do pipeline, com o mesmo conteúdo. A linha da execução é
+  // uma, escrita pelo pipeline, com o resumo que o motor devolve no resultado.
+  const detalhe = (l: RuntimeLog) => {
+    env.onLog?.(l);
+    console.info(`[motor:${l.motor ?? "-"}] ${l.ok ? "ok" : "FALHA"} ${l.resumo}${l.erro ? ` — ${l.erro}` : ""}`);
   };
 
   async function loadSpec(orgId: string, agentId: string): Promise<AgentSpec | null> {
@@ -126,7 +147,7 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
 
       const ports: MotorPorts = {
         now,
-        log,
+        log: detalhe,
         crm,
         llm,
         sender: makeSender(senderCfg, { llm }),
@@ -144,5 +165,6 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
     },
     registry,
     log,
+    flush,
   };
 }

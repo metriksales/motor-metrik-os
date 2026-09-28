@@ -164,7 +164,7 @@ export const atendimentoMotor: MotorEngine = {
         orgId, agentId, motor: "atendimento", ok: false,
         resumo: "cérebro (llm) falhou", erro, at: agora.toISOString(), meta: { contactId },
       });
-      return { ok: false, did: [], error: erro };
+      return { ok: false, did: [], error: erro, resumo: "cérebro (llm) falhou" };
     }
 
     const did: string[] = [];
@@ -224,13 +224,9 @@ export const atendimentoMotor: MotorEngine = {
     // Tool que falhou não vira execução bem-sucedida (achado A5 da auditoria):
     // antes, o painel mostrava sucesso com o CRM intocado.
     const ok = falhas.length === 0;
-    ports.log({
-      orgId, agentId, motor: "atendimento", ok,
-      resumo: ok ? `atendeu inbound de ${contactId}` : `atendeu com ${falhas.length} falha(s) de ferramenta`,
-      did,
-      erro: ok ? undefined : falhas.join(" · "),
-      at: agora.toISOString(), meta: { contactId, tools: turn.toolCalls?.length ?? 0 },
-    });
-    return ok ? { ok: true, did } : { ok: false, did, error: falhas.join(" · ") };
+    // O resumo vai no RESULTADO: é o pipeline quem grava a linha da execução.
+    // Gravar aqui também dobrava cada execução no Flight Recorder (S-012).
+    const resumo = ok ? `atendeu inbound de ${contactId}` : `atendeu com ${falhas.length} falha(s) de ferramenta`;
+    return ok ? { ok: true, did, resumo } : { ok: false, did, error: falhas.join(" · "), resumo };
   },
 };

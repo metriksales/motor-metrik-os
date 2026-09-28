@@ -233,12 +233,8 @@ export const followupMotor: MotorEngine = {
           });
         }
       }
-      ports.log({
-        orgId, agentId, motor: "followup", ok: true,
-        resumo: `follow-up esgotado após ${limite} toques`,
-        did, at: agora.toISOString(), meta: { contactId, publico },
-      });
-      return { ok: true, did };
+      // resumo no resultado: o pipeline grava a linha única da execução (S-012)
+      return { ok: true, did, resumo: `follow-up esgotado após ${limite} toques` };
     }
 
     // ── Passo atual e checagem de "já é a hora?" ──
@@ -278,7 +274,10 @@ export const followupMotor: MotorEngine = {
           erro: resultado.error ?? "transport retornou ok:false",
           at: agora.toISOString(), meta: { contactId },
         });
-        return { ok: false, did: [], error: resultado.error ?? "envio falhou" };
+        return {
+          ok: false, did: [], error: resultado.error ?? "envio falhou",
+          resumo: `falha ao enviar toque ${estado.passo + 1}`,
+        };
       }
 
       // Envio ok → avança a cadência.
@@ -286,13 +285,8 @@ export const followupMotor: MotorEngine = {
       await ports.setState(CHAVE(contactId), novo);
 
       const did = [`enviado toque ${estado.passo + 1}/${limite}`];
-      ports.log({
-        orgId, agentId, motor: "followup", ok: true,
-        resumo: `toque ${estado.passo + 1} enviado (${publico})`,
-        did, at: agora.toISOString(),
-        meta: { contactId, providerId: resultado.providerId, publico },
-      });
-      return { ok: true, did };
+      // resumo no resultado: o pipeline grava a linha única da execução (S-012)
+      return { ok: true, did, resumo: `toque ${estado.passo + 1} enviado (${publico})` };
     } catch (e) {
       const erro = (e as Error).message;
       ports.log({
@@ -300,7 +294,7 @@ export const followupMotor: MotorEngine = {
         resumo: "erro montando/enviando follow-up", erro,
         at: agora.toISOString(), meta: { contactId },
       });
-      return { ok: false, did: [], error: erro };
+      return { ok: false, did: [], error: erro, resumo: "erro montando/enviando follow-up" };
     }
   },
 };

@@ -359,7 +359,13 @@ export interface MotorRunInput {
   config?: Record<string, unknown>;
 }
 
-export interface MotorResult { ok: boolean; did: string[]; error?: string; }
+/**
+ * O que um motor devolve ao pipeline. `resumo` é a frase humana da execução
+ * ("toque 2 enviado", "reunião agendada (…)"): é o PIPELINE quem a grava, numa
+ * linha só por execução (S-012). O motor não grava resumo por conta própria —
+ * antes gravava, e cada execução virava duas linhas idênticas no Flight Recorder.
+ */
+export interface MotorResult { ok: boolean; did: string[]; error?: string; resumo?: string; }
 
 /** Um MOTOR = função reutilizável (follow-up, agenda, atendimento). */
 export interface MotorEngine {

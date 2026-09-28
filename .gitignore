@@ -10,3 +10,7 @@ dist/
 apps/web/api/_bundled/*.mjs
 
 .vercel
+
+# Skills e manifesto do agente construtor (instalados por maquina: `npx neon@latest skills -s neon -s neon-postgres -y`)
+.claude/
+skills-lock.json
