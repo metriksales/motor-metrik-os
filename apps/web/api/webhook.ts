@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { idDaRequisicao } from "./_observabilidade.js";
-import { createProductionDeps, handleInbound } from "./_bundled/runtime.mjs";
+import { createProductionDeps, handleInbound } from "./_bundled/motor.mjs";
 import {
   comConta,
   extrairSegredoEntrada,
@@ -8,7 +8,7 @@ import {
   getContatoEstado,
   getDatabaseUrl,
   resolverEntrada,
-} from "./_bundled/control.mjs";
+} from "./_bundled/motor.mjs";
 
 // Porta de ENTRADA de mensagem (webhook do canal: uazapi/GHL/IG).
 //

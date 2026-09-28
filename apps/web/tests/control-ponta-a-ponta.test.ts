@@ -6,7 +6,7 @@
  * prática isso significava depender de alguém abrir o app e clicar para saber
  * se a porta única ainda funcionava, o que não é verificação, é esperança.
  *
- * O teste importa o BUNDLE (`api/_bundled/control.mjs`), que é o artefato que
+ * O teste importa o BUNDLE (`api/_bundled/motor.mjs`), que é o artefato que
  * a Vercel executa — não a fonte TypeScript. Se o empacotamento quebrar, é
  * aqui que aparece, e não em produção.
  *
@@ -68,7 +68,7 @@ beforeAll(async () => {
   // chave só deste teste — o cofre recusa subir sem uma (S-025)
   process.env.COFRE_CHAVE = `1:${Buffer.from(randomBytes(32)).toString("base64")}`;
   // o mesmo bundle que vai para produção
-  control = await import("../api/_bundled/control.mjs");
+  control = await import("../api/_bundled/motor.mjs");
   bd = await import("@motor/db");
   handler = (await import("../api/control.js")).default;
 });
