@@ -1,5 +1,6 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { idDaRequisicao } from "./_observabilidade.js";
 import {
   extractGroupMessage,
   isAllowlisted,
@@ -54,6 +55,7 @@ async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void>
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  idDaRequisicao(req, res);
   const secret = process.env.GROUP_READER_WEBHOOK_SECRET;
   const allowlist = parseAllowlist(process.env.GROUP_READER_ALLOWLIST);
 

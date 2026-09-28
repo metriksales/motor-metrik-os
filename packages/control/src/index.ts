@@ -115,6 +115,32 @@ export async function resolverEntrada(
 // re-export pros hosts (guards das functions usam sem importar @motor/db direto)
 export { getDatabaseUrl, comContexto, comConta, comPessoa, contaEmCurso, pessoaEmCurso } from "@motor/db";
 
+/**
+ * O banco responde? (S-012)
+ *
+ * NÃO É `select 1`. Perguntamos `current_user` porque a resposta serve a duas
+ * perguntas de uma vez: "está de pé?" e "está de pé COMO QUEM?". A segunda é o
+ * que distingue a aplicação rodando no papel restrito (`metrik_app`, com RLS
+ * valendo por padrão) da aplicação rodando como dona do banco. Passamos um dia
+ * inteiro sem conseguir responder isso sem abrir o console da Vercel.
+ *
+ * Nunca levanta exceção: quem chama é um health check, e health check que
+ * estoura não informa nada. O motivo volta como texto, para o log — não para o
+ * corpo da resposta pública.
+ */
+export async function sondarBanco(): Promise<
+  { ok: true; ms: number; papel: string } | { ok: false; ms: number; motivo: string }
+> {
+  const inicio = Date.now();
+  try {
+    const r = await db.execute(sql`select current_user as papel`);
+    const papel = (linhas(r)[0] as { papel?: string } | undefined)?.papel ?? "(desconhecido)";
+    return { ok: true, ms: Date.now() - inicio, papel };
+  } catch (e) {
+    return { ok: false, ms: Date.now() - inicio, motivo: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export interface Ctx {
   orgId: string;
   actor: string;

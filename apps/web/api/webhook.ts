@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { idDaRequisicao } from "./_observabilidade.js";
 import { createProductionDeps, handleInbound } from "./_bundled/runtime.mjs";
 import {
   comConta,
@@ -15,6 +16,7 @@ import {
 // segredo é POR CONEXÃO, não global. A conta e o agente saem dele, resolvidos
 // no servidor; o corpo da requisição não escolhe tenant.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  idDaRequisicao(req, res);
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
   if (!getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado" });

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { idDaRequisicao } from "./_observabilidade.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 // bundle pré-compilado (scripts/bundle-api.mjs) — em runtime o Node não carrega
 // os workspaces .ts; o esbuild inlina tudo neste .mjs no build.
@@ -10,6 +10,7 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   // ingestão do Flight Recorder: é para isso que existe o escopo mais estreito
   log: "log",
   // leitura
+  saude: "leitura",
   agents: "leitura",
   getAgent: "leitura",
   spec: "leitura",
@@ -54,8 +55,7 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Id de correlação: vai no cabeçalho da resposta e no log do erro, para dar
   // para ligar "deu erro na tela" a uma linha de log (S-006/S-012).
-  const requestId = randomUUID();
-  res.setHeader("x-request-id", requestId);
+  const requestId = idDaRequisicao(req, res);
 
   // guard do banco ANTES da auth: sem Neon, o fluxo Clerk (que provisiona org
   // no banco) responderia 401/500 confuso em vez deste 503 claro.
@@ -107,6 +107,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await control.listarMachineTokens(ctx);
       case "revogarToken":
         return await control.revogarMachineToken(ctx, String(body.id ?? ""));
+      // Diagnóstico do banco, autenticado (S-012). O `/api/health` é público e
+      // por isso só diz se o banco respondeu; COM QUEM ele respondeu é detalhe
+      // de configuração e mora aqui. Foi o que faltou no dia em que a troca do
+      // papel da aplicação dependeu de ler o console da Vercel — que engasgou.
+      case "saude": {
+        const banco = await control.sondarBanco();
+        return banco.ok
+          ? { banco: "ok", ms: banco.ms, papel: banco.papel, conta: ctx.orgId }
+          : { banco: "fora", ms: banco.ms };
+      }
       case "agents":
         return await control.listAgents(ctx);
       case "getAgent":

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { idDaRequisicao } from "./_observabilidade.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as control from "./_bundled/control.mjs";
 
@@ -12,8 +12,7 @@ import * as control from "./_bundled/control.mjs";
 // POST /api/auth?acao=trocarConta   { orgId }
 // POST /api/auth?acao=aceitarConvite { token }
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const requestId = randomUUID();
-  res.setHeader("x-request-id", requestId);
+  const requestId = idDaRequisicao(req, res);
 
   if (!control.getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado" });
