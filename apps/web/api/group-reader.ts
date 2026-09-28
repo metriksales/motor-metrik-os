@@ -105,11 +105,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, mode: "observe-only", totals: totals[0], events });
     }
 
+    // RECUSA NÃO É SILÊNCIO (S-012). Estas duas saídas respondem 200 à uazapi
+    // — correto, ela não tem o que fazer com um erro — mas deixavam ZERO rastro
+    // no servidor. Em 28/09 a tabela estava vazia com a rota recebendo tráfego,
+    // e descobrir em qual das duas portas a mensagem morria custou uma hora.
+    // O log diz QUAL porta e O QUE chegou, sem o conteúdo da mensagem: só as
+    // chaves do envelope, ou o JID do grupo (identificador do grupo, não de
+    // pessoa — é o mesmo que a tabela já guarda).
     const message = extractGroupMessage(req.body);
     if (!message) {
+      const raiz = req.body && typeof req.body === "object" ? Object.keys(req.body as object).join(",") : typeof req.body;
+      console.warn(`[group-reader] não reconhecido como mensagem de grupo; chaves na raiz: ${raiz || "(vazio)"}`);
       return res.status(200).json({ ok: true, stored: false, reason: "not_a_supported_group_message" });
     }
     if (!isAllowlisted(message.groupJid, allowlist)) {
+      console.warn(`[group-reader] fora da allowlist: grupo=${message.groupJid} (allowlist com ${allowlist.size})`);
       return res.status(200).json({ ok: true, stored: false, reason: "outside_allowlist" });
     }
 
