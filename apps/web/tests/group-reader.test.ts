@@ -49,6 +49,38 @@ test("extrai payload aninhado do WhatsApp e a legenda da mídia", () => {
   expect(captured?.messageText).toBe("Erro mostrado neste print");
 });
 
+test("aceita o envelope DOCUMENTADO da uazapi: {event, instance, data: Message}", () => {
+  // O spec 2.1.1 (schema WebhookEvent) entrega o objeto Message dentro de
+  // `data`, com `chatid`, `messageid`, `isGroup`, `sender`, `senderName`. Os
+  // outros testes usam `message` na raiz — uma variação tolerada, não a forma
+  // oficial. Se o parser deixar de cobrir `data`, a tabela do piloto fica vazia
+  // com a rota recebendo tráfego — foi assim que se descobriu que ninguém
+  // testava a forma documentada.
+  const captured = extractGroupMessage({
+    event: "message",
+    instance: "inst-1",
+    data: {
+      id: "r1a2b3c4d",
+      messageid: "3EB0DOCUMENTADO",
+      chatid: group,
+      isGroup: true,
+      sender: "558577777777@s.whatsapp.net",
+      senderName: "Gente do Grupo",
+      text: "mensagem no formato do spec",
+      messageType: "text",
+      fromMe: false,
+      wasSentByApi: false,
+    },
+  });
+
+  expect(captured).toBeTruthy();
+  expect(captured?.groupJid).toBe(group);
+  expect(captured?.messageId).toBe("r1a2b3c4d");
+  expect(captured?.senderName).toBe("Gente do Grupo");
+  expect(captured?.messageText).toBe("mensagem no formato do spec");
+  expect(captured?.sentByApi).toBe(false);
+});
+
 test("recusa conversa direta e payload sem id estável de mensagem", () => {
   expect(
     extractGroupMessage({ message: { id: "x", chatid: "558599999999@s.whatsapp.net", text: "oi" } }),
