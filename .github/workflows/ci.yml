@@ -34,6 +34,10 @@ jobs:
 
     env:
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/metrik_test
+      # A mesma base, pelo papel RESTRITO da aplicação (S-046 parte 2). É o que
+      # permite exercitar em CI o modo em que a produção vai rodar: sem isto,
+      # a parte 2 só seria testada depois de estar no ar.
+      TEST_DATABASE_URL_APP: postgres://metrik_app:app_de_teste@localhost:5432/metrik_test
 
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +60,13 @@ jobs:
         run: npm run db:migrate --workspace @motor/db
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      # A migração 0012 cria `metrik_app` como NOLOGIN — ele existe só para o
+      # `SET LOCAL ROLE`. Para testar a conexão da parte 2 ele precisa logar.
+      # A senha é fixa e pública de propósito: é um Postgres descartável que
+      # vive dentro da execução e só escuta em localhost.
+      - name: Dar login ao papel da aplicação
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER ROLE metrik_app WITH LOGIN PASSWORD 'app_de_teste'"
 
       - name: Testes
         run: npm test

@@ -3,11 +3,25 @@ import { sql as tag } from "drizzle-orm";
 import type { drizzle as drizzleWs } from "drizzle-orm/neon-serverless";
 import * as schema from "./schema";
 
-// A integração Neon↔Vercel pode nomear a env com prefixo (STORAGE_/POSTGRES_…),
-// dependendo do "Custom Prefix" na hora de conectar. Resolvemos por uma cadeia de
-// fallback pra "só funcionar" no deploy — DATABASE_URL (pooled) é o preferido.
+/**
+ * A CONEXÃO DA APLICAÇÃO (S-046 parte 2).
+ *
+ * `DATABASE_URL_APP` conecta como `metrik_app`, que NÃO é dono das tabelas —
+ * então o RLS vale desde o primeiro byte, e não só dentro de `comContexto`.
+ * Uma consulta que esqueça de declarar a conta devolve zero linhas, em vez de
+ * devolver tudo.
+ *
+ * QUANDO ELA NÃO EXISTE, a cadeia antiga assume e a aplicação conecta como
+ * dona, exatamente como antes. Isso é de propósito: a variável é o único
+ * interruptor da mudança, e apagá-la desfaz tudo sem migração reversa.
+ *
+ * `DATABASE_URL` continua sendo a do DONO e continua necessária — é ela que a
+ * migração usa (via `scripts/migrar.mjs`, que prefere `DATABASE_URL_UNPOOLED`).
+ * Papel restrito não cria tabela.
+ */
 export function getDatabaseUrl(): string {
   return (
+    process.env.DATABASE_URL_APP ??
     process.env.DATABASE_URL ??
     process.env.POSTGRES_URL ??
     process.env.DATABASE_DATABASE_URL ??
@@ -59,8 +73,13 @@ const url = getDatabaseUrl() || "postgresql://placeholder:placeholder@placeholde
  * O QUE SE PERDEU COM ISSO, dito na cara: consulta fora de `comContexto` roda
  * como dono e passa por cima do RLS. A proteção deixou de ser o padrão da
  * conexão e passou a valer por caminho — todos os caminhos passam por lá hoje,
- * mas "hoje" não é garantia. O conserto definitivo é `metrik_app` virar papel
- * de LOGIN com string própria, e aí não há troca de papel nenhuma (S-046).
+ * mas "hoje" não é garantia.
+ *
+ * ISSO VALE ENQUANTO NÃO HOUVER `DATABASE_URL_APP` (S-046 parte 2). Com ela, a
+ * conexão JÁ CHEGA como `metrik_app`: o `SET LOCAL ROLE` abaixo vira redundante
+ * (trocar para o papel que já se é não faz nada e não custa nada), e a proteção
+ * volta a ser o padrão da conexão. Os dois modos convivem de propósito — o
+ * mesmo código roda nos dois, e a variável é o interruptor.
  */
 
 async function criarDb() {
@@ -80,6 +99,17 @@ async function criarDb() {
 }
 
 const base = (await criarDb()) as unknown as ReturnType<typeof drizzleWs<typeof schema>>;
+
+// Uma linha no log de partida dizendo em qual modo subiu. Sem isto, a diferença
+// entre "o RLS é o padrão" e "o RLS vale por caminho" é invisível em produção —
+// e é a diferença inteira desta mudança. Não imprime string de conexão nenhuma.
+if (getDatabaseUrl()) {
+  console.info(
+    process.env.DATABASE_URL_APP
+      ? "[db] conectado como metrik_app — RLS é o padrão da conexão"
+      : "[db] conectado como DONO do banco — RLS só dentro de comContexto (S-046 parte 2 pendente)",
+  );
+}
 
 /** O contexto em curso: de quem é a requisição, na visão do banco. */
 type Ambiente = { tx: typeof base; orgId: string | null; userId: string | null };
