@@ -517,8 +517,8 @@ O que foi corrigido, achado a achado:
 **Checklist**
 
 - [x] Toda resposta com `x-request-id`; o log do erro tem o mesmo id — em TODOS os handlers, aceitando id de fora só se for são (9 testes contra injeção em log, `observabilidade.test.ts`)
-- [ ] Uma linha de log por execução
-- [ ] Persistência do log aguardada ou em `waitUntil` — por ora o `fire-and-forget` do Flight Recorder deixou de ENGOLIR a falha: uma recusa vira linha no log do servidor com conta, agente e motivo (era `.catch(() => {})`)
+- [x] Uma linha de log por execução — o motor devolve `resumo` no `MotorResult` e o PIPELINE grava a linha; `ports.log` virou detalhe (log do servidor + `onLog`), não persiste. Antes cada execução virava duas linhas idênticas. `pipeline.test.ts` (6 testes, sem banco) fixa a fiação
+- [x] Persistência do log aguardada — `deps.flush()` espera as gravações pendentes e o webhook o chama ANTES de responder; numa função serverless o processo congela ao responder e uma linha em voo se perdia. A recusa também deixou de ser engolida (era `.catch(() => {})`): vira linha no log do servidor com conta, agente e motivo. `pacote-unico.test.ts` exige a linha no banco no instante em que `flush` resolve, sem esperar por sorte
 - [x] Health responde o estado do banco — `/api/health` pergunta `current_user` e devolve 503 quando o banco não responde; o papel da conexão sai só em `/api/control?action=saude`, autenticado
 - [ ] Rastreador de erros ligado e testado com erro provocado — precisa de decisão sobre o serviço
 

@@ -88,19 +88,15 @@ export const agendaMotor: MotorEngine = {
         }
       }
 
-      ports.log({
-        orgId, agentId, motor: "agenda", ok: true,
-        resumo: `reunião agendada (${quando})`, did,
-        at: agora.toISOString(), meta: { contactId, eventId, calendarId },
-      });
-      return { ok: true, did };
+      // resumo no resultado: o pipeline grava a linha única da execução (S-012)
+      return { ok: true, did, resumo: `reunião agendada (${quando})` };
     } catch (e) {
       const erro = (e as Error).message;
       ports.log({
         orgId, agentId, motor: "agenda", ok: false,
         resumo: "falha ao agendar", erro, at: agora.toISOString(), meta: { contactId },
       });
-      return { ok: false, did: [], error: erro };
+      return { ok: false, did: [], error: erro, resumo: "falha ao agendar" };
     }
   },
 };

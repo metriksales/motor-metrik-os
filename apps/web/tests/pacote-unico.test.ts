@@ -91,16 +91,14 @@ describe.skipIf(!temAmbas)("um pacote, uma cópia do banco", () => {
 
     await motor.comConta(org, async () => {
       deps.log({ orgId: org, agentId: agent, motor: "teste", ok: true, resumo, at: new Date().toISOString() });
-      // fire-and-forget: dá à escrita a chance de acontecer ainda dentro da transação
-      await new Promise((r) => setTimeout(r, 300));
+      // `flush` é a garantia (S-012): quando ele resolve, a linha já foi ao banco.
+      // Antes este teste ESPERAVA POR SORTE (sleep + polling) — que é exatamente o
+      // que a produção fazia, e onde uma gravação em voo se perdia ao congelar.
+      await deps.flush();
     });
 
-    // como dona: a linha existe mesmo
-    let n = 0;
-    for (let i = 0; i < 20 && n === 0; i++) {
-      n = (await dono.query("select count(*)::int as n from runtime_logs where resumo = $1", [resumo])).rows[0].n;
-      if (n === 0) await new Promise((r) => setTimeout(r, 150));
-    }
+    // como dona, SEM esperar: a linha existe no instante em que flush resolveu
+    const n = (await dono.query("select count(*)::int as n from runtime_logs where resumo = $1", [resumo])).rows[0].n;
     expect(n).toBe(1);
   });
 });

@@ -17,8 +17,15 @@ export interface RuntimeDeps {
   portsFor(orgId: string, agentId: string): Promise<MotorPorts>;
   /** biblioteca de motores disponível — INJETADA (runtime não importa os motores). */
   registry: MotorRegistry;
-  /** caixa-preta: cada execução do runtime vira uma linha de log. */
+  /** caixa-preta: cada execução do runtime vira UMA linha de log. */
   log(l: RuntimeLog): void;
+  /**
+   * Espera as gravações pendentes do log. `log` é fire-and-forget de propósito
+   * (gravar nunca derruba o motor), mas numa função serverless o processo pode
+   * congelar assim que a resposta sai — e a linha que ainda não chegou ao banco
+   * simplesmente some. O host chama isto ANTES de responder (S-012).
+   */
+  flush?(): Promise<void>;
 }
 
 export interface MemoryDepsOptions {
@@ -42,12 +49,14 @@ const REGISTRY_VAZIO: MotorRegistry = {
  *   num Map local; crm/sender/transport/llm ficam undefined — o motor trata a
  *   ausência (stub honesto; o host de produção liga as portas de verdade).
  * - registry: vem de opts.registry, senão o REGISTRY_VAZIO.
- * O mesmo buffer recebe tanto o log do runtime quanto o log dos ports.
+ * O log do runtime (uma linha por execução) e o detalhe dos ports vão para
+ * buffers SEPARADOS — igual à produção, onde só o primeiro é persistido.
  */
 export function createMemoryDeps(opts: MemoryDepsOptions = {}): RuntimeDeps {
   const specs = opts.specs ?? {};
   const registry = opts.registry ?? REGISTRY_VAZIO;
   const logs: RuntimeLog[] = [];
+  const detalhes: RuntimeLog[] = [];
   const estado = new Map<string, unknown>();
 
   return {
@@ -57,8 +66,9 @@ export function createMemoryDeps(opts: MemoryDepsOptions = {}): RuntimeDeps {
     async portsFor(_orgId, _agentId) {
       const ports: MotorPorts = {
         now: () => new Date(),
+        // detalhe do motor: NÃO é a linha da execução (essa é `deps.log`)
         log: (l) => {
-          logs.push(l);
+          detalhes.push(l);
         },
         getState: async (key) => estado.get(key),
         setState: async (key, value) => {
@@ -76,5 +86,7 @@ export function createMemoryDeps(opts: MemoryDepsOptions = {}): RuntimeDeps {
     log: (l) => {
       logs.push(l);
     },
+    // em memória não há nada pendente; existe para o host poder chamar sempre
+    flush: async () => {},
   };
 }

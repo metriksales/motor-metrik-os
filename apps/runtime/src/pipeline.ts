@@ -41,12 +41,16 @@ export async function runEvent(
         { orgId: evt.orgId, agentId: evt.agentId, spec, event: evt, config: resolveMotorConfig(spec, engine.id) },
         ports,
       );
+      // UMA linha por execução, e é esta (S-012). O resumo vem do motor, no
+      // resultado — não por `ports.log`, que agora é detalhe não persistido.
+      // Sem resumo, cai no que foi feito; sem nada feito, no erro ou num
+      // "executou" seco: linha vazia no Flight Recorder é pior que linha curta.
       deps.log({
         orgId: evt.orgId,
         agentId: evt.agentId,
         motor: engine.id,
         ok: r.ok,
-        resumo: r.did.join("; "),
+        resumo: r.resumo ?? (r.did.length ? r.did.join("; ") : r.ok ? "executou" : (r.error ?? "falhou")),
         did: r.did,
         erro: r.error,
         at: agora(),
