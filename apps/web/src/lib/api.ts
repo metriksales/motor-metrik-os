@@ -129,4 +129,8 @@ export const api = {
   // S-026: uma mensagem real pela instância, para o número digitado
   enviarMensagemDeTeste: (id: string, numero: string, getToken?: GetToken) =>
     control("enviarMensagemDeTeste", { body: { id, numero }, getToken }),
+  // conectar o WhatsApp pela plataforma: QR code, ou código de pareamento com telefone
+  conectarWhatsApp: (id: string, telefone?: string, getToken?: GetToken) =>
+    control("conectarWhatsApp", { body: telefone ? { id, telefone } : { id }, getToken }),
+  acompanharWhatsApp: (id: string, getToken?: GetToken) => control("acompanharWhatsApp", { body: { id }, getToken }),
 };

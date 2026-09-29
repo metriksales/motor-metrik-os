@@ -23,7 +23,21 @@ export interface DadosDoTeste {
   foto?: string;
   subconta?: string;
   conta?: string;
+  /** o nome da instância no servidor da uazapi (não é o nome do perfil) */
+  instancia?: string;
   webhooks?: DestinoDeEventos[];
+}
+
+/** O que a tela recebe enquanto a pessoa conecta o WhatsApp. O QR e o código nunca são gravados. */
+export interface EstadoDaConexao {
+  conectado: boolean;
+  estado?: string;
+  qrcode?: string;
+  codigo?: string;
+  instancia?: string;
+  detalhe: string;
+  /** a conexão já testada, quando a instância acabou de conectar */
+  conexao?: ConexaoReal;
 }
 
 /** "a.com", "a.com e b.com", "a.com, b.com e c.com" */
@@ -94,12 +108,17 @@ export function formatarNumero(digitos: string): string {
   return `+${d}`;
 }
 
-/** Quem está do outro lado, numa linha de metadados: "Luã · +55 21 98174-0018". */
-export function quemRespondeu(c: Pick<ConexaoReal, "ultimoTesteDados">): string {
+/**
+ * Quem está do outro lado, numa linha: "Luã · +55 21 98174-0018 · Instância metrik-01".
+ * Nome, número, subconta e conta só valem com a conexão no ar; o nome da
+ * instância no servidor aparece sempre que o último teste o leu, porque é ele
+ * que diz QUAL instância está fora.
+ */
+export function quemRespondeu(c: Pick<ConexaoReal, "ultimoTesteDados" | "status">): string {
   const d = c.ultimoTesteDados ?? {};
-  return [d.nome, d.numero ? formatarNumero(d.numero) : undefined, d.subconta, d.conta]
-    .filter((x): x is string => typeof x === "string" && x.length > 0)
-    .join(" · ");
+  const partes = c.status === "ok" ? [d.nome, d.numero ? formatarNumero(d.numero) : undefined, d.subconta, d.conta] : [];
+  if (d.instancia) partes.push(`Instância ${d.instancia}`);
+  return partes.filter((x): x is string => typeof x === "string" && x.length > 0).join(" · ");
 }
 
 export const STATUS_DA_CONEXAO: Record<string, { label: string; cor: string }> = {

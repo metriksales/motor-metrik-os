@@ -330,3 +330,74 @@ describe.skipIf(!temBanco)("mensagem de teste (S-026)", () => {
     expect(JSON.stringify(r)).not.toContain("abc123");
   });
 });
+
+describe.skipIf(!temBanco)("conectar o WhatsApp pela plataforma", () => {
+  const QR = `data:image/png;base64,${"Q".repeat(120)}`;
+
+  async function whatsappComToken(ctx: Ctx, orgId: string) {
+    return bd.comConta(orgId, async () => {
+      await control.guardarCredencial(ctx, { kind: "whatsapp", segredo: "tok-linha", meta: { baseUrl: "https://m.uazapi.com" } });
+      return control.upsertConnection(ctx, { kind: "whatsapp" });
+    });
+  }
+
+  test("pede o QR com o token do cofre, e nem o QR nem o token ficam na auditoria", async () => {
+    const { orgId, ctx } = await conta();
+    const c = await whatsappComToken(ctx, orgId);
+    const tokens: string[] = [];
+    const http: Http = async (_url, init) => {
+      tokens.push((init?.headers as Record<string, string>).token);
+      return new Response(JSON.stringify({ connected: false, instance: { status: "connecting", qrcode: QR, name: "metrik-01" } }), { status: 200 });
+    };
+    const r = await bd.comConta(orgId, async () => {
+      const estado = await control.conectarWhatsApp(ctx, { id: c.id }, { http });
+      const trilha = await control.listarAuditoria(ctx);
+      return { estado, trilha };
+    });
+    expect(r.estado.qrcode).toBe(QR);
+    expect(r.estado.instancia).toBe("metrik-01");
+    expect(tokens).toEqual(["tok-linha"]);
+    const pedido = r.trilha.find((l: { action: string }) => l.action === "connection.conectar");
+    expect(pedido.data).toEqual({ modo: "qrcode", conectado: false });
+    expect(JSON.stringify(r.trilha)).not.toContain("QQQQ");
+    expect(JSON.stringify(r.trilha)).not.toContain("tok-linha");
+  });
+
+  test("quando a instância conecta, o acompanhamento grava 'ok' e devolve a conexão testada", async () => {
+    const { orgId, ctx } = await conta();
+    const c = await whatsappComToken(ctx, orgId);
+    const conectada: Http = async (url) =>
+      String(url).endsWith("/webhook")
+        ? new Response("[]", { status: 200 })
+        : new Response(JSON.stringify(CONECTADA), { status: 200 });
+    const aguardando: Http = async () =>
+      new Response(JSON.stringify({ instance: { status: "connecting", qrcode: QR } }), { status: 200 });
+
+    const antes = await bd.comConta(orgId, () => control.acompanharWhatsApp(ctx, { id: c.id }, { http: aguardando }));
+    expect(antes.conectado).toBe(false);
+    expect(antes.conexao).toBeUndefined();
+
+    const depois = await bd.comConta(orgId, () => control.acompanharWhatsApp(ctx, { id: c.id }, { http: conectada }));
+    expect(depois.conectado).toBe(true);
+    expect(depois.conexao.status).toBe("ok");
+    expect(depois.conexao.ultimoTesteDados.numero).toBe("5521981740018");
+    const [gravada] = await bd.comConta(orgId, () => control.listConnections(ctx));
+    expect(gravada.status).toBe("ok");
+  });
+
+  test("operador não conecta; conexão que não é WhatsApp e telefone inválido são recusados", async () => {
+    const { orgId, ctx } = await conta();
+    const c = await whatsappComToken(ctx, orgId);
+    const kommo = await bd.comConta(orgId, () => control.upsertConnection(ctx, { kind: "kommo" }));
+    const http: Http = async () => new Response("{}", { status: 200 });
+    await expect(
+      bd.comConta(orgId, () => control.conectarWhatsApp({ ...ctx, role: "operator" }, { id: c.id }, { http })),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      bd.comConta(orgId, () => control.conectarWhatsApp(ctx, { id: kommo.id }, { http })),
+    ).rejects.toMatchObject({ status: 400, message: "Só conexões de WhatsApp se conectam por QR code." });
+    await expect(
+      bd.comConta(orgId, () => control.conectarWhatsApp(ctx, { id: c.id, telefone: "123" }, { http })),
+    ).rejects.toMatchObject({ status: 400, message: "Número inválido. Use o formato internacional, com DDI e DDD." });
+  });
+});

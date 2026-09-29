@@ -44,7 +44,14 @@ import {
 import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
 import { exigirPermissao, type Papel } from "./permissoes.js";
 import { cifrar, decifrar, dicaDe, lerChaves } from "./cofre.js";
-import { TESTADORES, type Http, type Veredito } from "./conexoes.js";
+import {
+  TESTADORES,
+  iniciarConexaoUazapi,
+  lerEstadoUazapi,
+  type EstadoDaConexao,
+  type Http,
+  type Veredito,
+} from "./conexoes.js";
 import { enviarTextoUazapi } from "@motor/messaging";
 
 export * from "./tokens.js";
@@ -737,6 +744,67 @@ export async function enviarMensagemDeTeste(
   return r.ok
     ? { ok: true, detalhe: "Mensagem enviada. A uazapi confirmou o envio." }
     : { ok: false, detalhe: r.error ?? "A uazapi não confirmou o envio." };
+}
+
+/** A conexão de WhatsApp da conta, com a credencial que a abre. Comum a conectar e acompanhar. */
+async function whatsappComCredencial(ctx: Ctx, idBruto: string) {
+  const id = String(idBruto ?? "").trim();
+  if (!UUID.test(id)) throw new NaoEncontrado("conexão");
+  const [linha] = await db
+    .select()
+    .from(connections)
+    .where(and(eq(connections.id, id), eq(connections.orgId, ctx.orgId)));
+  if (!linha) throw new NaoEncontrado("conexão");
+  if (linha.kind !== "whatsapp") throw new EntradaInvalida("Só conexões de WhatsApp se conectam por QR code.");
+  const credencial = await usarCredencial(ctx, { kind: "whatsapp", rotulo: linha.vaultRef ?? "padrao" });
+  if (!credencial) throw new EntradaInvalida("Nenhuma credencial guardada no cofre para esta conexão.");
+  const meta = { ...comoObjeto(credencial.meta), ...comoObjeto(linha.meta) };
+  return { id, segredo: credencial.segredo, meta };
+}
+
+/**
+ * Conectar o WhatsApp pela plataforma (S-019): pede à uazapi um QR code, ou
+ * um código de pareamento quando vem o telefone. O QR e o código voltam só
+ * nesta resposta — quem os tem conecta um WhatsApp à instância —, então não
+ * são gravados nem vão para a auditoria. A auditoria guarda que houve o
+ * pedido e por qual caminho.
+ */
+export async function conectarWhatsApp(
+  ctx: Ctx,
+  input: { id: string; telefone?: string },
+  opts: { http?: Http } = {},
+): Promise<EstadoDaConexao> {
+  exigirPermissao(ctx, "gerenciar");
+  let telefone: string | undefined;
+  if (input.telefone !== undefined && String(input.telefone).trim() !== "") {
+    telefone = String(input.telefone).replace(/\D/g, "");
+    if (telefone.length < 10 || telefone.length > 15) {
+      throw new EntradaInvalida("Número inválido. Use o formato internacional, com DDI e DDD.");
+    }
+  }
+  const { id, segredo, meta } = await whatsappComCredencial(ctx, input.id);
+  const r = await iniciarConexaoUazapi(opts.http ?? fetch, { segredo, meta, telefone });
+  await audit(ctx, "connection.conectar", id, { modo: telefone ? "codigo" : "qrcode", conectado: r.conectado });
+  return r;
+}
+
+/**
+ * Acompanha a conexão enquanto a pessoa lê o QR: devolve o QR renovado e,
+ * quando a instância conecta, roda o teste completo — é ele que grava `ok`,
+ * o número, a foto e para onde vão as mensagens. A tela troca o cartão pela
+ * conexão que volta aqui, sem recarregar nada.
+ */
+export async function acompanharWhatsApp(
+  ctx: Ctx,
+  input: { id: string },
+  opts: OpcoesDoTeste = {},
+): Promise<EstadoDaConexao & { conexao?: ConexaoVisivel }> {
+  exigirPermissao(ctx, "gerenciar");
+  const { id, segredo, meta } = await whatsappComCredencial(ctx, input.id);
+  const r = await lerEstadoUazapi(opts.http ?? fetch, { segredo, meta });
+  if (!r.conectado) return r;
+  const conexao = await testarConexao(ctx, { id }, opts);
+  return { ...r, conexao };
 }
 
 /**

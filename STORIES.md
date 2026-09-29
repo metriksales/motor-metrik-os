@@ -941,6 +941,8 @@ O que foi corrigido, achado a achado:
 - **Envio de teste pela tela.** "Enviar mensagem de teste" no cartão do WhatsApp manda `Mensagem de teste do Metrik-OS.` para o número digitado, pela mesma função do transporte, com o token do cofre. Exige `gerenciar`. A auditoria guarda os quatro últimos dígitos do destino, nunca o número inteiro.
 - **Ainda não provado em produção.** Tudo acima foi exercitado com uazapi falsa, nas formas documentadas. A prova é um envio de teste chegando num celular.
 - **O runtime ainda não usa o cofre para enviar.** O transporte envia de verdade quando recebe as instâncias, mas o webhook de atendimento monta o runtime sem instância nenhuma (`createProductionDeps` sem `uazapi`). Ligar as instâncias do cofre ao runtime é o passo seguinte, junto com a entrada.
+- **Conectar o WhatsApp sem sair da plataforma.** Com a instância fora do ar, o cartão oferece "Conectar WhatsApp": pede o QR code à uazapi (`POST /instance/connect`) e acompanha a cada 5 s por `GET /instance/status`, que devolve o QR renovado. Quando conecta, roda o teste completo e o cartão vira "No ar" sem recarregar. Para quem abre a plataforma no próprio celular, há o código de pareamento por número de telefone. O QR e o código só existem na resposta: quem os tem conecta um WhatsApp à instância, então não são gravados nem vão para a auditoria. Exige `gerenciar`.
+- **O nome da instância no servidor aparece no cartão**, dentro e fora do ar ("Instância metrik-01"). Antes, `instance.name` só servia de reserva para o nome do perfil, e os dois se confundiam.
 
 ---
 

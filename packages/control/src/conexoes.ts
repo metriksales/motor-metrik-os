@@ -214,7 +214,10 @@ export const testarUazapi: Testador = async ({ segredo, meta, nossosHosts = [] }
   const estado = texto(inst.status);
   const conectado =
     typeof st.connected === "boolean" ? st.connected && st.loggedIn !== false : estado === "connected";
-  const nome = texto(inst.profileName) ?? texto(inst.name);
+  // o nome do PERFIL (o que o WhatsApp mostra) e o nome da INSTÂNCIA no
+  // servidor da uazapi são coisas diferentes; antes um cobria a falta do outro
+  const nome = texto(inst.profileName);
+  const instancia = texto(inst.name);
   // o número vem no jid; quando ele falta, o `owner` da instância costuma ser o telefone
   const numero = numeroDeTelefone(obj(st.jid).user) ?? numeroDeTelefone(inst.owner);
   // a foto é uma URL do CDN do WhatsApp; a tela a mostra e cai no ícone se vencer
@@ -224,6 +227,7 @@ export const testarUazapi: Testador = async ({ segredo, meta, nossosHosts = [] }
     const dados: Record<string, unknown> = { estado: estado ?? "connected" };
     if (nome) dados.nome = nome;
     if (numero) dados.numero = numero;
+    if (instancia) dados.instancia = instancia;
     if (foto && /^https:\/\//i.test(foto)) dados.foto = foto;
     if (webhooks) dados.webhooks = webhooks;
     // "Conectado como Luã (+55…)." / "Conectado como Luã." / "Conectado (+55…)." / "Conectado."
@@ -234,12 +238,112 @@ export const testarUazapi: Testador = async ({ segredo, meta, nossosHosts = [] }
         : "Conectado.";
     return { ok: true, detalhe, dados };
   }
+  const dados: Record<string, unknown> = { estado };
+  if (instancia) dados.instancia = instancia;
+  if (webhooks) dados.webhooks = webhooks;
   return {
     ok: false,
     detalhe: (estado && ESTADO_UAZAPI[estado]) ?? `Instância não conectada (estado: ${estado ?? "desconhecido"}).`,
-    dados: webhooks ? { estado, webhooks } : { estado },
+    dados,
   };
 };
+
+// ── uazapi: conectar pela plataforma ───────────────────────────────────────
+
+/**
+ * Onde está a conexão de uma instância enquanto a pessoa lê o QR code. O QR e
+ * o código de pareamento só vivem aqui, na resposta: quem os tem conecta um
+ * WhatsApp à instância, então eles não são gravados em lugar nenhum.
+ */
+export interface EstadoDaConexao {
+  conectado: boolean;
+  estado?: string;
+  /** imagem do QR code, sempre `data:image/...;base64,...` */
+  qrcode?: string;
+  /** código de pareamento, para conectar pelo número de telefone */
+  codigo?: string;
+  instancia?: string;
+  detalhe: string;
+}
+
+/** Aceita só imagem em base64: é o que vai direto num `<img src>`. */
+function imagemDoQr(v: unknown): string | undefined {
+  const t = texto(v);
+  if (!t) return undefined;
+  if (/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(t)) return t;
+  if (/^[A-Za-z0-9+/=]{100,}$/.test(t)) return `data:image/png;base64,${t}`;
+  return undefined;
+}
+
+function lerEstadoDaResposta(json: Record<string, unknown> | null): EstadoDaConexao {
+  const raiz = json ?? {};
+  const inst = obj(raiz.instance);
+  const st = obj(raiz.status);
+  const estado = texto(inst.status);
+  // o connect devolve connected/loggedIn na raiz; o status, dentro de `status`
+  const conectadoBruto = typeof st.connected === "boolean" ? st.connected : raiz.connected;
+  const logado = typeof st.loggedIn === "boolean" ? st.loggedIn : raiz.loggedIn;
+  const conectado = typeof conectadoBruto === "boolean" ? conectadoBruto && logado !== false : estado === "connected";
+  const qrcode = conectado ? undefined : imagemDoQr(inst.qrcode);
+  const codigo = conectado ? undefined : texto(inst.paircode);
+  const instancia = texto(inst.name);
+  const detalhe = conectado
+    ? "WhatsApp conectado."
+    : qrcode || codigo
+      ? "Aguardando a leitura no celular."
+      : (estado && ESTADO_UAZAPI[estado]) ?? "Instância não conectada.";
+  const r: EstadoDaConexao = { conectado, detalhe };
+  if (estado) r.estado = estado;
+  if (qrcode) r.qrcode = qrcode;
+  if (codigo) r.codigo = codigo;
+  if (instancia) r.instancia = instancia;
+  return r;
+}
+
+function falhaDaUazapi(status: number): string {
+  if (status === 401) return "A uazapi recusou o token da instância.";
+  if (status === 404) return "Instância não encontrada nesse endereço.";
+  if (status === 429) return "Limite de conexões simultâneas da uazapi atingido. Aguarde alguns minutos.";
+  if (status === 503) return "A uazapi está sem capacidade para conectar agora. Aguarde alguns segundos.";
+  return `A uazapi respondeu com erro (HTTP ${status}).`;
+}
+
+/**
+ * `POST /instance/connect`. Sem telefone, a uazapi gera o QR code; com
+ * telefone, um código de pareamento — o caminho de quem abre a plataforma no
+ * próprio celular e não tem como ler um QR na mesma tela.
+ */
+export async function iniciarConexaoUazapi(
+  http: Http,
+  entrada: { segredo: string; meta: Record<string, unknown>; telefone?: string },
+): Promise<EstadoDaConexao> {
+  const base = enderecoBase(entrada.meta.baseUrl);
+  if (!base) return { conectado: false, detalhe: "Falta o endereço da instância." };
+  const r = await chamar(http, `${base}/instance/connect`, {
+    method: "POST",
+    headers: { token: entrada.segredo, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(entrada.telefone ? { phone: entrada.telefone } : {}),
+  });
+  if ("falha" in r) return { conectado: false, detalhe: r.falha };
+  if (r.resposta.status !== 200) return { conectado: false, detalhe: falhaDaUazapi(r.resposta.status) };
+  return lerEstadoDaResposta(r.resposta.json);
+}
+
+/** `GET /instance/status` enquanto a pessoa conecta: devolve o QR renovado e diz quando conectou. */
+export async function lerEstadoUazapi(
+  http: Http,
+  entrada: { segredo: string; meta: Record<string, unknown> },
+): Promise<EstadoDaConexao> {
+  const base = enderecoBase(entrada.meta.baseUrl);
+  if (!base) return { conectado: false, detalhe: "Falta o endereço da instância." };
+  const r = await chamar(http, `${base}/instance/status`, {
+    method: "GET",
+    headers: { token: entrada.segredo, accept: "application/json" },
+  });
+  if ("falha" in r) return { conectado: false, detalhe: r.falha };
+  if (r.resposta.status !== 200) return { conectado: false, detalhe: falhaDaUazapi(r.resposta.status) };
+  return lerEstadoDaResposta(r.resposta.json);
+}
 
 // ── GoHighLevel ────────────────────────────────────────────────────────────
 
