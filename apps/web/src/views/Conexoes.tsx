@@ -78,41 +78,11 @@ function ConexoesDaConta() {
     }
   };
 
-  const comProblema = (conexoes ?? []).filter((c) => c.status === "falha" || c.status === "sem_credencial").length;
-
+  // Sem cabeçalho nem texto de apresentação: o título da página já está na
+  // barra de cima, e os cartões dizem o resto (texto-de-tela, regra 14).
   return (
     <div className="space-y-6">
-      <Reveal>
-        <div className="connection-hero">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Plug size={16} className="text-[var(--violet)]" />
-              <span className="mono-label">Conexões da conta</span>
-            </div>
-            <h2 className="font-display text-[22px] md:text-[26px] font-semibold tracking-tight">
-              O que cada ponta <span className="grad-text">respondeu</span>, não o que foi cadastrado.
-            </h2>
-            <p className="text-[var(--txt-2)] mt-2.5 text-[14px] leading-relaxed">
-              Conexão é a primeira coisa que quebra: token vencido, instância desconectada, funil que mudou de id.
-              Cada cartão mostra o resultado do último teste contra o provedor, com data.
-            </p>
-          </div>
-        </div>
-      </Reveal>
-
       <div>
-        <SectionHeader
-          label="Estado das pontas"
-          title="O que o último teste disse"
-          right={
-            conexoes && conexoes.length > 0 ? (
-              <span className="mono-label">
-                {conexoes.length} {conexoes.length === 1 ? "conexão" : "conexões"}
-                {comProblema > 0 ? ` · ${comProblema} com problema` : ""}
-              </span>
-            ) : undefined
-          }
-        />
         {erro && (
           <div className="card p-4 mb-3 text-[13px] flex items-center gap-2" style={{ color: "var(--rose)" }} role="alert">
             <AlertTriangle size={14} /> Não foi possível ler as conexões. {erro}

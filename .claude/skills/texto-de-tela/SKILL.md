@@ -30,6 +30,7 @@ O que motivou esta skill: um cartão de conexão dizia `uazapi respondeu agora �
 11. **Sem promessa que o sistema não conferiu.** `Tudo certo`, `no ar e funcionando`, `ligado` só depois de um teste com data. Sem teste, a tela diz que não houve teste. Esta é a regra da S-007, e o texto é onde ela mais se quebra.
 12. **Vocabulário fixo.** Conexão, credencial, cofre, teste, instância, subconta, funil, etapa, calendário, agente de operação, agente construtor. Marcas como elas se escrevem: `uazapi`, `GHL` (ou `GoHighLevel`), `Kommo`, `WhatsApp`. Não invente sinônimo para variar.
 13. **Nada se repete no mesmo cartão.** Se o nome de quem respondeu está numa linha, a frase de estado não o repete. Se o selo diz `No ar`, a frase não diz `conectado` de novo sem acrescentar nada.
+14. **Sem texto decorativo.** Não entra na tela texto que não muda o que a pessoa entende ou faz: faixa de apresentação, slogan, parágrafo que explica a filosofia da página, cabeçalho de seção que repete o título da página ou descreve o óbvio (`Estado das pontas`, `O que o último teste disse`). O título da página já está na barra de cima. O conteúdo começa pelo conteúdo. Na dúvida, tire: se ninguém sentir falta, não fazia falta.
 
 ## Formas
 
@@ -60,6 +61,7 @@ O que motivou esta skill: um cartão de conexão dizia `uazapi respondeu agora �
 | `falta o endereço da instância (baseUrl, ex.: https://minha.uazapi.com)` | `Falta o endereço da instância.` |
 | `o funil p9 não existe nesta subconta (existem: Vendas, Pós-venda)` | `O funil p9 não existe nesta subconta. Existem: Vendas, Pós-venda.` |
 | `nenhuma credencial "linha-1" do tipo whatsapp guardada no cofre desta conta` | `Nenhuma credencial guardada no cofre para esta conexão (rótulo "linha-1").` |
+| Faixa `Conexões da conta` / `O que cada ponta respondeu, não o que foi cadastrado.` / parágrafo sobre o que quebra, mais o cabeçalho `Estado das pontas` / `O que o último teste disse` | Nada. A página abre nos cartões. |
 
 ## Antes de entregar uma tela
 
@@ -67,4 +69,5 @@ O que motivou esta skill: um cartão de conexão dizia `uazapi respondeu agora �
 - Confira: maiúscula inicial, ponto no fim da frase, nenhum `—`, `;`, `…`, `!`, emoji ou símbolo dentro do texto.
 - Confira que nenhuma frase começa com minúscula por causa de uma marca.
 - Confira que nada é afirmado sem ter sido conferido, e que o cartão não repete a mesma informação em duas linhas.
+- Para cada bloco de texto, pergunte: se ele sumir, a pessoa entende ou faz algo diferente? Se a resposta for não, ele sai.
 - Frases que nascem no servidor (testadores, erros de domínio, resumos) passam pelas mesmas regras, e os testes delas conferem o texto exato.
