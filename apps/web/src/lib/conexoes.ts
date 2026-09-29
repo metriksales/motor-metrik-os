@@ -5,6 +5,16 @@
 // nunca houve teste, diz "nunca testada", não "ligado".
 import { CalendarDays, ContactRound, Database, FileSignature, MessageCircle, Scale, type LucideIcon } from "lucide-react";
 
+/** O que o provedor contou no último teste, para mostrar (nunca o segredo). */
+export interface DadosDoTeste {
+  estado?: string;
+  nome?: string;
+  numero?: string;
+  foto?: string;
+  subconta?: string;
+  conta?: string;
+}
+
 export interface ConexaoReal {
   id: string;
   kind: string;
@@ -16,26 +26,43 @@ export interface ConexaoReal {
   agentId: string | null;
   ultimoTesteEm: string | null;
   ultimoTesteDetalhe: string | null;
+  ultimoTesteDados: DadosDoTeste | null;
   createdAt: string;
   testavel: boolean;
   temSegredoDeEntrada: boolean;
 }
 
-/** O que volta de "testar agora" e do cadastro: a conexão, mais o que o provedor contou. */
-export type ConexaoTestada = ConexaoReal & { dados: Record<string, unknown> | null };
-
-export const TIPO_DE_CONEXAO: Record<string, { nome: string; tipo: string; icon: LucideIcon }> = {
-  whatsapp: { nome: "WhatsApp (uazapi)", tipo: "Canal", icon: MessageCircle },
-  ghl: { nome: "GoHighLevel", tipo: "CRM", icon: Database },
-  kommo: { nome: "Kommo", tipo: "CRM", icon: ContactRound },
-  gcal: { nome: "Google Agenda", tipo: "Agenda", icon: CalendarDays },
-  advbox: { nome: "ADVBOX", tipo: "Jurídico", icon: Scale },
-  zapsign: { nome: "ZapSign", tipo: "Assinatura", icon: FileSignature },
+export const TIPO_DE_CONEXAO: Record<string, { nome: string; tipo: string; provedor: string; icon: LucideIcon }> = {
+  whatsapp: { nome: "WhatsApp (uazapi)", tipo: "Canal", provedor: "uazapi", icon: MessageCircle },
+  ghl: { nome: "GoHighLevel", tipo: "CRM", provedor: "GHL", icon: Database },
+  kommo: { nome: "Kommo", tipo: "CRM", provedor: "Kommo", icon: ContactRound },
+  gcal: { nome: "Google Agenda", tipo: "Agenda", provedor: "Google", icon: CalendarDays },
+  advbox: { nome: "ADVBOX", tipo: "Jurídico", provedor: "ADVBOX", icon: Scale },
+  zapsign: { nome: "ZapSign", tipo: "Assinatura", provedor: "ZapSign", icon: FileSignature },
 };
 
 export function nomeDaConexao(c: Pick<ConexaoReal, "kind" | "vaultRef">): string {
   const base = TIPO_DE_CONEXAO[c.kind]?.nome ?? c.kind;
   return c.vaultRef && c.vaultRef !== "padrao" ? `${base} · ${c.vaultRef}` : base;
+}
+
+/** "5521981740018" → "+55 21 98174-0018"; o que não parece BR volta com "+" na frente. */
+export function formatarNumero(digitos: string): string {
+  const d = digitos.replace(/\D/g, "");
+  if (d.startsWith("55") && (d.length === 12 || d.length === 13)) {
+    const ddd = d.slice(2, 4);
+    const resto = d.slice(4);
+    return `+55 ${ddd} ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
+  }
+  return `+${d}`;
+}
+
+/** Quem está do outro lado, numa linha: "Luã · +55 21 98174-0018" / "subconta Clínica Sorriso". */
+export function quemRespondeu(c: Pick<ConexaoReal, "ultimoTesteDados">): string {
+  const d = c.ultimoTesteDados ?? {};
+  return [d.nome, d.numero ? formatarNumero(d.numero) : undefined, d.subconta, d.conta]
+    .filter((x): x is string => typeof x === "string" && x.length > 0)
+    .join(" · ");
 }
 
 export const STATUS_DA_CONEXAO: Record<string, { label: string; cor: string }> = {
