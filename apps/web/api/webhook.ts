@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { idDaRequisicao } from "./_observabilidade.js";
+import { idDaRequisicao, registrarFalha } from "./_observabilidade.js";
 import { createProductionDeps, handleInbound } from "./_bundled/motor.mjs";
 import {
   comConta,
@@ -16,7 +16,7 @@ import {
 // segredo é POR CONEXÃO, não global. A conta e o agente saem dele, resolvidos
 // no servidor; o corpo da requisição não escolhe tenant.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  idDaRequisicao(req, res);
+  const requestId = idDaRequisicao(req, res);
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
   if (!getDatabaseUrl()) {
     return res.status(503).json({ error: "banco não configurado" });
@@ -44,11 +44,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // entrar, o agente não erra — ele simplesmente para de responder lead, em
   // silêncio. A resolução do segredo acima é cruzada de propósito: é ela que
   // DESCOBRE a conta, e por isso não pode estar dentro dela.
-  return comConta(orgId, () => atender({ req, res, orgId, agentId, contactId, b }));
+  return comConta(orgId, () => atender({ req, res, requestId, orgId, agentId, contactId, b }));
 }
 
 async function atender({
   res,
+  requestId,
   orgId,
   agentId,
   contactId,
@@ -56,6 +57,7 @@ async function atender({
 }: {
   req: VercelRequest;
   res: VercelResponse;
+  requestId: string;
   orgId: string;
   agentId: string;
   contactId: string;
@@ -72,7 +74,7 @@ async function atender({
       return res.json({ ok: true, pausado: true, skipped: "agente pausado pelo cliente — não respondi" });
     }
   } catch (e) {
-    console.error("[webhook] falha ao ler estado do agente:", e);
+    await registrarFalha("webhook:estado-do-agente", requestId, e, { orgId });
   }
 
   // ASSUMIR honrado AQUI: humano assumiu ESTE contato = a IA cala só nesta conversa.
@@ -82,11 +84,15 @@ async function atender({
       return res.json({ ok: true, assumido: true, skipped: "conversa assumida por um humano — a IA não respondeu" });
     }
   } catch (e) {
-    console.error("[webhook] falha ao ler estado do contato:", e);
+    await registrarFalha("webhook:estado-do-contato", requestId, e, { orgId });
   }
 
   // Composição de produção. TODO(S-025): injetar o cofre (token do CRM por conta).
-  const deps = createProductionDeps({ openaiApiKey: process.env.OPENAI_API_KEY });
+  const deps = createProductionDeps({
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    // linha do Flight Recorder que não gravou vira erro rastreado (S-012)
+    aoFalhar: (onde, erro, extra) => registrarFalha(onde, requestId, erro, { orgId: extra.orgId ?? orgId }),
+  });
 
   try {
     const canal = b.canal === "instagram" || b.canal === "whatsapp" ? b.canal : "webhook";
@@ -101,7 +107,7 @@ async function atender({
     return res.json({ ok: true, ...out });
   } catch (e) {
     // Mensagem interna não volta pro chamador (achado A5 da auditoria).
-    console.error("[webhook] falha ao processar entrada:", e);
+    await registrarFalha("webhook:atender", requestId, e, { orgId });
     return res.status(500).json({ error: "falha ao processar a mensagem" });
   }
 }

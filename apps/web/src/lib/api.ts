@@ -43,7 +43,9 @@ export async function control<T = unknown>(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string })?.error ?? `erro ${res.status}`);
+    // o status viaja junto: a tela precisa distinguir "não é para você" (403)
+    // de "quebrou" (500), que nunca pode ser escondido
+    throw Object.assign(new Error((err as { error?: string })?.error ?? `Erro ${res.status}.`), { status: res.status });
   }
   return res.json() as Promise<T>;
 }
@@ -133,4 +135,9 @@ export const api = {
   conectarWhatsApp: (id: string, telefone?: string, getToken?: GetToken) =>
     control("conectarWhatsApp", { body: telefone ? { id, telefone } : { id }, getToken }),
   acompanharWhatsApp: (id: string, getToken?: GetToken) => control("acompanharWhatsApp", { body: { id }, getToken }),
+  // rastreador de erros (S-012): a lista e o erro de teste são de quem opera a plataforma
+  erros: (getToken?: GetToken) => control("erros", { getToken }),
+  registrarErroDeTeste: (getToken?: GetToken) => control("registrarErroDeTeste", { body: {}, getToken }),
+  registrarErroDaTela: (input: { mensagem: string; pilha?: string; pagina?: string }) =>
+    control("registrarErroDaTela", { body: input }),
 };

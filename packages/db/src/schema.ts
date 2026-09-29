@@ -362,6 +362,29 @@ export const auditLog = pgTable("audit_log", {
 });
 
 /**
+ * Rastreador de erros (S-012). Uma linha por ASSINATURA de erro, não por
+ * ocorrência. RLS sem política: a aplicação só escreve e lê pelas funções
+ * `registrar_erro` e `listar_erros` (migração 0017).
+ */
+export const erros = pgTable(
+  "erros",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assinatura: text("assinatura").notNull(),
+    onde: text("onde").notNull(),
+    mensagem: text("mensagem").notNull(),
+    pilha: text("pilha"),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "set null" }),
+    ultimoRequestId: text("ultimo_request_id"),
+    ocorrencias: integer("ocorrencias").notNull().default(1),
+    primeiraEm: timestamp("primeira_em", { withTimezone: true }).defaultNow().notNull(),
+    ultimaEm: timestamp("ultima_em", { withTimezone: true }).defaultNow().notNull(),
+    avisadoEm: timestamp("avisado_em", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("erros_assinatura_unica").on(t.assinatura), index("erros_ultima").on(t.ultimaEm)],
+);
+
+/**
  * Piloto de leitura de grupos internos. Somente captura: não responde no
  * WhatsApp e não cria demanda até uma segunda fase explicitamente aprovada.
  * O JID completo do remetente não é persistido; guardamos HMAC + últimos 4.

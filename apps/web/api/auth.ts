@@ -1,4 +1,4 @@
-import { idDaRequisicao } from "./_observabilidade.js";
+import { idDaRequisicao, registrarFalha } from "./_observabilidade.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as control from "./_bundled/motor.mjs";
 
@@ -128,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (control.ehErroDeDominio(e)) {
       return res.status(e.status).json({ error: e.message, codigo: e.codigo });
     }
-    console.error(`[auth] ${acao} falhou (req ${requestId}):`, e);
+    await registrarFalha(`auth:${acao.slice(0, 40)}`, requestId, e);
     return res.status(500).json({ error: "erro interno", requestId });
   }
 }

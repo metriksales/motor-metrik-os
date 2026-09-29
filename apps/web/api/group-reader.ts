@@ -1,6 +1,6 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { idDaRequisicao } from "./_observabilidade.js";
+import { idDaRequisicao, registrarFalha } from "./_observabilidade.js";
 import {
   extractGroupMessage,
   isAllowlisted,
@@ -55,7 +55,7 @@ async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void>
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  idDaRequisicao(req, res);
+  const requestId = idDaRequisicao(req, res);
   const secret = process.env.GROUP_READER_WEBHOOK_SECRET;
   const allowlist = parseAllowlist(process.env.GROUP_READER_ALLOWLIST);
 
@@ -143,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ ok: true, stored: inserted.length === 1, duplicate: inserted.length === 0 });
   } catch (error) {
-    console.error("[group-reader] persistence failed", error instanceof Error ? error.message : "unknown error");
+    await registrarFalha("group-reader", requestId, error);
     return res.status(503).json({ error: "persistence_failed" });
   }
 }

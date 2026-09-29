@@ -1,4 +1,4 @@
-import { idDaRequisicao } from "./_observabilidade.js";
+import { idDaRequisicao, registrarFalha } from "./_observabilidade.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 // bundle pré-compilado (scripts/bundle-api.mjs) — em runtime o Node não carrega
 // os workspaces .ts; o esbuild inlina tudo neste .mjs no build.
@@ -52,6 +52,12 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   // está no despacho. Um token de máquina comprometido não extrai credencial
   // de cliente — ele nem tem por onde pedir.
   auditoria: "leitura",
+  // Rastreador de erros (S-012). A lista e o erro de teste são de quem opera a
+  // plataforma — uma PESSOA com sessão; token de máquina nunca é, e o pacote de
+  // controle confere. O erro que vem da tela entra pelo escopo mais estreito.
+  erros: "admin",
+  registrarErroDeTeste: "admin",
+  registrarErroDaTela: "log",
   credenciais: "admin",
   guardarCredencial: "admin",
   revogarCredencial: "admin",
@@ -75,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ctx = await resolveCtx(req);
   } catch (e) {
     // erro da PONTE org↔banco (não é token inválido): detalhe no log, não no corpo.
-    console.error(`[auth] ponte de organização falhou (req ${requestId}):`, e);
+    await registrarFalha("auth:ponte", requestId, e);
     return res.status(500).json({ error: "falha ao resolver a conta", requestId });
   }
   if (!ctx) return res.status(401).json({ error: "não autorizado" });
@@ -121,9 +127,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // papel da aplicação dependeu de ler o console da Vercel — que engasgou.
       case "saude": {
         const banco = await control.sondarBanco();
+        // alertas: para quantos operadores o rastreador avisa, e se o e-mail
+        // sai de verdade (resend) ou só para o log (seco) — sem nomes, sem chave
+        const alertas = control.estadoDosAlertas();
         return banco.ok
-          ? { banco: "ok", ms: banco.ms, papel: banco.papel, conta: ctx.orgId }
-          : { banco: "fora", ms: banco.ms };
+          ? { banco: "ok", ms: banco.ms, papel: banco.papel, conta: ctx.orgId, alertas }
+          : { banco: "fora", ms: banco.ms, alertas };
       }
       case "agents":
         return await control.listAgents(ctx);
@@ -206,6 +215,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           limite: lerLimite(req.query.limite),
           acao: req.query.acao ? String(req.query.acao) : undefined,
         });
+      case "erros":
+        return await control.listarErros(ctx, { limite: lerLimite(req.query.limite) });
+      case "registrarErroDeTeste":
+        return await control.registrarErroDeTeste(ctx, { requestId });
+      case "registrarErroDaTela":
+        return await control.registrarErroDaTela(
+          ctx,
+          { mensagem: body.mensagem, pilha: body.pilha, pagina: body.pagina },
+          requestId,
+        );
       case "credenciais":
         return await control.listarCredenciais(ctx);
       case "guardarCredencial":
@@ -225,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Qualquer outra coisa é falha nossa: o detalhe fica no log do servidor com
     // o id da requisição; o cliente recebe mensagem genérica. Antes, o erro do
     // drizzle voltava no corpo — e ele carrega o SQL e os parâmetros.
-    console.error(`[control] ${action} falhou (req ${requestId}):`, e);
+    await registrarFalha(`control:${action.slice(0, 40)}`, requestId, e, { orgId: ctx.orgId });
     return res.status(500).json({ error: "erro interno", requestId });
   }
 }
@@ -238,6 +257,7 @@ const SOMENTE_POST = new Set([
   "guardarCredencial", "revogarCredencial",
   "testarConexao", "cadastrarConexao", "enviarMensagemDeTeste",
   "conectarWhatsApp", "acompanharWhatsApp",
+  "registrarErroDeTeste", "registrarErroDaTela",
 ]);
 
 /**
