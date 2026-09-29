@@ -42,6 +42,8 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   reverter: "admin",
   upsertConnection: "admin",
   cadastrarConexao: "admin",
+  // sai uma mensagem de verdade, do número do cliente (S-026)
+  enviarMensagemDeTeste: "admin",
   // O cofre (S-025) é sempre `admin`. Note que NÃO existe ação para LER o
   // segredo: ele sai em um único lugar, `usarCredencial`, que é interno e não
   // está no despacho. Um token de máquina comprometido não extrai credencial
@@ -181,9 +183,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // S-019: o provedor é consultado AQUI, com o segredo que nunca sai do
       // pacote de controle; a resposta é o que o cliente lê na tela.
       case "testarConexao":
-        return await control.testarConexao(ctx, { id: String(body.id ?? "") });
+        return await control.testarConexao(ctx, { id: String(body.id ?? "") }, { nossosHosts: nossosHosts(req) });
       case "cadastrarConexao":
-        return await control.cadastrarConexao(ctx, body);
+        return await control.cadastrarConexao(ctx, body, { nossosHosts: nossosHosts(req) });
+      case "enviarMensagemDeTeste":
+        return await control.enviarMensagemDeTeste(ctx, {
+          id: String(body.id ?? ""),
+          numero: String(body.numero ?? ""),
+        });
       case "auditoria":
         return await control.listarAuditoria(ctx, {
           limite: lerLimite(req.query.limite),
@@ -219,8 +226,28 @@ const SOMENTE_POST = new Set([
   "setEstado", "assumirContato", "devolverContato", "upsertConnection", "log",
   "criarToken", "revogarToken", "testar", "rodarTestes",
   "guardarCredencial", "revogarCredencial",
-  "testarConexao", "cadastrarConexao",
+  "testarConexao", "cadastrarConexao", "enviarMensagemDeTeste",
 ]);
+
+/**
+ * Por onde este sistema responde: o host da requisição e os que a Vercel
+ * declara. É o que permite ao teste de conexão dizer "os eventos chegam aqui"
+ * quando o webhook da instância aponta para este sistema (S-019).
+ */
+function nossosHosts(req: VercelRequest): string[] {
+  const candidatos = [
+    req.headers["x-forwarded-host"],
+    req.headers.host,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.VERCEL_URL,
+  ];
+  const hosts = candidatos
+    .flatMap((v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : []))
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(hosts)];
+}
 
 function lerLimite(valor: unknown): number | undefined {
   if (valor === undefined) return undefined;

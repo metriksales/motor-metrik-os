@@ -2,6 +2,7 @@
 // Mesma interface (Transport de @motor/core): trocar canal nativo do GHL
 // pela malha multi-instância uazapi é só trocar a peça — motor não muda.
 import type { Transport, OutgoingMessage, SendResult, CrmPort } from "@motor/core";
+import { enviarTextoUazapi, type EnvioUazapi } from "./uazapi";
 
 /**
  * GhlNativeTransport — entrega pelo canal nativo do CRM (GHL), via CrmPort.
@@ -45,14 +46,16 @@ export interface UazapiInstancia {
   ownerId?: string;
   instanceId: string;
   token: string;
+  /** endereço da instância (https://<subdominio>.uazapi.com); sem ele, o envio falha dizendo isso */
+  baseUrl?: string;
 }
 
-/** Injetável: faz o POST real (a peça de rede fica FORA do motor). */
-export type UazapiHttp = (
-  url: string,
-  body: unknown,
-  token: string,
-) => Promise<{ ok: boolean; id?: string }>;
+/**
+ * Quem faz o envio. Injetável para teste e para os scripts de ensaio; em
+ * produção é `enviarTextoUazapi` com o `fetch` do Node — e é o PADRÃO, para
+ * que nenhum caminho esquecido volte a devolver sucesso sem enviar (S-026).
+ */
+export type UazapiHttp = (envio: EnvioUazapi) => Promise<SendResult>;
 
 /** Hash simples e determinístico de string (djb2) — p/ round-robin estável. */
 function hashString(s: string): number {
@@ -99,19 +102,17 @@ export class UazapiMultiInstanceTransport implements Transport {
 
     const inst = this.escolher(to, ownerId);
     if (!inst) {
-      return { ok: false, error: "sem instância uazapi configurada" };
+      return { ok: false, error: "Nenhuma instância da uazapi configurada." };
     }
 
-    // Corpo genérico; o formato exato (/send/text, /send/media) mora na skill.
-    const body = { number: to, instanceId: inst.instanceId, message };
-
-    if (this.http) {
-      const r = await this.http("/send/text", body, inst.token);
-      return { ok: r.ok, providerId: r.id };
+    // Só texto, por enquanto. Template e mídia pela uazapi ainda não existem
+    // neste sistema — e dizer isso é melhor que fingir que foi. Antes, TUDO
+    // aqui devolvia `ok: true` com um id inventado, sem enviar nada.
+    if (message.kind !== "text") {
+      const oQue = message.kind === "template" ? "template" : "mídia";
+      return { ok: false, error: `Envio de ${oQue} pela uazapi ainda não existe.` };
     }
-
-    // TODO: POST real uazapi /send/text (ligar em UazapiHttp / skill
-    // agente-ia-metrik-completo). Token NUNCA embutido aqui — vem por instância.
-    return { ok: true, providerId: "stub-" + inst.instanceId };
+    const enviar = this.http ?? ((e: EnvioUazapi) => enviarTextoUazapi(fetch, e));
+    return enviar({ base: inst.baseUrl, token: inst.token, numero: to, texto: message.text });
   }
 }

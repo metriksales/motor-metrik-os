@@ -236,3 +236,97 @@ describe.skipIf(!temBanco)("conexões testadas (S-019)", () => {
     expect(lista.map((c: { vaultRef: string }) => c.vaultRef).sort()).toEqual(["padrao", "suporte", "vendas"]);
   });
 });
+
+describe.skipIf(!temBanco)("mensagem de teste (S-026)", () => {
+  /** Um provedor que confirma o envio e anota o que recebeu. */
+  function uazapiQueEnvia() {
+    const pedidos: { url: string; token: string; corpo: unknown }[] = [];
+    const http: Http = async (url, init) => {
+      pedidos.push({
+        url: String(url),
+        token: (init?.headers as Record<string, string>).token,
+        corpo: JSON.parse(String(init?.body)),
+      });
+      return new Response(JSON.stringify({ messageid: "3EB0ABC", status: "Sent" }), { status: 200 });
+    };
+    return { http, pedidos };
+  }
+
+  test("envia pela instância com o token do cofre, e a auditoria guarda só o final do número", async () => {
+    const { orgId, ctx } = await conta();
+    const { http, pedidos } = uazapiQueEnvia();
+    const r = await bd.comConta(orgId, async () => {
+      await control.guardarCredencial(ctx, {
+        kind: "whatsapp",
+        segredo: "token-da-linha",
+        meta: { baseUrl: "https://metrik.uazapi.com" },
+      });
+      const c = await control.upsertConnection(ctx, { kind: "whatsapp" });
+      const envio = await control.enviarMensagemDeTeste(ctx, { id: c.id, numero: "+55 (61) 99184-0065" }, { http });
+      const trilha = await control.listarAuditoria(ctx);
+      return { envio, trilha };
+    });
+    expect(r.envio).toEqual({ ok: true, detalhe: "Mensagem enviada. A uazapi confirmou o envio." });
+    expect(pedidos).toEqual([
+      {
+        url: "https://metrik.uazapi.com/send/text",
+        token: "token-da-linha",
+        corpo: { number: "5561991840065", text: "Mensagem de teste do Metrik-OS." },
+      },
+    ]);
+    const linha = r.trilha.find((l: { action: string }) => l.action === "connection.mensagem_teste");
+    expect(linha.data).toEqual({ final: "0065", ok: true });
+    // o número inteiro não fica em lugar nenhum da trilha
+    expect(JSON.stringify(r.trilha)).not.toContain("5561991840065");
+    expect(JSON.stringify(r)).not.toContain("token-da-linha");
+  });
+
+  test("a frase do provedor chega inteira quando o envio falha", async () => {
+    const { orgId, ctx } = await conta();
+    const recusa: Http = async () => new Response(JSON.stringify({ error: "Invalid token" }), { status: 401 });
+    const r = await bd.comConta(orgId, async () => {
+      await control.guardarCredencial(ctx, { kind: "whatsapp", segredo: "x", meta: { baseUrl: "https://m.uazapi.com" } });
+      const c = await control.upsertConnection(ctx, { kind: "whatsapp" });
+      return control.enviarMensagemDeTeste(ctx, { id: c.id, numero: "5561991840065" }, { http: recusa });
+    });
+    expect(r).toEqual({ ok: false, detalhe: "A uazapi recusou o token da instância." });
+  });
+
+  test("número inválido, conexão que não é WhatsApp e operador: recusados antes de enviar", async () => {
+    const { orgId, ctx } = await conta();
+    const { http, pedidos } = uazapiQueEnvia();
+    const [whats, kommo] = await bd.comConta(orgId, async () => [
+      await control.upsertConnection(ctx, { kind: "whatsapp" }),
+      await control.upsertConnection(ctx, { kind: "kommo" }),
+    ]);
+    await expect(
+      bd.comConta(orgId, () => control.enviarMensagemDeTeste(ctx, { id: whats.id, numero: "123" }, { http })),
+    ).rejects.toMatchObject({ status: 400, message: "Número inválido. Use o formato internacional, com DDI e DDD." });
+    await expect(
+      bd.comConta(orgId, () => control.enviarMensagemDeTeste(ctx, { id: kommo.id, numero: "5561991840065" }, { http })),
+    ).rejects.toMatchObject({ status: 400, message: "Mensagem de teste só existe para conexões de WhatsApp." });
+    await expect(
+      bd.comConta(orgId, () =>
+        control.enviarMensagemDeTeste({ ...ctx, role: "operator" }, { id: whats.id, numero: "5561991840065" }, { http }),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(pedidos).toHaveLength(0);
+  });
+
+  test("o teste de conexão guarda para onde a instância manda os eventos — só o host", async () => {
+    const { orgId, ctx } = await conta();
+    const http: Http = async (url) =>
+      String(url).endsWith("/webhook")
+        ? new Response(JSON.stringify([{ enabled: true, url: "https://sistema.test/api/group-reader?secret=abc123", events: ["messages"] }]), { status: 200 })
+        : new Response(JSON.stringify(CONECTADA), { status: 200 });
+    const r = await bd.comConta(orgId, () =>
+      control.cadastrarConexao(
+        ctx,
+        { kind: "whatsapp", segredo: "t", meta: { baseUrl: "https://m.uazapi.com" } },
+        { http, nossosHosts: ["sistema.test"] },
+      ),
+    );
+    expect(r.ultimoTesteDados.webhooks).toEqual([{ host: "sistema.test", ativo: true, destino: "grupos", eventos: ["messages"] }]);
+    expect(JSON.stringify(r)).not.toContain("abc123");
+  });
+});

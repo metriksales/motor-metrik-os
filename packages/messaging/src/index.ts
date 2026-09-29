@@ -17,6 +17,8 @@ export {
   UazapiMultiInstanceTransport,
 } from "./transports";
 export type { UazapiInstancia, UazapiHttp } from "./transports";
+export { enviarTextoUazapi, enderecoHttps, ESPERA_ENVIO_MS } from "./uazapi";
+export type { EnvioUazapi, Fetch } from "./uazapi";
 
 /** Dependências injetáveis para montar um Sender. */
 export interface SenderDeps {

@@ -272,6 +272,73 @@ describe("texto de tela", () => {
   });
 });
 
+describe("uazapi: para onde a instância manda os eventos", () => {
+  const META = { baseUrl: "https://x.uazapi.com" };
+  const NOSSOS = ["motor-metrik-os-web.vercel.app"];
+
+  test("webhook para este sistema: diz qual porta, e NUNCA guarda caminho nem query", async () => {
+    const { http, chamadas } = rede({
+      "/instance/status": { status: 200, body: uazapiOk },
+      "/webhook": {
+        status: 200,
+        body: [
+          {
+            id: "w1",
+            enabled: true,
+            url: "https://Motor-Metrik-OS-Web.vercel.app/api/group-reader?secret=segredo-do-leitor",
+            events: ["messages"],
+          },
+        ],
+      },
+    });
+    const v = await testarUazapi({ segredo: "t", meta: META, nossosHosts: NOSSOS }, http);
+    expect(v.dados?.webhooks).toEqual([
+      { host: "motor-metrik-os-web.vercel.app", ativo: true, destino: "grupos", eventos: ["messages"] },
+    ]);
+    // o segredo que estava na URL do webhook não sai do testador
+    expect(JSON.stringify(v)).not.toContain("segredo-do-leitor");
+    expect(JSON.stringify(v)).not.toContain("group-reader");
+    // em sequência, e com o token da instância
+    expect(chamadas.map((c) => c.url)).toEqual(["https://x.uazapi.com/instance/status", "https://x.uazapi.com/webhook"]);
+    expect(chamadas[1].headers.token).toBe("t");
+  });
+
+  test("webhook para outro sistema: só o host, sem destino", async () => {
+    const { http } = rede({
+      "/instance/status": { status: 200, body: uazapiOk },
+      "/webhook": { status: 200, body: [{ enabled: true, url: "https://n8n.metrik.com/webhook/abc-123", events: ["messages", "connection"] }] },
+    });
+    const v = await testarUazapi({ segredo: "t", meta: META, nossosHosts: NOSSOS }, http);
+    expect(v.dados?.webhooks).toEqual([{ host: "n8n.metrik.com", ativo: true, eventos: ["messages", "connection"] }]);
+  });
+
+  test("nenhum webhook: lista vazia; leitura que falha: nada, e o teste segue", async () => {
+    const vazio = rede({ "/instance/status": { status: 200, body: uazapiOk }, "/webhook": { status: 200, body: [] } });
+    expect((await testarUazapi({ segredo: "t", meta: META }, vazio.http)).dados?.webhooks).toEqual([]);
+
+    const falhou = rede({ "/instance/status": { status: 200, body: uazapiOk }, "/webhook": { status: 500 } });
+    const v = await testarUazapi({ segredo: "t", meta: META }, falhou.http);
+    expect(v.ok).toBe(true);
+    expect(v.dados).not.toHaveProperty("webhooks");
+  });
+
+  test("instância desconectada também diz para onde iriam os eventos", async () => {
+    const { http } = rede({
+      "/instance/status": { status: 200, body: { instance: { status: "disconnected" }, status: { connected: false } } },
+      "/webhook": { status: 200, body: [{ enabled: false, url: "https://n8n.metrik.com/x" }] },
+    });
+    const v = await testarUazapi({ segredo: "t", meta: META }, http);
+    expect(v.ok).toBe(false);
+    expect(v.dados).toEqual({ estado: "disconnected", webhooks: [{ host: "n8n.metrik.com", ativo: false, eventos: [] }] });
+  });
+
+  test("token recusado: não tenta ler o webhook", async () => {
+    const { http, chamadas } = rede({ "/instance/status": { status: 401 } });
+    await testarUazapi({ segredo: "t", meta: META }, http);
+    expect(chamadas).toHaveLength(1);
+  });
+});
+
 describe("registro", () => {
   test("whatsapp, ghl e kommo têm teste; os outros tipos não fingem", () => {
     expect(testavel("whatsapp")).toBe(true);

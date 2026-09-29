@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   conexoes: vi.fn(),
   testarConexao: vi.fn(),
   cadastrarConexao: vi.fn(),
+  enviarMensagemDeTeste: vi.fn(),
 }));
 
 vi.mock("../src/lib/api", () => ({ api, control: vi.fn(), auth: {}, lerCookie: () => "", cabecalhosDeEscrita: () => ({}) }));
@@ -155,6 +156,15 @@ describe("Conexões — testar agora", () => {
     expect(screen.getByRole("button", { name: /guardar e testar/i })).toBeTruthy();
   });
 
+  test("sem texto decorativo: nem faixa de apresentação, nem 'Onde mora o token'", async () => {
+    api.conexoes.mockResolvedValue([NO_AR]);
+    render(<Conexoes />);
+    await screen.findByText("No ar");
+    for (const t of [/Conexões da conta/, /O que cada ponta/, /Estado das pontas/, /O que o último teste disse/, /Onde mora o token/, /Pergunta à uazapi/]) {
+      expect(screen.queryByText(t)).toBeNull();
+    }
+  });
+
   test("texto de tela: nenhuma frase visível começa em minúscula nem tem travessão", async () => {
     api.conexoes.mockResolvedValue([FORA, { ...NO_AR, id: "c3", vaultRef: "vendas" }]);
     const { container } = render(<Conexoes />);
@@ -166,5 +176,72 @@ describe("Conexões — testar agora", () => {
       expect(t, t).not.toMatch(/[—;…!]/);
       expect(t, t).toMatch(/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9]/);
     }
+  });
+});
+
+describe("Conexões — para onde vão as mensagens recebidas", () => {
+  const com = (webhooks: unknown): ConexaoReal => ({
+    ...NO_AR,
+    ultimoTesteDados: { ...NO_AR.ultimoTesteDados, webhooks } as ConexaoReal["ultimoTesteDados"],
+  });
+
+  test("webhook para outro sistema aparece como alerta, com o host", async () => {
+    api.conexoes.mockResolvedValue([com([{ host: "n8n.metrik.com", ativo: true, eventos: ["messages"] }])]);
+    render(<Conexoes />);
+    expect(await screen.findByText("Mensagens recebidas vão para n8n.metrik.com, não para este sistema.")).toBeTruthy();
+  });
+
+  test("webhook para o leitor de grupos deste sistema", async () => {
+    api.conexoes.mockResolvedValue([com([{ host: "motor.test", ativo: true, destino: "grupos", eventos: [] }])]);
+    render(<Conexoes />);
+    expect(await screen.findByText("Mensagens recebidas chegam ao leitor de grupos.")).toBeTruthy();
+  });
+
+  test("nenhum webhook, e webhook desativado", async () => {
+    api.conexoes.mockResolvedValue([com([]), { ...com([{ host: "a.com", ativo: false, eventos: [] }]), id: "c9" }]);
+    render(<Conexoes />);
+    expect(await screen.findByText("Nenhum webhook configurado. Mensagens recebidas não chegam a este sistema.")).toBeTruthy();
+    expect(screen.getByText("Webhook desativado na instância. Mensagens recebidas não chegam a este sistema.")).toBeTruthy();
+  });
+
+  test("teste que não leu o webhook não diz nada sobre ele", async () => {
+    api.conexoes.mockResolvedValue([NO_AR]);
+    render(<Conexoes />);
+    await screen.findByText("No ar");
+    expect(screen.queryByText(/Mensagens recebidas/)).toBeNull();
+  });
+});
+
+describe("Conexões — mensagem de teste", () => {
+  test("abre o campo, envia para o número digitado e mostra a confirmação da uazapi", async () => {
+    api.conexoes.mockResolvedValue([NO_AR]);
+    api.enviarMensagemDeTeste.mockResolvedValue({ ok: true, detalhe: "Mensagem enviada. A uazapi confirmou o envio." });
+    render(<Conexoes />);
+    await screen.findByText("No ar");
+
+    fireEvent.click(screen.getByRole("button", { name: /enviar mensagem de teste/i }));
+    fireEvent.change(screen.getByPlaceholderText("5561991840065"), { target: { value: "5561991840065" } });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
+
+    expect(await screen.findByText("Mensagem enviada. A uazapi confirmou o envio.")).toBeTruthy();
+    expect(api.enviarMensagemDeTeste).toHaveBeenCalledWith("c1", "5561991840065", undefined);
+  });
+
+  test("a recusa da uazapi aparece como alerta", async () => {
+    api.conexoes.mockResolvedValue([NO_AR]);
+    api.enviarMensagemDeTeste.mockResolvedValue({ ok: false, detalhe: "A uazapi recusou o token da instância." });
+    render(<Conexoes />);
+    await screen.findByText("No ar");
+    fireEvent.click(screen.getByRole("button", { name: /enviar mensagem de teste/i }));
+    fireEvent.change(screen.getByPlaceholderText("5561991840065"), { target: { value: "5561991840065" } });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
+    expect((await screen.findByRole("alert")).textContent).toContain("A uazapi recusou o token da instância.");
+  });
+
+  test("conexão que não é WhatsApp não oferece envio", async () => {
+    api.conexoes.mockResolvedValue([{ ...NO_AR, kind: "kommo", ultimoTesteDados: { conta: "Norte" } }]);
+    render(<Conexoes />);
+    await screen.findByText("No ar");
+    expect(screen.queryByRole("button", { name: /enviar mensagem de teste/i })).toBeNull();
   });
 });

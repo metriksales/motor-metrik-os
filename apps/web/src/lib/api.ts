@@ -126,4 +126,7 @@ export const api = {
     input: { kind: string; segredo: string; rotulo?: string; meta?: Record<string, unknown> },
     getToken?: GetToken,
   ) => control("cadastrarConexao", { body: input, getToken }),
+  // S-026: uma mensagem real pela instância, para o número digitado
+  enviarMensagemDeTeste: (id: string, numero: string, getToken?: GetToken) =>
+    control("enviarMensagemDeTeste", { body: { id, numero }, getToken }),
 };

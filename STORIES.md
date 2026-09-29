@@ -22,21 +22,21 @@ Atualizado em 2026-09-24 13:40.
 | S-009 | Porteiro de verdade: eval obrigatório e fiel à produção | 1 | backlog |
 | S-010 | Integridade do banco: FKs, uniques e ledger append-only | 1 | concluída |
 | S-011 | Isolamento no banco com RLS | 1 | concluída |
-| S-012 | Observabilidade do control plane e do runtime | 1 | backlog |
+| S-012 | Observabilidade do control plane e do runtime | 1 | em andamento |
 | S-013 | Front enxuto: código morto, tipos e lint | 1 | backlog |
 | S-014 | Dados ao vivo com um só polling e fuso fixo | 1 | backlog |
 | S-015 | Studio utilizável no celular | 3 | backlog |
 | S-016 | Decisão D-1: papel do OS frente aos agentes no ar | — | cancelado |
 | S-017 | Definição de produto v1 | — | concluido |
 | S-018 | Frota que se reporta ao OS | — | cancelado |
-| S-019 | Conexões reais com teste e status verdadeiro | 2 | em andamento |
+| S-019 | Conexões reais com teste e status verdadeiro | 2 | concluido |
 | S-020 | Controles de operador: parada, recado, pausa e assumir | 2 | backlog |
 | S-021 | Métricas que o cliente paga | 4 | backlog |
 | S-022 | Permissões e modo desenvolvedor | 3 | backlog |
 | S-023 | Runtime multi-tenant: extrair o motor da skill (GHL + Kommo) | 2 | backlog |
 | S-024 | Estado, filas e idempotência no Redis | 2 | backlog |
 | S-025 | Cofre de credenciais por conta | 1 | em andamento |
-| S-026 | Canais reais de entrada e saída | 2 | backlog |
+| S-026 | Canais reais de entrada e saída | 2 | em andamento |
 | S-027 | Resiliência e custo das integrações | 2 | backlog |
 | S-028 | Migrar os clientes atuais para a plataforma | 4 | backlog |
 | S-029 | Leitor de grupos: fechar o piloto | 1 | backlog |
@@ -496,9 +496,9 @@ O que foi corrigido, achado a achado:
 
 ## S-012 · Observabilidade do control plane e do runtime
 
-- **status:** backlog
+- **status:** em andamento
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-28
 
 **Missão.** Um 500 em produção não deixa rastro, cada execução é logada duas vezes e o insert é fire-and-forget, podendo se perder quando a função congela. Sem isso, o primeiro incidente real vira adivinhação — e agora o incidente afeta todos os clientes.
 
@@ -673,9 +673,9 @@ O que foi corrigido, achado a achado:
 
 ## S-019 · Conexões reais com teste e status verdadeiro
 
-- **status:** em andamento
+- **status:** concluido
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-28
+- **atualizado:** 2026-09-29
 
 **Missão.** A tela de Conexões afirma que tudo está "no ar e funcionando" sem consultar nada. Conexão é a primeira coisa que quebra — token expirado, ID do CRM mudado — e o cliente precisa ver isso antes do lead reclamar. Em 28/09 uma instância de WhatsApp passou uma hora desconectada e o sistema **sabia como perguntar** (`GET /instance/status`) e nunca perguntou: `connections.status` era uma string gravada no cadastro, que a tela mostrava como se fosse um fato.
 
@@ -906,9 +906,9 @@ O que foi corrigido, achado a achado:
 
 ## S-026 · Canais reais de entrada e saída
 
-- **status:** backlog
+- **status:** em andamento
 - **criado:** 2026-09-21 15:47
-- **atualizado:** 2026-09-23 12:10
+- **atualizado:** 2026-09-29
 
 **Missão.** O envio pela uazapi é um stub que devolve sucesso, a "resposta" no Kommo vira nota interna, o follow-up padrão nunca entrega e o webhook não entende o formato de nenhum provedor. O painel mostraria sucesso sem nenhuma mensagem chegar — a cicatriz mais cara da casa.
 
@@ -928,12 +928,19 @@ O que foi corrigido, achado a achado:
 
 **Checklist**
 
-- [ ] Nenhum transporte devolve sucesso sem confirmação do provedor
+- [ ] Nenhum transporte devolve sucesso sem confirmação do provedor — **a uazapi está feita (29/09)**: o transporte devolvia `ok: true` com um id inventado e não enviava nada. Agora envia por `POST /send/text` (`packages/messaging/src/uazapi.ts`) e o sucesso exige `messageid` na resposta e estado da mensagem que não seja de falha; o HTTP 200 sozinho não basta. O envio real é o PADRÃO do transporte, para que nenhum caminho esquecido volte a fingir. Falta o GHL nativo, que ainda decide pelo HTTP, e o Kommo, que "responde" como nota.
 - [ ] Sem chave de IA configurada → erro, nunca cérebro falso
 - [ ] Parsers de GHL e uazapi com assinatura verificada
 - [ ] Kommo entregando nos dois desenhos, verificado no celular
 - [ ] GHL enviando como WhatsApp; fora da janela usa template
 - [ ] Publicar recusa combinação impossível de remetente e transporte
+
+**Progresso de 29/09.**
+
+- **A entrada da uazapi nunca chegou aqui.** Com a instância conectada, nenhuma requisição da uazapi chegou em três horas, e `group_reader_events` nunca teve uma linha. O teste de conexão agora lê `GET /webhook` da instância, em sequência com o status, e o cartão diz para onde as mensagens recebidas vão: ao atendimento, ao leitor de grupos, ou a outro host, em alerta. Só leitura: trocar o destino quebraria qualquer outro sistema que dependa da instância. Guarda **só o host** — caminho e query ficam de fora, porque URL de webhook carrega segredo (o do leitor de grupos já esteve na query, S-029).
+- **Envio de teste pela tela.** "Enviar mensagem de teste" no cartão do WhatsApp manda `Mensagem de teste do Metrik-OS.` para o número digitado, pela mesma função do transporte, com o token do cofre. Exige `gerenciar`. A auditoria guarda os quatro últimos dígitos do destino, nunca o número inteiro.
+- **Ainda não provado em produção.** Tudo acima foi exercitado com uazapi falsa, nas formas documentadas. A prova é um envio de teste chegando num celular.
+- **O runtime ainda não usa o cofre para enviar.** O transporte envia de verdade quando recebe as instâncias, mas o webhook de atendimento monta o runtime sem instância nenhuma (`createProductionDeps` sem `uazapi`). Ligar as instâncias do cofre ao runtime é o passo seguinte, junto com a entrada.
 
 ---
 

@@ -45,6 +45,7 @@ import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./ema
 import { exigirPermissao, type Papel } from "./permissoes.js";
 import { cifrar, decifrar, dicaDe, lerChaves } from "./cofre.js";
 import { TESTADORES, type Http, type Veredito } from "./conexoes.js";
+import { enviarTextoUazapi } from "@motor/messaging";
 
 export * from "./tokens.js";
 export * from "./conexoes.js";
@@ -615,7 +616,7 @@ export async function upsertConnection(
 export async function testarConexao(
   ctx: Ctx,
   input: { id: string },
-  opts: { http?: Http; agora?: () => Date } = {},
+  opts: OpcoesDoTeste = {},
 ): Promise<ConexaoVisivel> {
   exigirPermissao(ctx, "ajustar");
   const id = String(input.id ?? "").trim();
@@ -641,7 +642,10 @@ export async function testarConexao(
     // o meta NÃO secreto mora na credencial (id da subconta, base url); o da
     // conexão, quando houver, tem a última palavra
     const meta = { ...comoObjeto(credencial.meta), ...comoObjeto(linha.meta) };
-    veredito = await testador({ segredo: credencial.segredo, meta }, opts.http ?? fetch);
+    veredito = await testador(
+      { segredo: credencial.segredo, meta, nossosHosts: opts.nossosHosts },
+      opts.http ?? fetch,
+    );
     status = veredito.ok ? "ok" : "falha";
   }
 
@@ -672,7 +676,7 @@ export async function testarConexao(
 export async function cadastrarConexao(
   ctx: Ctx,
   input: { kind: ConnKind; segredo: string; rotulo?: string; meta?: Record<string, unknown> },
-  opts: { http?: Http; agora?: () => Date } = {},
+  opts: OpcoesDoTeste = {},
 ): Promise<ConexaoVisivel> {
   exigirPermissao(ctx, "gerenciar");
   if (!TIPOS_DE_CONEXAO.includes(input.kind)) throw new EntradaInvalida("tipo de conexão desconhecido");
@@ -680,6 +684,59 @@ export async function cadastrarConexao(
   await guardarCredencial(ctx, { kind: input.kind, segredo: input.segredo, rotulo, meta: input.meta });
   const conexao = await upsertConnection(ctx, { kind: input.kind, ref: rotulo });
   return testarConexao(ctx, { id: conexao.id }, opts);
+}
+
+/** O que o handler passa ao teste: a rede (injetável), o relógio e por onde este sistema responde. */
+export type OpcoesDoTeste = { http?: Http; agora?: () => Date; nossosHosts?: string[] };
+
+/** O texto da mensagem de teste. Fixo: quem recebe precisa reconhecer de onde veio. */
+export const TEXTO_DE_TESTE = "Mensagem de teste do Metrik-OS.";
+
+/**
+ * Envia UMA mensagem de verdade pela instância (S-026), para um número que a
+ * pessoa digita. É a prova de que o envio funciona — a mesma função que o
+ * transporte da uazapi usa, com o token que sai do cofre.
+ *
+ * Exige `gerenciar`: sai uma mensagem real, do número do cliente. A auditoria
+ * guarda que houve o envio e os quatro últimos dígitos do destino, nunca o
+ * número inteiro.
+ */
+export async function enviarMensagemDeTeste(
+  ctx: Ctx,
+  input: { id: string; numero: string },
+  opts: { http?: Http } = {},
+): Promise<{ ok: boolean; detalhe: string }> {
+  exigirPermissao(ctx, "gerenciar");
+  const id = String(input.id ?? "").trim();
+  if (!UUID.test(id)) throw new NaoEncontrado("conexão");
+  const numero = String(input.numero ?? "").replace(/\D/g, "");
+  if (numero.length < 10 || numero.length > 15) {
+    throw new EntradaInvalida("Número inválido. Use o formato internacional, com DDI e DDD.");
+  }
+  const [linha] = await db
+    .select()
+    .from(connections)
+    .where(and(eq(connections.id, id), eq(connections.orgId, ctx.orgId)));
+  if (!linha) throw new NaoEncontrado("conexão");
+  if (linha.kind !== "whatsapp") throw new EntradaInvalida("Mensagem de teste só existe para conexões de WhatsApp.");
+
+  const credencial = await usarCredencial(ctx, { kind: "whatsapp", rotulo: linha.vaultRef ?? "padrao" });
+  let r: { ok: boolean; error?: string };
+  if (!credencial) {
+    r = { ok: false, error: "Nenhuma credencial guardada no cofre para esta conexão." };
+  } else {
+    const meta = { ...comoObjeto(credencial.meta), ...comoObjeto(linha.meta) };
+    r = await enviarTextoUazapi(opts.http ?? fetch, {
+      base: typeof meta.baseUrl === "string" ? meta.baseUrl : undefined,
+      token: credencial.segredo,
+      numero,
+      texto: TEXTO_DE_TESTE,
+    });
+  }
+  await audit(ctx, "connection.mensagem_teste", id, { final: numero.slice(-4), ok: r.ok });
+  return r.ok
+    ? { ok: true, detalhe: "Mensagem enviada. A uazapi confirmou o envio." }
+    : { ok: false, detalhe: r.error ?? "A uazapi não confirmou o envio." };
 }
 
 /**
