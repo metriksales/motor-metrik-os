@@ -278,7 +278,7 @@ describe.skipIf(!temBanco)("conexões pela porta única (S-019)", () => {
     expect(r.status).toBe(200);
     const c = r.corpo as { status: string; ultimoTesteDetalhe: string; ultimoTesteEm: string; vaultRef: string };
     expect(c.status).toBe("falha");
-    expect(c.ultimoTesteDetalhe).toMatch(/baseUrl/);
+    expect(c.ultimoTesteDetalhe).toBe("Falta o endereço da instância.");
     expect(c.ultimoTesteEm).toBeTruthy();
     expect(c.vaultRef).toBe("linha-1");
     expect(JSON.stringify(r.corpo)).not.toContain(SEGREDO);

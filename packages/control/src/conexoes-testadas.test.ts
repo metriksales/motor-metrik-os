@@ -99,7 +99,7 @@ describe.skipIf(!temBanco)("conexões testadas (S-019)", () => {
     });
     expect(r.status).toBe("sem_credencial");
     expect(r.ultimoTesteEm.toISOString()).toBe(agora.toISOString());
-    expect(r.ultimoTesteDetalhe).toBe('nenhuma credencial "linha-1" do tipo whatsapp guardada no cofre desta conta');
+    expect(r.ultimoTesteDetalhe).toBe('Nenhuma credencial guardada no cofre para esta conexão (rótulo "linha-1").');
   });
 
   test("com credencial: o status é o que o provedor disse, e muda quando ele muda", async () => {
@@ -119,7 +119,7 @@ describe.skipIf(!temBanco)("conexões testadas (S-019)", () => {
       return { ok, caiu, lista, trilha };
     });
     expect(r.ok.status).toBe("ok");
-    expect(r.ok.ultimoTesteDetalhe).toBe("WhatsApp conectado como Metrik · +5521981740018");
+    expect(r.ok.ultimoTesteDetalhe).toBe("Conectado como Metrik (+5521981740018).");
     expect(r.ok.ultimoTesteDados).toEqual({
       estado: "connected",
       nome: "Metrik",
@@ -214,7 +214,7 @@ describe.skipIf(!temBanco)("conexões testadas (S-019)", () => {
     expect(c.testavel).toBe(false);
     await expect(
       bd.comConta(orgId, () => control.testarConexao(ctx, { id: c.id }, { http: provedor({}) })),
-    ).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/ainda não existe teste.*gcal/) });
+    ).rejects.toMatchObject({ status: 400, message: 'Conexões do tipo "gcal" ainda não têm teste.' });
     const [depois] = await bd.comConta(orgId, () => control.listConnections(ctx));
     expect(depois.status).toBe("nao_testada");
     // e tipo inventado nem entra

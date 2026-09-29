@@ -1,9 +1,11 @@
 // CONEXÕES — o que o PROVEDOR disse no último teste, com data (S-019).
 //
 // Logado, esta tela não afirma nada por conta própria: cada cartão mostra o
-// resultado do último "testar agora" contra a uazapi/GHL/Kommo, e quando
-// ninguém perguntou ainda, diz "nunca testada". A maquete com tudo "ligado"
+// resultado do último "Testar agora" contra a uazapi/GHL/Kommo, e quando
+// ninguém perguntou ainda, diz "Nunca testada". A maquete com tudo "ligado"
 // continua existindo — só na vitrine (modo demo), onde é o que ela diz ser.
+//
+// Todo texto que a pessoa lê aqui segue a skill `texto-de-tela`.
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
@@ -41,7 +43,7 @@ export default function Conexoes() {
   return auth.demo ? <Vitrine /> : <ConexoesDaConta />;
 }
 
-/** Por quanto tempo o cartão anuncia "o provedor respondeu agora". */
+/** Por quanto tempo o cartão anuncia que a resposta chegou. */
 const AVISO_MS = 6000;
 
 // ── a conta de verdade ─────────────────────────────────────────────────────
@@ -53,8 +55,8 @@ function ConexoesDaConta() {
   const [testando, setTestando] = useState<string | null>(null);
   const [erroDoTeste, setErroDoTeste] = useState<Record<string, string | undefined>>({});
   // O cartão precisa DIZER que a resposta chegou — mesmo quando ela é igual à
-  // anterior. Sem isso, "testar" numa conexão que já estava fora parecia não
-  // fazer nada, e a pessoa recarregava a página para conferir.
+  // anterior. Sem isso, "Testar agora" numa conexão que já estava fora parecia
+  // não fazer nada, e a pessoa recarregava a página para conferir.
   const [aviso, setAviso] = useState<{ id: string; mesma: boolean } | null>(null);
   const avisoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (avisoTimer.current) clearTimeout(avisoTimer.current); }, []);
@@ -70,7 +72,7 @@ function ConexoesDaConta() {
       if (avisoTimer.current) clearTimeout(avisoTimer.current);
       avisoTimer.current = setTimeout(() => setAviso((a) => (a?.id === c.id ? null : a)), AVISO_MS);
     } catch (e) {
-      setErroDoTeste((x) => ({ ...x, [c.id]: e instanceof Error ? e.message : "não consegui testar" }));
+      setErroDoTeste((x) => ({ ...x, [c.id]: e instanceof Error ? e.message : "Falha ao testar." }));
     } finally {
       setTestando(null);
     }
@@ -85,15 +87,14 @@ function ConexoesDaConta() {
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 mb-2">
               <Plug size={16} className="text-[var(--violet)]" />
-              <span className="mono-label">As conexões da sua conta</span>
+              <span className="mono-label">Conexões da conta</span>
             </div>
             <h2 className="font-display text-[22px] md:text-[26px] font-semibold tracking-tight">
-              O que cada ponta <span className="grad-text">respondeu</span> — não o que foi cadastrado.
+              O que cada ponta <span className="grad-text">respondeu</span>, não o que foi cadastrado.
             </h2>
             <p className="text-[var(--txt-2)] mt-2.5 text-[14px] leading-relaxed">
-              Conexão é a primeira coisa que quebra: token vencido, instância de WhatsApp desconectada, funil que
-              mudou de id. Cada cartão mostra o resultado do último teste contra o provedor, com data. Se ninguém
-              perguntou ainda, ele diz isso.
+              Conexão é a primeira coisa que quebra: token vencido, instância desconectada, funil que mudou de id.
+              Cada cartão mostra o resultado do último teste contra o provedor, com data.
             </p>
           </div>
         </div>
@@ -113,8 +114,8 @@ function ConexoesDaConta() {
           }
         />
         {erro && (
-          <div className="card p-4 mb-3 text-[13px] flex items-center gap-2" style={{ color: "var(--rose)" }}>
-            <AlertTriangle size={14} /> não consegui ler as conexões da sua conta: {erro}
+          <div className="card p-4 mb-3 text-[13px] flex items-center gap-2" style={{ color: "var(--rose)" }} role="alert">
+            <AlertTriangle size={14} /> Não foi possível ler as conexões. {erro}
           </div>
         )}
         {carregando && !conexoes ? (
@@ -149,8 +150,8 @@ function ConexoesDaConta() {
           <div>
             <strong>Onde mora o token</strong>
             <p>
-              No cofre da sua conta, cifrado com uma chave que só abre para ela. Ele nunca volta a esta tela — trocar
-              é substituir — e cada vez que um teste o usa fica registrado na auditoria.
+              No cofre da conta, cifrado com uma chave que só abre para ela. O token nunca volta a esta tela. Trocar é
+              substituir. Cada uso por um teste fica registrado na auditoria.
             </p>
           </div>
         </div>
@@ -168,18 +169,18 @@ function EstadoVazio({ podeGerenciar }: { podeGerenciar: boolean }) {
       <strong className="text-[14px]">Nenhuma conexão cadastrada nesta conta.</strong>
       <p className="text-[13px] text-[var(--txt-3)] mt-1.5 leading-relaxed">
         {podeGerenciar
-          ? "Cadastre a primeira logo abaixo: o token vai para o cofre e o teste roda na hora."
+          ? "Cadastre a primeira abaixo. O token vai para o cofre e o teste roda na hora."
           : "Quem administra a conta pode cadastrar a primeira."}
       </p>
     </div>
   );
 }
 
-/** "testada agora" / "testada há 5 min" / "nunca testada" */
+/** "Testada agora" / "Testada há 5 min" / "Nunca testada" */
 function quandoTestou(iso: string | null): string {
-  if (!iso) return "nunca testada";
+  if (!iso) return "Nunca testada";
   const t = tempoRelativo(iso);
-  return t === "agora" ? "testada agora" : `testada há ${t}`;
+  return t === "agora" ? "Testada agora" : `Testada há ${t}`;
 }
 
 /** A foto de perfil que o provedor mandou; se a URL venceu, volta ao ícone. */
@@ -215,9 +216,13 @@ function CartaoDeConexao({
 }) {
   const tipo = TIPO_DE_CONEXAO[c.kind];
   const Icon = tipo?.icon ?? Plug;
+  const provedor = tipo?.provedor ?? "provedor";
   const st = STATUS_DA_CONEXAO[c.status] ?? { label: c.status, cor: "var(--txt-4)" };
-  const quem = quemRespondeu(c);
+  const quem = c.status === "ok" ? quemRespondeu(c) : "";
   const foto = c.status === "ok" ? c.ultimoTesteDados?.foto : undefined;
+  // Quem respondeu já está na linha de cima; a frase "Conectado como Luã" não
+  // se repete embaixo dela (texto-de-tela, regra 13).
+  const frase = quem ? null : c.ultimoTesteDetalhe ?? "Sem teste até agora.";
   return (
     <div className={cx("card p-4 h-full flex flex-col", aviso ? "connection-respondeu" : undefined)} data-status={c.status}>
       <div className="flex items-start gap-3">
@@ -227,16 +232,12 @@ function CartaoDeConexao({
             <strong className="text-[13.5px] text-[var(--txt)]">{nomeDaConexao(c)}</strong>
             <Pill color={st.cor}>{st.label}</Pill>
           </div>
-          {quem && c.status === "ok" && (
-            <div className="text-[12.5px] text-[var(--txt-2)] mt-0.5 truncate">{quem}</div>
-          )}
+          {quem && <div className="text-[12.5px] text-[var(--txt-2)] mt-0.5 truncate">{quem}</div>}
           <div className="mono-label mt-1">{tipo?.tipo ?? c.kind} · {quandoTestou(c.ultimoTesteEm)}</div>
-          <p className="text-[13px] text-[var(--txt-2)] mt-2 leading-relaxed">
-            {c.ultimoTesteDetalhe ?? "Ninguém perguntou ao provedor ainda. Teste agora para saber."}
-          </p>
+          {frase && <p className="text-[13px] text-[var(--txt-2)] mt-2 leading-relaxed">{frase}</p>}
           {aviso && (
             <p className="text-[12px] mt-1.5 flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
-              <Check size={12} /> {tipo?.provedor ?? "o provedor"} respondeu agora{aviso.mesma ? " — a mesma resposta de antes" : ""}
+              <Check size={12} /> {aviso.mesma ? "Resposta recebida agora. Igual à anterior." : "Resposta recebida agora."}
             </p>
           )}
           {erro && (
@@ -246,17 +247,17 @@ function CartaoDeConexao({
       </div>
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[var(--line)]">
         <span className="text-[11.5px] text-[var(--txt-4)]">
-          {c.testavel ? `pergunta à ${tipo?.provedor ?? "provedor"} e grava a resposta` : "ainda não existe teste para este tipo"}
+          {c.testavel ? `Pergunta à ${provedor} e grava a resposta.` : "Sem teste para este tipo."}
         </span>
         <button
           type="button"
           className="btn btn-sm"
           disabled={!c.testavel || testando}
           onClick={onTestar}
-          title={c.testavel ? undefined : "ainda não existe teste para este tipo"}
+          title={c.testavel ? undefined : "Sem teste para este tipo."}
         >
           {testando ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-          {testando ? `perguntando à ${tipo?.provedor ?? "provedor"}…` : "Testar agora"}
+          {testando ? "Testando" : "Testar agora"}
         </button>
       </div>
     </div>
@@ -298,7 +299,7 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
       setResultado(r);
       setSegredo("");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "não consegui cadastrar");
+      setErro(e instanceof Error ? e.message : "Falha ao cadastrar.");
     } finally {
       setOcupado(false);
     }
@@ -319,7 +320,7 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
 
         <div className="grid sm:grid-cols-2 gap-x-4">
           <label className="auth-campo">
-            <span className="mono-label">tipo</span>
+            <span className="mono-label">Tipo</span>
             <select
               value={kind}
               disabled={ocupado}
@@ -335,7 +336,7 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
             </select>
           </label>
           <label className="auth-campo">
-            <span className="mono-label">rótulo</span>
+            <span className="mono-label">Rótulo</span>
             <input
               type="text"
               value={rotulo}
@@ -348,7 +349,7 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
             <label className="auth-campo" key={campo.key}>
               <span className="mono-label">
                 {campo.label}
-                {campo.ajuda ? <em className="not-italic normal-case text-[var(--txt-4)]"> · {campo.ajuda}</em> : null}
+                {campo.ajuda ? <em className="not-italic normal-case text-[var(--txt-4)] ml-2">{campo.ajuda}</em> : null}
               </span>
               <input
                 type="text"
@@ -386,10 +387,10 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[11.5px] text-[var(--txt-4)]">o segredo não volta à tela depois de guardado</span>
+          <span className="text-[11.5px] text-[var(--txt-4)]">O segredo não volta à tela depois de guardado.</span>
           <button type="submit" className="btn btn-primary btn-sm" disabled={ocupado || !segredo}>
             {ocupado ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-            {ocupado ? "guardando e testando…" : "Guardar e testar"}
+            {ocupado ? "Guardando e testando" : "Guardar e testar"}
           </button>
         </div>
       </form>

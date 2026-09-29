@@ -2,7 +2,9 @@
 //
 // O status NÃO é uma string que alguém gravou no cadastro: é o que o último
 // teste contra o provedor disse, com data. A tela mostra isso — e quando
-// nunca houve teste, diz "nunca testada", não "ligado".
+// nunca houve teste, diz "Nunca testada", não "ligado".
+//
+// Todo texto daqui aparece na tela: segue a skill `texto-de-tela`.
 import { CalendarDays, ContactRound, Database, FileSignature, MessageCircle, Scale, type LucideIcon } from "lucide-react";
 
 /** O que o provedor contou no último teste, para mostrar (nunca o segredo). */
@@ -57,7 +59,7 @@ export function formatarNumero(digitos: string): string {
   return `+${d}`;
 }
 
-/** Quem está do outro lado, numa linha: "Luã · +55 21 98174-0018" / "subconta Clínica Sorriso". */
+/** Quem está do outro lado, numa linha de metadados: "Luã · +55 21 98174-0018". */
 export function quemRespondeu(c: Pick<ConexaoReal, "ultimoTesteDados">): string {
   const d = c.ultimoTesteDados ?? {};
   return [d.nome, d.numero ? formatarNumero(d.numero) : undefined, d.subconta, d.conta]
@@ -66,10 +68,10 @@ export function quemRespondeu(c: Pick<ConexaoReal, "ultimoTesteDados">): string 
 }
 
 export const STATUS_DA_CONEXAO: Record<string, { label: string; cor: string }> = {
-  ok: { label: "no ar", cor: "var(--emerald)" },
-  falha: { label: "com problema", cor: "var(--rose)" },
-  sem_credencial: { label: "sem credencial", cor: "var(--amber)" },
-  nao_testada: { label: "nunca testada", cor: "var(--txt-4)" },
+  ok: { label: "No ar", cor: "var(--emerald)" },
+  falha: { label: "Com problema", cor: "var(--rose)" },
+  sem_credencial: { label: "Sem credencial", cor: "var(--amber)" },
+  nao_testada: { label: "Nunca testada", cor: "var(--txt-4)" },
 };
 
 /** As que pedem alguém: o provedor disse que não, ou não há com o que perguntar. */
@@ -92,26 +94,26 @@ export interface CampoDeCadastro {
 /** O que cada tipo precisa além do segredo. Nada aqui é secreto: vai no `meta`. */
 export const CAMPOS_POR_TIPO: Record<TipoCadastravel, { segredo: string; campos: CampoDeCadastro[] }> = {
   whatsapp: {
-    segredo: "token da instância",
+    segredo: "Token da instância",
     campos: [
-      { key: "baseUrl", label: "endereço da instância", placeholder: "https://minha.uazapi.com", obrigatorio: true },
+      { key: "baseUrl", label: "Endereço da instância", placeholder: "https://minha.uazapi.com", obrigatorio: true },
     ],
   },
   ghl: {
-    segredo: "token (Private Integration ou OAuth)",
+    segredo: "Token (Private Integration ou OAuth)",
     campos: [
-      { key: "locationId", label: "id da subconta (locationId)", obrigatorio: true },
-      { key: "pipelineId", label: "id do funil", ajuda: "opcional — se preencher, o teste confere que existe" },
-      { key: "defaultStageId", label: "id da etapa inicial", ajuda: "opcional" },
-      { key: "defaultCalendarId", label: "id do calendário", ajuda: "opcional" },
+      { key: "locationId", label: "Id da subconta (locationId)", obrigatorio: true },
+      { key: "pipelineId", label: "Id do funil", ajuda: "Opcional. Se preenchido, o teste confere que existe." },
+      { key: "defaultStageId", label: "Id da etapa inicial", ajuda: "Opcional." },
+      { key: "defaultCalendarId", label: "Id do calendário", ajuda: "Opcional." },
     ],
   },
   kommo: {
-    segredo: "token de longa duração",
+    segredo: "Token de longa duração",
     campos: [
-      { key: "baseUrl", label: "endereço da conta", placeholder: "https://minhaempresa.kommo.com", obrigatorio: true },
-      { key: "pipelineId", label: "id do funil", ajuda: "opcional — se preencher, o teste confere que existe" },
-      { key: "defaultStatusId", label: "id da etapa inicial", ajuda: "opcional" },
+      { key: "baseUrl", label: "Endereço da conta", placeholder: "https://minhaempresa.kommo.com", obrigatorio: true },
+      { key: "pipelineId", label: "Id do funil", ajuda: "Opcional. Se preenchido, o teste confere que existe." },
+      { key: "defaultStatusId", label: "Id da etapa inicial", ajuda: "Opcional." },
     ],
   },
 };

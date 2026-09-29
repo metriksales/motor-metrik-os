@@ -5,6 +5,9 @@
  * FRASE que o cliente lê — não o código HTTP. A regra medida na skill da
  * uazapi ("HTTP 200 não quer dizer que aceitou; um campo decide") é o primeiro
  * teste, porque foi o erro que já custou uma acusação falsa noutro projeto.
+ *
+ * As frases seguem a skill `texto-de-tela`, e por isso vários casos conferem o
+ * texto EXATO: maiúscula, ponto, sem travessão, "o que aconteceu, o que fazer".
  */
 import { describe, expect, test } from "vitest";
 import { ESPERA_MS, TESTADORES, testarGhl, testarKommo, testarUazapi, testavel, type Http } from "./conexoes.js";
@@ -47,15 +50,14 @@ describe("uazapi (WhatsApp)", () => {
     });
     const v = await testarUazapi({ segredo: "tok", meta: { baseUrl: "https://x.uazapi.com" } }, http);
     expect(v.ok).toBe(false);
-    expect(v.detalhe).toMatch(/desconectada/);
-    expect(v.detalhe).toMatch(/QR code/);
+    expect(v.detalhe).toBe("Instância desconectada. Leia o QR code no painel da uazapi.");
   });
 
   test("conectada: diz com quem, e manda o token no header certo", async () => {
     const { http, chamadas } = rede({ "/instance/status": { status: 200, body: uazapiOk } });
     const v = await testarUazapi({ segredo: "tok-123", meta: { baseUrl: "https://x.uazapi.com/" } }, http);
     expect(v.ok).toBe(true);
-    expect(v.detalhe).toBe("WhatsApp conectado como Metrik · +5521981740018");
+    expect(v.detalhe).toBe("Conectado como Metrik (+5521981740018).");
     expect(chamadas[0].url).toBe("https://x.uazapi.com/instance/status");
     expect(chamadas[0].headers.token).toBe("tok-123");
     // o segredo nunca vai parar na frase
@@ -69,16 +71,28 @@ describe("uazapi (WhatsApp)", () => {
     });
   });
 
-  test("foto que não é https fica de fora, e sem nome/número as chaves não existem", async () => {
+  test("sem jid, o número vem do owner da instância; foto que não é https fica de fora", async () => {
     const { http } = rede({
       "/instance/status": {
         status: 200,
-        body: { instance: { status: "connected", profilePicUrl: "data:image/png;base64,AAAA" }, status: { connected: true, loggedIn: true } },
+        body: {
+          instance: { status: "connected", owner: "5521981740018", profilePicUrl: "data:image/png;base64,AAAA" },
+          status: { connected: true, loggedIn: true, jid: null },
+        },
       },
     });
     const v = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, http);
     expect(v.ok).toBe(true);
-    expect(v.detalhe).toBe("WhatsApp conectado");
+    expect(v.detalhe).toBe("Conectado (+5521981740018).");
+    expect(v.dados).toEqual({ estado: "connected", numero: "5521981740018" });
+  });
+
+  test("sem nome nem número: 'Conectado.'", async () => {
+    const { http } = rede({
+      "/instance/status": { status: 200, body: { instance: { status: "connected", owner: "user@example.com" }, status: { connected: true, loggedIn: true } } },
+    });
+    const v = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, http);
+    expect(v.detalhe).toBe("Conectado.");
     expect(v.dados).toEqual({ estado: "connected" });
   });
 
@@ -86,22 +100,24 @@ describe("uazapi (WhatsApp)", () => {
     const { http } = rede({ "/instance/status": { status: 200, body: { instance: { status: "connecting" } } } });
     const v = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, http);
     expect(v.ok).toBe(false);
-    expect(v.detalhe).toMatch(/QR code/);
+    expect(v.detalhe).toBe("Instância aguardando a leitura do QR code.");
   });
 
-  test("401 é token recusado; 404 é instância inexistente", async () => {
+  test("401 é token recusado; 404 é instância inexistente; outro código vem com o número", async () => {
     const a = rede({ "/instance/status": { status: 401, body: { error: "instance info not found" } } });
-    expect((await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, a.http)).detalhe).toMatch(/recusou o token/);
+    expect((await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, a.http)).detalhe).toBe("A uazapi recusou o token da instância.");
     const b = rede({ "/instance/status": { status: 404 } });
-    expect((await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, b.http)).detalhe).toMatch(/não encontrada/);
+    expect((await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, b.http)).detalhe).toBe("Instância não encontrada nesse endereço.");
+    const c = rede({ "/instance/status": { status: 503 } });
+    expect((await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, c.http)).detalhe).toBe("A uazapi respondeu com erro (HTTP 503).");
   });
 
-  test("sem baseUrl (ou com http://) não chama ninguém e explica o que falta", async () => {
+  test("sem baseUrl (ou com http://) não chama ninguém e explica o que falta, sem nome interno", async () => {
     const { http, chamadas } = rede({});
     const v1 = await testarUazapi({ segredo: "t", meta: {} }, http);
     const v2 = await testarUazapi({ segredo: "t", meta: { baseUrl: "http://x.uazapi.com" } }, http);
     expect(v1.ok).toBe(false);
-    expect(v1.detalhe).toMatch(/baseUrl/);
+    expect(v1.detalhe).toBe("Falta o endereço da instância.");
     expect(v2.ok).toBe(false);
     expect(chamadas).toHaveLength(0);
   });
@@ -110,11 +126,11 @@ describe("uazapi (WhatsApp)", () => {
     const fora = rede({ "/instance/status": Object.assign(new Error("getaddrinfo ENOTFOUND"), { name: "TypeError" }) });
     const v1 = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://nao-existe.uazapi.com" } }, fora.http);
     expect(v1.ok).toBe(false);
-    expect(v1.detalhe).toBe("não foi possível falar com nao-existe.uazapi.com");
+    expect(v1.detalhe).toBe("Falha ao conectar a nao-existe.uazapi.com.");
 
     const lenta = rede({ "/instance/status": Object.assign(new Error("timeout"), { name: "TimeoutError" }) });
     const v2 = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, lenta.http);
-    expect(v2.detalhe).toBe(`x.uazapi.com não respondeu em ${ESPERA_MS / 1000}s`);
+    expect(v2.detalhe).toBe(`Sem resposta de x.uazapi.com em ${ESPERA_MS / 1000} s.`);
   });
 });
 
@@ -131,14 +147,14 @@ const ghlFunis = {
 const ghlCals = { status: 200, body: { calendars: [{ id: "c1", name: "Consultas" }] } };
 
 describe("GoHighLevel", () => {
-  test("token + subconta + mapa de IDs inteiro: uma frase com os nomes", async () => {
+  test("token + subconta + mapa de IDs inteiro: duas frases, com os nomes", async () => {
     const { http, chamadas } = rede({ "/locations/loc1": ghlLoc, "/opportunities/pipelines": ghlFunis, "/calendars/": ghlCals });
     const v = await testarGhl(
       { segredo: "pit", meta: { locationId: "loc1", pipelineId: "p1", defaultStageId: "s2", defaultCalendarId: "c1" } },
       http,
     );
     expect(v.ok).toBe(true);
-    expect(v.detalhe).toBe("subconta Clínica Sorriso · funil Vendas · etapa Qualificado · calendário Consultas");
+    expect(v.detalhe).toBe("Subconta Clínica Sorriso confirmada. Funil Vendas, etapa Qualificado e calendário Consultas existem.");
     expect(chamadas[0].headers.Authorization).toBe("Bearer pit");
     expect(chamadas[0].headers.Version).toBe("2021-07-28");
   });
@@ -151,40 +167,46 @@ describe("GoHighLevel", () => {
     );
     expect(v.ok).toBe(false);
     // s9 existe, mas no OUTRO funil — o teste olha dentro do funil configurado
-    expect(v.detalhe).toContain("a etapa s9 não existe no funil Vendas (existem: Novo, Qualificado)");
-    expect(v.detalhe).toContain("o calendário c-sumiu não existe nesta subconta (existem: Consultas)");
+    expect(v.detalhe).toContain("A etapa s9 não existe no funil Vendas. Existem: Novo, Qualificado.");
+    expect(v.detalhe).toContain("O calendário c-sumiu não existe nesta subconta. Existem: Consultas.");
   });
 
-  test("só a subconta, sem ids configurados: uma chamada e pronto", async () => {
+  test("só a subconta, sem ids configurados: uma chamada e uma frase", async () => {
     const { http, chamadas } = rede({ "/locations/loc1": ghlLoc });
     const v = await testarGhl({ segredo: "pit", meta: { locationId: "loc1" } }, http);
     expect(v.ok).toBe(true);
-    expect(v.detalhe).toBe("subconta Clínica Sorriso");
+    expect(v.detalhe).toBe("Subconta Clínica Sorriso confirmada.");
     expect(chamadas).toHaveLength(1);
+  });
+
+  test("só o funil confere: 'Funil Vendas existe.'", async () => {
+    const { http } = rede({ "/locations/loc1": ghlLoc, "/opportunities/pipelines": ghlFunis });
+    const v = await testarGhl({ segredo: "pit", meta: { locationId: "loc1", pipelineId: "p1" } }, http);
+    expect(v.detalhe).toBe("Subconta Clínica Sorriso confirmada. Funil Vendas existe.");
   });
 
   test("401/403/404 na subconta, e a lista de funis fora do escopo", async () => {
     for (const [status, frase] of [
-      [401, /recusou o token/],
-      [403, /não tem acesso/],
-      [404, /não encontrada/],
+      [401, "O GHL recusou o token."],
+      [403, "O token não tem acesso a essa subconta."],
+      [404, "Subconta não encontrada no GHL."],
     ] as const) {
       const { http } = rede({ "/locations/loc1": { status } });
       const v = await testarGhl({ segredo: "pit", meta: { locationId: "loc1" } }, http);
       expect(v.ok).toBe(false);
-      expect(v.detalhe).toMatch(frase);
+      expect(v.detalhe).toBe(frase);
     }
     const { http } = rede({ "/locations/loc1": ghlLoc, "/opportunities/pipelines": { status: 403 } });
     const v = await testarGhl({ segredo: "pit", meta: { locationId: "loc1", pipelineId: "p1" } }, http);
     expect(v.ok).toBe(false);
-    expect(v.detalhe).toMatch(/não consegui conferir os funis: HTTP 403/);
+    expect(v.detalhe).toBe("Não foi possível conferir os funis (HTTP 403).");
   });
 
   test("sem locationId não chama ninguém", async () => {
     const { http, chamadas } = rede({});
     const v = await testarGhl({ segredo: "pit", meta: {} }, http);
     expect(v.ok).toBe(false);
-    expect(v.detalhe).toMatch(/locationId/);
+    expect(v.detalhe).toBe("Falta o id da subconta.");
     expect(chamadas).toHaveLength(0);
   });
 });
@@ -209,7 +231,7 @@ describe("Kommo", () => {
       http,
     );
     expect(v.ok).toBe(true);
-    expect(v.detalhe).toBe("conta Imobiliária Norte · funil Locação · etapa Visita");
+    expect(v.detalhe).toBe("Conta Imobiliária Norte confirmada. Funil Locação e etapa Visita existem.");
     expect(chamadas[0].url).toBe("https://norte.kommo.com/api/v4/account");
     expect(chamadas[0].headers.Authorization).toBe("Bearer ll");
   });
@@ -218,18 +240,35 @@ describe("Kommo", () => {
     const { http } = rede({ "/api/v4/account": kommoConta, "/api/v4/leads/pipelines": kommoFunis });
     const v = await testarKommo({ segredo: "ll", meta: { baseUrl: "https://norte.kommo.com", pipelineId: "100", defaultStatusId: "42" } }, http);
     expect(v.ok).toBe(false);
-    expect(v.detalhe).toBe("a etapa 42 não existe no funil Locação (existem: Contato, Visita)");
+    expect(v.detalhe).toBe("A etapa 42 não existe no funil Locação. Existem: Contato, Visita.");
   });
 
   test("401 e 402 têm frase própria; sem baseUrl não chama", async () => {
     const a = rede({ "/api/v4/account": { status: 401 } });
-    expect((await testarKommo({ segredo: "ll", meta: { baseUrl: "https://n.kommo.com" } }, a.http)).detalhe).toMatch(/recusou o token/);
+    expect((await testarKommo({ segredo: "ll", meta: { baseUrl: "https://n.kommo.com" } }, a.http)).detalhe).toBe("O Kommo recusou o token.");
     const b = rede({ "/api/v4/account": { status: 402 } });
-    expect((await testarKommo({ segredo: "ll", meta: { baseUrl: "https://n.kommo.com" } }, b.http)).detalhe).toMatch(/assinatura/);
+    expect((await testarKommo({ segredo: "ll", meta: { baseUrl: "https://n.kommo.com" } }, b.http)).detalhe).toBe("A assinatura do Kommo está suspensa.");
     const c = rede({});
     const v = await testarKommo({ segredo: "ll", meta: {} }, c.http);
-    expect(v.detalhe).toMatch(/baseUrl/);
+    expect(v.detalhe).toBe("Falta o endereço da conta.");
     expect(c.chamadas).toHaveLength(0);
+  });
+});
+
+describe("texto de tela", () => {
+  test("toda frase começa em maiúscula, termina em ponto e não tem travessão", async () => {
+    const casos: Promise<{ detalhe: string }>[] = [
+      testarUazapi({ segredo: "t", meta: {} }, rede({}).http),
+      testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, rede({ "/instance/status": { status: 200, body: uazapiOk } }).http),
+      testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, rede({ "/instance/status": { status: 200, body: { instance: { status: "hibernated" } } } }).http),
+      testarGhl({ segredo: "p", meta: { locationId: "loc1", pipelineId: "p9" } }, rede({ "/locations/loc1": ghlLoc, "/opportunities/pipelines": ghlFunis }).http),
+      testarKommo({ segredo: "l", meta: { baseUrl: "https://n.kommo.com", pipelineId: "100", defaultStatusId: "1002" } }, rede({ "/api/v4/account": kommoConta, "/api/v4/leads/pipelines": kommoFunis }).http),
+    ];
+    for (const v of await Promise.all(casos)) {
+      expect(v.detalhe, v.detalhe).toMatch(/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/);
+      expect(v.detalhe, v.detalhe).toMatch(/\.$/);
+      expect(v.detalhe, v.detalhe).not.toMatch(/[—;…!]/);
+    }
   });
 });
 
