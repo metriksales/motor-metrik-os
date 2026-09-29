@@ -27,7 +27,13 @@ function rede(respostas: Record<string, { status: number; body?: unknown } | Err
 }
 
 const uazapiOk = {
-  instance: { id: "r1", name: "linha-1", status: "connected", profileName: "Metrik" },
+  instance: {
+    id: "r1",
+    name: "linha-1",
+    status: "connected",
+    profileName: "Metrik",
+    profilePicUrl: "https://pps.whatsapp.net/v/t61/foto.jpg",
+  },
   status: { connected: true, loggedIn: true, jid: { user: "5521981740018", server: "s.whatsapp.net" } },
 };
 
@@ -54,6 +60,26 @@ describe("uazapi (WhatsApp)", () => {
     expect(chamadas[0].headers.token).toBe("tok-123");
     // o segredo nunca vai parar na frase
     expect(v.detalhe).not.toContain("tok-123");
+    // o que o provedor contou, para a tela mostrar — só chaves presentes
+    expect(v.dados).toEqual({
+      estado: "connected",
+      nome: "Metrik",
+      numero: "5521981740018",
+      foto: "https://pps.whatsapp.net/v/t61/foto.jpg",
+    });
+  });
+
+  test("foto que não é https fica de fora, e sem nome/número as chaves não existem", async () => {
+    const { http } = rede({
+      "/instance/status": {
+        status: 200,
+        body: { instance: { status: "connected", profilePicUrl: "data:image/png;base64,AAAA" }, status: { connected: true, loggedIn: true } },
+      },
+    });
+    const v = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, http);
+    expect(v.ok).toBe(true);
+    expect(v.detalhe).toBe("WhatsApp conectado");
+    expect(v.dados).toEqual({ estado: "connected" });
   });
 
   test("sem os booleanos, vale o estado da instância", async () => {

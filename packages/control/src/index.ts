@@ -505,6 +505,8 @@ export type ConexaoVisivel = {
   agentId: string | null;
   ultimoTesteEm: Date | null;
   ultimoTesteDetalhe: string | null;
+  /** o que o provedor contou no último teste (nome, número, foto, subconta), para mostrar */
+  ultimoTesteDados: Record<string, unknown> | null;
   createdAt: Date;
   /** existe um jeito de testar este tipo? (tipo sem teste: a tela diz, em vez de fingir) */
   testavel: boolean;
@@ -521,6 +523,7 @@ function conexaoVisivel(l: typeof connections.$inferSelect): ConexaoVisivel {
     agentId: l.agentId,
     ultimoTesteEm: l.ultimoTesteEm,
     ultimoTesteDetalhe: l.ultimoTesteDetalhe,
+    ultimoTesteDados: (l.ultimoTesteDados as Record<string, unknown> | null) ?? null,
     createdAt: l.createdAt,
     testavel: l.kind in TESTADORES,
     temSegredoDeEntrada: l.inboundSecretHash != null,
@@ -583,6 +586,7 @@ export async function upsertConnection(
         status: "nao_testada",
         ultimoTesteEm: null,
         ultimoTesteDetalhe: null,
+        ultimoTesteDados: null,
       })
       .where(and(eq(connections.id, existing.id), eq(connections.orgId, ctx.orgId)))
       .returning();
@@ -612,7 +616,7 @@ export async function testarConexao(
   ctx: Ctx,
   input: { id: string },
   opts: { http?: Http; agora?: () => Date } = {},
-): Promise<ConexaoVisivel & { dados: Record<string, unknown> | null }> {
+): Promise<ConexaoVisivel> {
   exigirPermissao(ctx, "ajustar");
   const id = String(input.id ?? "").trim();
   if (!UUID.test(id)) throw new NaoEncontrado("conexão");
@@ -644,11 +648,18 @@ export async function testarConexao(
   const agora = (opts.agora ?? (() => new Date()))();
   const [atualizada] = await db
     .update(connections)
-    .set({ status, ultimoTesteEm: agora, ultimoTesteDetalhe: veredito.detalhe })
+    .set({
+      status,
+      ultimoTesteEm: agora,
+      ultimoTesteDetalhe: veredito.detalhe,
+      // o que o provedor contou fica com a conexão: a foto e o número
+      // aparecem no próximo carregamento, não só na resposta do clique
+      ultimoTesteDados: veredito.dados ?? null,
+    })
     .where(and(eq(connections.id, id), eq(connections.orgId, ctx.orgId)))
     .returning();
   await audit(ctx, "connection.testada", id, { kind: linha.kind, status });
-  return { ...conexaoVisivel(atualizada), dados: veredito.dados ?? null };
+  return conexaoVisivel(atualizada);
 }
 
 /**
@@ -662,7 +673,7 @@ export async function cadastrarConexao(
   ctx: Ctx,
   input: { kind: ConnKind; segredo: string; rotulo?: string; meta?: Record<string, unknown> },
   opts: { http?: Http; agora?: () => Date } = {},
-): Promise<ConexaoVisivel & { dados: Record<string, unknown> | null }> {
+): Promise<ConexaoVisivel> {
   exigirPermissao(ctx, "gerenciar");
   if (!TIPOS_DE_CONEXAO.includes(input.kind)) throw new EntradaInvalida("tipo de conexão desconhecido");
   const rotulo = String(input.rotulo ?? "padrao").trim() || "padrao";

@@ -50,7 +50,7 @@ function provedor(body: unknown, status = 200): Http {
 }
 
 const CONECTADA = {
-  instance: { status: "connected", profileName: "Metrik" },
+  instance: { status: "connected", profileName: "Metrik", profilePicUrl: "https://pps.whatsapp.net/foto.jpg" },
   status: { connected: true, loggedIn: true, jid: { user: "5521981740018" } },
 };
 const DESCONECTADA = { instance: { status: "disconnected" }, status: { connected: false, loggedIn: false } };
@@ -120,13 +120,21 @@ describe.skipIf(!temBanco)("conexões testadas (S-019)", () => {
     });
     expect(r.ok.status).toBe("ok");
     expect(r.ok.ultimoTesteDetalhe).toBe("WhatsApp conectado como Metrik · +5521981740018");
-    expect(r.ok.dados).toEqual({ estado: "connected", nome: "Metrik", numero: "5521981740018" });
+    expect(r.ok.ultimoTesteDados).toEqual({
+      estado: "connected",
+      nome: "Metrik",
+      numero: "5521981740018",
+      foto: "https://pps.whatsapp.net/foto.jpg",
+    });
     expect(r.caiu.status).toBe("falha");
     expect(r.caiu.ultimoTesteDetalhe).toMatch(/desconectada.*QR code/);
+    expect(r.caiu.ultimoTesteDados).toEqual({ estado: "disconnected" });
     expect(r.caiu.ultimoTesteEm.getTime()).toBeGreaterThanOrEqual(r.ok.ultimoTesteEm.getTime());
-    // a lista mostra o que o último teste disse
+    // a lista mostra o que o último teste disse — inclusive o que o provedor
+    // contou, que é o que a tela precisa no PRÓXIMO carregamento
     expect(r.lista).toHaveLength(1);
     expect(r.lista[0].status).toBe("falha");
+    expect(r.lista[0].ultimoTesteDados).toEqual({ estado: "disconnected" });
     // cada teste usou a credencial (registrado) e deixou o próprio rastro
     const acoes = r.trilha.map((l: { action: string }) => l.action);
     expect(acoes.filter((a: string) => a === "credencial.usada")).toHaveLength(2);
@@ -146,6 +154,7 @@ describe.skipIf(!temBanco)("conexões testadas (S-019)", () => {
     expect(r.status).toBe("nao_testada");
     expect(r.ultimoTesteEm).toBeNull();
     expect(r.ultimoTesteDetalhe).toBeNull();
+    expect(r.ultimoTesteDados).toBeNull();
   });
 
   test("conexão de outra conta: 404, e nada é gravado nela", async () => {

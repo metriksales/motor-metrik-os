@@ -240,6 +240,8 @@ export const connections = pgTable(
     ultimoTesteEm: timestamp("ultimo_teste_em", { withTimezone: true }),
     /** o resultado em linguagem de cliente ("instância desconectada — reconecte pelo QR code") */
     ultimoTesteDetalhe: text("ultimo_teste_detalhe"),
+    /** o que o provedor contou, para mostrar: nome, número, foto de perfil, subconta */
+    ultimoTesteDados: jsonb("ultimo_teste_dados"),
     /** agente que atende o que entra por esta conexão (S-004) */
     agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
     /** sha256 do segredo de entrada desta conexão; o valor em claro só aparece na criação */

@@ -142,12 +142,18 @@ export const testarUazapi: Testador = async ({ segredo, meta }, http) => {
     typeof st.connected === "boolean" ? st.connected && st.loggedIn !== false : estado === "connected";
   const nome = texto(inst.profileName) ?? texto(inst.name);
   const numero = texto(obj(st.jid).user);
+  // a foto é uma URL do CDN do WhatsApp; a tela a mostra e cai no ícone se vencer
+  const foto = texto(inst.profilePicUrl);
   if (conectado) {
     const quem = [nome, numero ? `+${numero}` : undefined].filter(Boolean).join(" · ");
+    const dados: Record<string, unknown> = { estado: estado ?? "connected" };
+    if (nome) dados.nome = nome;
+    if (numero) dados.numero = numero;
+    if (foto && /^https:\/\//i.test(foto)) dados.foto = foto;
     return {
       ok: true,
       detalhe: quem ? `WhatsApp conectado como ${quem}` : "WhatsApp conectado",
-      dados: { estado: estado ?? "connected", nome, numero },
+      dados,
     };
   }
   return {

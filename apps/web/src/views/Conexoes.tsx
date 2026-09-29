@@ -4,7 +4,7 @@
 // resultado do último "testar agora" contra a uazapi/GHL/Kommo, e quando
 // ninguém perguntou ainda, diz "nunca testada". A maquete com tudo "ligado"
 // continua existindo — só na vitrine (modo demo), onde é o que ela diz ser.
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -29,17 +29,20 @@ import {
   TIPO_DE_CONEXAO,
   TIPOS_CADASTRAVEIS,
   nomeDaConexao,
+  quemRespondeu,
   type ConexaoReal,
-  type ConexaoTestada,
   type TipoCadastravel,
 } from "../lib/conexoes";
 import { tempoRelativo, useConexoes } from "../lib/live";
-import { Pill, Reveal, SectionHeader, SkeletonCard } from "../ui";
+import { Pill, Reveal, SectionHeader, SkeletonCard, cx } from "../ui";
 
 export default function Conexoes() {
   const auth = useMotorAuth();
   return auth.demo ? <Vitrine /> : <ConexoesDaConta />;
 }
+
+/** Por quanto tempo o cartão anuncia "o provedor respondeu agora". */
+const AVISO_MS = 6000;
 
 // ── a conta de verdade ─────────────────────────────────────────────────────
 
@@ -49,13 +52,23 @@ function ConexoesDaConta() {
   const podeGerenciar = auth.role === "owner" || auth.role === "admin";
   const [testando, setTestando] = useState<string | null>(null);
   const [erroDoTeste, setErroDoTeste] = useState<Record<string, string | undefined>>({});
+  // O cartão precisa DIZER que a resposta chegou — mesmo quando ela é igual à
+  // anterior. Sem isso, "testar" numa conexão que já estava fora parecia não
+  // fazer nada, e a pessoa recarregava a página para conferir.
+  const [aviso, setAviso] = useState<{ id: string; mesma: boolean } | null>(null);
+  const avisoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (avisoTimer.current) clearTimeout(avisoTimer.current); }, []);
 
   const testar = async (c: ConexaoReal) => {
     setTestando(c.id);
     setErroDoTeste((e) => ({ ...e, [c.id]: undefined }));
     try {
-      const r = (await api.testarConexao(c.id, auth.getToken)) as ConexaoTestada;
+      const r = (await api.testarConexao(c.id, auth.getToken)) as ConexaoReal;
       substituir(r);
+      const mesma = r.status === c.status && r.ultimoTesteDetalhe === c.ultimoTesteDetalhe;
+      setAviso({ id: c.id, mesma });
+      if (avisoTimer.current) clearTimeout(avisoTimer.current);
+      avisoTimer.current = setTimeout(() => setAviso((a) => (a?.id === c.id ? null : a)), AVISO_MS);
     } catch (e) {
       setErroDoTeste((x) => ({ ...x, [c.id]: e instanceof Error ? e.message : "não consegui testar" }));
     } finally {
@@ -119,6 +132,7 @@ function ConexoesDaConta() {
                   c={c}
                   testando={testando === c.id}
                   erro={erroDoTeste[c.id]}
+                  aviso={aviso?.id === c.id ? aviso : null}
                   onTestar={() => testar(c)}
                 />
               </Reveal>
@@ -161,43 +175,78 @@ function EstadoVazio({ podeGerenciar }: { podeGerenciar: boolean }) {
   );
 }
 
+/** "testada agora" / "testada há 5 min" / "nunca testada" */
+function quandoTestou(iso: string | null): string {
+  if (!iso) return "nunca testada";
+  const t = tempoRelativo(iso);
+  return t === "agora" ? "testada agora" : `testada há ${t}`;
+}
+
+/** A foto de perfil que o provedor mandou; se a URL venceu, volta ao ícone. */
+function Avatar({ foto, Icon, alt }: { foto?: string; Icon: typeof Plug; alt: string }) {
+  const [quebrada, setQuebrada] = useState(false);
+  useEffect(() => setQuebrada(false), [foto]);
+  if (foto && !quebrada) {
+    return (
+      <img
+        className="connection-avatar flex-none"
+        src={foto}
+        alt={alt}
+        referrerPolicy="no-referrer"
+        onError={() => setQuebrada(true)}
+      />
+    );
+  }
+  return <span className="connection-status-icon flex-none"><Icon size={16} /></span>;
+}
+
 function CartaoDeConexao({
   c,
   testando,
   erro,
+  aviso,
   onTestar,
 }: {
   c: ConexaoReal;
   testando: boolean;
   erro?: string;
+  aviso: { mesma: boolean } | null;
   onTestar: () => void;
 }) {
   const tipo = TIPO_DE_CONEXAO[c.kind];
   const Icon = tipo?.icon ?? Plug;
   const st = STATUS_DA_CONEXAO[c.status] ?? { label: c.status, cor: "var(--txt-4)" };
+  const quem = quemRespondeu(c);
+  const foto = c.status === "ok" ? c.ultimoTesteDados?.foto : undefined;
   return (
-    <div className="card p-4 h-full flex flex-col">
+    <div className={cx("card p-4 h-full flex flex-col", aviso ? "connection-respondeu" : undefined)} data-status={c.status}>
       <div className="flex items-start gap-3">
-        <span className="connection-status-icon flex-none"><Icon size={16} /></span>
+        <Avatar foto={foto} Icon={Icon} alt={quem || nomeDaConexao(c)} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <strong className="text-[13.5px] text-[var(--txt)]">{nomeDaConexao(c)}</strong>
             <Pill color={st.cor}>{st.label}</Pill>
           </div>
-          <div className="mono-label mt-1">
-            {tipo?.tipo ?? c.kind} · {c.ultimoTesteEm ? `testada há ${tempoRelativo(c.ultimoTesteEm)}` : "nunca testada"}
-          </div>
+          {quem && c.status === "ok" && (
+            <div className="text-[12.5px] text-[var(--txt-2)] mt-0.5 truncate">{quem}</div>
+          )}
+          <div className="mono-label mt-1">{tipo?.tipo ?? c.kind} · {quandoTestou(c.ultimoTesteEm)}</div>
           <p className="text-[13px] text-[var(--txt-2)] mt-2 leading-relaxed">
             {c.ultimoTesteDetalhe ?? "Ninguém perguntou ao provedor ainda. Teste agora para saber."}
           </p>
+          {aviso && (
+            <p className="text-[12px] mt-1.5 flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
+              <Check size={12} /> {tipo?.provedor ?? "o provedor"} respondeu agora{aviso.mesma ? " — a mesma resposta de antes" : ""}
+            </p>
+          )}
           {erro && (
-            <p className="text-[12.5px] mt-1.5" style={{ color: "var(--rose)" }}>{erro}</p>
+            <p className="text-[12.5px] mt-1.5" style={{ color: "var(--rose)" }} role="alert">{erro}</p>
           )}
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[var(--line)]">
         <span className="text-[11.5px] text-[var(--txt-4)]">
-          {c.testavel ? "pergunta ao provedor e grava a resposta" : "ainda não existe teste para este tipo"}
+          {c.testavel ? `pergunta à ${tipo?.provedor ?? "provedor"} e grava a resposta` : "ainda não existe teste para este tipo"}
         </span>
         <button
           type="button"
@@ -207,7 +256,7 @@ function CartaoDeConexao({
           title={c.testavel ? undefined : "ainda não existe teste para este tipo"}
         >
           {testando ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-          {testando ? "testando…" : "Testar agora"}
+          {testando ? `perguntando à ${tipo?.provedor ?? "provedor"}…` : "Testar agora"}
         </button>
       </div>
     </div>
@@ -227,7 +276,7 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
   const [meta, setMeta] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | undefined>(undefined);
-  const [resultado, setResultado] = useState<ConexaoTestada | null>(null);
+  const [resultado, setResultado] = useState<ConexaoReal | null>(null);
   const def = CAMPOS_POR_TIPO[kind];
 
   const enviar = async (ev: FormEvent) => {
@@ -244,7 +293,7 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
       const r = (await api.cadastrarConexao(
         { kind, segredo, rotulo: rotulo.trim() || "padrao", meta: limpo },
         auth.getToken,
-      )) as ConexaoTestada;
+      )) as ConexaoReal;
       onCadastrada(r);
       setResultado(r);
       setSegredo("");
@@ -325,12 +374,12 @@ function Cadastro({ onCadastrada }: { onCadastrada: (c: ConexaoReal) => void }) 
         </div>
 
         {erro && (
-          <p className="text-[12.5px] mb-3 flex items-center gap-1.5" style={{ color: "var(--rose)" }}>
+          <p className="text-[12.5px] mb-3 flex items-center gap-1.5" style={{ color: "var(--rose)" }} role="alert">
             <AlertTriangle size={13} /> {erro}
           </p>
         )}
         {resultado && st && (
-          <div className="text-[13px] mb-3 flex items-start gap-2">
+          <div className="text-[13px] mb-3 flex items-start gap-2" role="status">
             <Pill color={st.cor}>{st.label}</Pill>
             <span className="text-[var(--txt-2)]">{resultado.ultimoTesteDetalhe}</span>
           </div>
