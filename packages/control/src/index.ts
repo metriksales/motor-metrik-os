@@ -2,7 +2,7 @@
 // A porta ÚNICA de mudança: front, Claude Code, Codex e API usam ISTO.
 // Regra de ouro: org_id SEMPRE vem do servidor (Ctx), nunca do cliente.
 import { and, desc, eq, gte, isNotNull, isNull, or, sql } from "drizzle-orm";
-import { db, comPessoa, credentials, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, invites } from "@motor/db";
+import { db, comPessoa, foraDoContexto, credentials, agents, agentSpecs, changeSets, connections, releases, auditLog, organizations, memberships, runtimeLogs, contactStates, machineTokens, users, sessions, invites } from "@motor/db";
 import { FakeBrain, makeBrain } from "@motor/llm";
 import { runEvals } from "@motor/evals";
 import { kitParaAgente } from "@motor/samples";
@@ -42,6 +42,7 @@ import {
   novoTokenOpaco,
 } from "./sessao.js";
 import { criarEmail, textoDoCodigo, textoDoConvite, type EmailPort } from "./email.js";
+import { assinaturaDe, limparPilha, limparTexto, motivoDoErro, operadoresDaPlataforma } from "./rastreador.js";
 import { exigirPermissao, type Papel } from "./permissoes.js";
 import { cifrar, decifrar, dicaDe, lerChaves } from "./cofre.js";
 import {
@@ -56,6 +57,7 @@ import { enviarTextoUazapi } from "@motor/messaging";
 
 export * from "./tokens.js";
 export * from "./conexoes.js";
+export * from "./rastreador.js";
 export * from "./webhooks.js";
 export * from "./erros.js";
 export * from "./permissoes.js";
@@ -1944,4 +1946,158 @@ export async function listarAuditoria(
     .where(and(...filtros))
     .orderBy(desc(auditLog.createdAt))
     .limit(limite);
+}
+
+// ═══ RASTREADOR DE ERROS (S-012) — o erro deixa de morrer no console ═══
+
+/** Quem opera a plataforma é uma PESSOA com sessão, cujo e-mail está na lista. Token de máquina nunca é. */
+export function ehOperadorDaPlataforma(ctx: Ctx): boolean {
+  if (ctx.via !== "sessao") return false;
+  return operadoresDaPlataforma().includes(normalizarEmail(ctx.actor));
+}
+
+/**
+ * Registra um erro e, se for o primeiro da assinatura nas últimas 24 h, avisa
+ * os operadores por e-mail. NUNCA lança: um rastreador que derruba a
+ * requisição por não conseguir gravar é pior que nenhum.
+ *
+ * Grava FORA da transação da conta (`foraDoContexto`): o erro que se quer
+ * registrar é, muitas vezes, justamente o que abortou essa transação.
+ */
+export async function registrarErro(
+  entrada: { onde: string; erro: unknown; requestId?: string; orgId?: string | null; forcarAviso?: boolean },
+  opts: { email?: EmailPort; env?: NodeJS.ProcessEnv } = {},
+): Promise<{ registrado: boolean; avisado: boolean; ocorrencias?: number }> {
+  // `onde` é um identificador do código ("control:testarConexao"), não texto
+  // livre: só os caracteres de identificador passam, e nada é trocado por
+  // marcador — a limpeza de mensagem trocaria números e quebraria o agrupamento
+  const onde = String(entrada.onde || "").replace(/[^A-Za-z0-9:_.-]/g, "").slice(0, 120) || "desconhecido";
+  const motivo = motivoDoErro(entrada.erro);
+  const mensagem = limparTexto(motivo.mensagem) || "Erro sem mensagem.";
+  const pilha = limparPilha(motivo.pilha);
+  const requestId = entrada.requestId && /^[A-Za-z0-9_-]{8,128}$/.test(entrada.requestId) ? entrada.requestId : null;
+  const orgId = entrada.orgId && UUID.test(entrada.orgId) ? entrada.orgId : null;
+  // o log de sempre continua: é o que resta se o banco também estiver fora
+  console.error(`[${onde}] req=${requestId ?? "-"} erro=${mensagem}`);
+
+  let registro: { total?: number; avisar?: boolean } | undefined;
+  try {
+    const r = await foraDoContexto(() =>
+      db.execute(
+        sql`select * from registrar_erro(${assinaturaDe(onde, mensagem)}, ${onde}, ${mensagem}, ${pilha ?? null}, ${orgId}, ${requestId}, ${entrada.forcarAviso === true})`,
+      ),
+    );
+    const linha = linhas(r)[0] as { total?: number; avisar?: boolean } | undefined;
+    registro = linha ?? {};
+  } catch (e) {
+    console.error(`[rastreador] erro NÃO registrado (${onde}): ${e instanceof Error ? e.message : String(e)}`);
+    return { registrado: false, avisado: false };
+  }
+
+  let avisado = false;
+  const para = operadoresDaPlataforma(opts.env);
+  if (registro.avisar && para.length) {
+    const email = opts.email ?? criarEmail(opts.env);
+    const texto = [
+      `Erro registrado em ${onde}.`,
+      "",
+      mensagem,
+      "",
+      `Ocorrências até agora: ${registro.total ?? 1}`,
+      `Requisição: ${requestId ?? "sem id"}`,
+      `Conta: ${orgId ?? "nenhuma"}`,
+      "",
+      "A lista completa está em Admin, na seção Erros do sistema. O próximo aviso deste mesmo erro sai daqui a 24 horas, se ele voltar.",
+    ].join("\n");
+    for (const destino of para) {
+      try {
+        const r = await email.enviar({ para: destino, assunto: `[Metrik-OS] Erro em ${onde}`, texto });
+        avisado = avisado || r.ok;
+      } catch (e) {
+        console.error(`[rastreador] aviso por e-mail falhou: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }
+  return { registrado: true, avisado, ocorrencias: registro.total };
+}
+
+export type ErroRegistrado = {
+  id: string;
+  onde: string;
+  mensagem: string;
+  pilha: string | null;
+  conta: string | null;
+  ultimoRequestId: string | null;
+  ocorrencias: number;
+  primeiraEm: string;
+  ultimaEm: string;
+  avisadoEm: string | null;
+};
+
+/** A lista de erros, para quem opera a plataforma. Conta nenhuma vê os erros da plataforma. */
+export async function listarErros(ctx: Ctx, opts: { limite?: number } = {}): Promise<ErroRegistrado[]> {
+  if (!ehOperadorDaPlataforma(ctx)) throw new SemPermissao("Esta lista é só para quem opera a plataforma.");
+  const r = await db.execute(sql`select * from listar_erros(${opts.limite ?? 100})`);
+  return linhas(r).map((l) => ({
+    id: String(l.erro_id),
+    onde: String(l.onde),
+    mensagem: String(l.mensagem),
+    pilha: (l.pilha as string | null) ?? null,
+    conta: (l.conta as string | null) ?? null,
+    ultimoRequestId: (l.ultimo_request_id as string | null) ?? null,
+    ocorrencias: Number(l.ocorrencias),
+    primeiraEm: new Date(l.primeira_em as string).toISOString(),
+    ultimaEm: new Date(l.ultima_em as string).toISOString(),
+    avisadoEm: l.avisado_em ? new Date(l.avisado_em as string).toISOString() : null,
+  }));
+}
+
+/**
+ * O erro provocado que prova o rastreador de ponta a ponta: registra e força
+ * o aviso, mesmo que a mesma assinatura tenha avisado há pouco. Só operador.
+ */
+export async function registrarErroDeTeste(
+  ctx: Ctx,
+  entrada: { requestId?: string } = {},
+  opts: { email?: EmailPort; env?: NodeJS.ProcessEnv } = {},
+): Promise<{ registrado: boolean; avisado: boolean; destinatarios: number; email: "resend" | "seco" }> {
+  if (!ehOperadorDaPlataforma(ctx)) throw new SemPermissao("Só quem opera a plataforma registra erro de teste.");
+  const r = await registrarErro(
+    {
+      onde: "teste",
+      erro: new Error("Erro de teste registrado pela tela de Admin."),
+      requestId: entrada.requestId,
+      orgId: ctx.orgId,
+      forcarAviso: true,
+    },
+    opts,
+  );
+  // o modo do e-mail volta junto: no modo seco o "aviso" vai só para o log, e
+  // a tela não pode dizer "enviado" para algo que não saiu
+  const estado = estadoDosAlertas(opts.env);
+  return { registrado: r.registrado, avisado: r.avisado, destinatarios: estado.destinatarios, email: opts.email?.modo ?? estado.email };
+}
+
+/**
+ * Erro que aconteceu no NAVEGADOR de quem está logado (tela quebrou, promessa
+ * rejeitada sem tratamento). Sem isto, a falha de tela só existia no console
+ * de quem a viu.
+ */
+export async function registrarErroDaTela(
+  ctx: Ctx,
+  entrada: { mensagem?: string; pilha?: string; pagina?: string },
+  requestId?: string,
+): Promise<{ registrado: boolean }> {
+  exigirPermissao(ctx, "ver");
+  const mensagem = String(entrada.mensagem ?? "").slice(0, 1000) || "Erro sem mensagem.";
+  const pagina = String(entrada.pagina ?? "").split(/[?#]/)[0].slice(0, 120);
+  const erro = new Error(pagina ? `${mensagem} · página ${pagina}` : mensagem);
+  erro.stack = typeof entrada.pilha === "string" ? entrada.pilha.slice(0, 4000) : undefined;
+  const r = await registrarErro({ onde: "tela", erro, requestId, orgId: ctx.orgId });
+  return { registrado: r.registrado };
+}
+
+/** Para o diagnóstico autenticado: há para quem avisar, e por qual caminho sai o e-mail. */
+export function estadoDosAlertas(env: NodeJS.ProcessEnv = process.env): { destinatarios: number; email: "resend" | "seco" } {
+  return { destinatarios: operadoresDaPlataforma(env).length, email: criarEmail(env).modo };
 }

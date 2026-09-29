@@ -181,6 +181,18 @@ export function comPessoa<T>(userId: string, corpo: () => Promise<T>): Promise<T
   return comContexto({ userId }, corpo);
 }
 
+/**
+ * Roda FORA da transação da conta, numa conexão própria do pool (S-012).
+ *
+ * Serve para uma coisa: registrar o erro que acabou de abortar a transação em
+ * curso. Dentro dela, qualquer escrita falharia com "transação abortada"
+ * (25P02) e o erro original sumiria junto. Não use para trabalho de conta —
+ * fora do contexto não há conta declarada, e é para isso que o RLS existe.
+ */
+export function foraDoContexto<T>(corpo: () => Promise<T>): Promise<T> {
+  return ambiente.exit(corpo);
+}
+
 /** O que foi declarado ao banco agora. Serve para teste e diagnóstico. */
 export function contaEmCurso(): string | null {
   return ambiente.getStore()?.orgId ?? null;

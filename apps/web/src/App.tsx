@@ -6,6 +6,7 @@ type SubId = "trabalho" | "aovivo" | "estrutura" | "melhorar";
 import { NAV, type ViewId } from "./data";
 import { useAgents } from "./lib/agents";
 import { usePendencias, useTituloAoVivo } from "./lib/live";
+import { instalarRastreioDaTela } from "./lib/rastreio";
 import { cx, Toggle } from "./ui";
 import Inicio from "./views/Inicio";
 import Agentes from "./views/Agentes";
@@ -84,6 +85,8 @@ export default function App() {
   const ativos = agents.filter((a) => a.state === "ativo").length;
   const pendencias = usePendencias();
   useTituloAoVivo(); // alerta "(N)" no título quando a aba está em 2º plano
+  // erro não tratado no navegador vira erro rastreado (S-012); a vitrine não reporta
+  useEffect(() => (auth.demo ? undefined : instalarRastreioDaTela()), [auth.demo]);
   // insights críticos só valem no DEMO (mock); logado, o que pede atenção são
   // as pendências reais do porteiro (mudanças do cliente esperando aprovação).
   const notifs = auth.demo

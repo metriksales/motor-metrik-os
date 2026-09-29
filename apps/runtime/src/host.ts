@@ -41,6 +41,12 @@ export interface ProductionEnv {
   uazapi?: { instancias: UazapiInstancia[]; http?: UazapiHttp };
   onLog?: (l: RuntimeLog) => void;
   now?: () => Date;
+  /**
+   * Para onde vai uma falha do próprio runtime (S-012) — hoje, a linha do
+   * Flight Recorder que não gravou. O webhook liga isto ao rastreador de
+   * erros; sem gancho, fica só a linha no log do servidor.
+   */
+  aoFalhar?: (onde: string, erro: unknown, extra: { orgId?: string }) => Promise<unknown> | unknown;
 }
 
 const CANAIS = new Set(["ghl-native", "uazapi-multi"]);
@@ -84,9 +90,15 @@ export function createProductionDeps(env: ProductionEnv): RuntimeDeps {
         meta: l.meta,
       })
       .then(() => undefined)
-      .catch((e: unknown) => {
+      .catch(async (e: unknown) => {
         const motivo = e instanceof Error ? e.message : String(e);
         console.error(`[runtime] log NÃO gravado org=${l.orgId} agent=${l.agentId} motor=${l.motor ?? "-"}: ${motivo}`);
+        // o aviso também é aguardado pelo flush: faz parte da mesma gravação
+        try {
+          await env.aoFalhar?.("runtime:flight-recorder", e, { orgId: l.orgId });
+        } catch {
+          /* o rastreador nunca derruba o motor */
+        }
       })
       .finally(() => pendentes.delete(gravacao));
     pendentes.add(gravacao);

@@ -120,6 +120,13 @@
       "when": 1790690400000,
       "tag": "0016_conexoes_dados_do_teste",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790712000000,
+      "tag": "0017_rastreador_de_erros",
+      "breakpoints": true
     }
   ]
 }

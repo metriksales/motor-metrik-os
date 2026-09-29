@@ -10,6 +10,7 @@
 // pelo mesmo id.
 import { randomUUID } from "node:crypto";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { registrarErro } from "./_bundled/motor.mjs";
 
 /** Aceita id de fora, mas só se ele for inofensivo. */
 const ID_ACEITAVEL = /^[A-Za-z0-9_-]{8,128}$/;
@@ -37,14 +38,25 @@ export function idDaRequisicao(req: VercelRequest, res: VercelResponse): string 
 }
 
 /**
- * Uma linha por falha, sempre com o id. `erro` entra como mensagem, nunca como
- * objeto inteiro: o erro do Drizzle carrega o SQL e os parâmetros, e parâmetro
- * é dado de cliente.
+ * Uma linha por falha, sempre com o id, e SÓ a linha. É o que sobra quando o
+ * próprio banco está fora (o health), onde tentar gravar só somaria espera.
+ * `erro` entra como mensagem, nunca como objeto inteiro: o erro do Drizzle
+ * carrega o SQL e os parâmetros, e parâmetro é dado de cliente.
  */
-export function registrarFalha(onde: string, id: string, erro: unknown, extra?: Record<string, unknown>) {
+export function registrarNoLog(onde: string, id: string, erro: unknown, extra?: Record<string, unknown>) {
   const motivo = erro instanceof Error ? erro.message : String(erro);
   const enfeites = extra
     ? " " + Object.entries(extra).map(([k, v]) => `${k}=${String(v)}`).join(" ")
     : "";
   console.error(`[${onde}] req=${id}${enfeites} erro=${motivo}`);
+}
+
+/**
+ * A falha vai para o rastreador de erros (S-012): a linha de log de sempre,
+ * mais o registro agrupado no banco e o aviso por e-mail aos operadores
+ * quando o erro é novo. Nunca lança, e é aguardada antes da resposta — numa
+ * função serverless, o que fica em voo depois de responder se perde.
+ */
+export async function registrarFalha(onde: string, id: string, erro: unknown, extra: { orgId?: string | null } = {}) {
+  await registrarErro({ onde, erro, requestId: id, orgId: extra.orgId ?? null });
 }

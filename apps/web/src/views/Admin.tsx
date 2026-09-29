@@ -7,6 +7,7 @@ import { useMotorAuth } from "../lib/auth";
 import { tempoRelativo } from "../lib/live";
 import { apenasNoDemo } from "../lib/honestidade";
 import { Reveal, Pill } from "../ui";
+import ErrosDoSistema from "./ErrosDoSistema";
 
 type Membro = { userId: string; role: string; createdAt?: string; email?: string | null; nome?: string | null };
 
@@ -142,6 +143,9 @@ export default function Admin() {
           </div>
         </div>
       </Reveal>
+
+      {/* rastreador de erros (S-012): só existe para quem opera a plataforma */}
+      <ErrosDoSistema />
     </div>
   );
 }

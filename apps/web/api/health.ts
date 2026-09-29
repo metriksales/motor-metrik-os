@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDatabaseUrl, sondarBanco } from "./_bundled/motor.mjs";
-import { idDaRequisicao, registrarFalha } from "./_observabilidade.js";
+import { idDaRequisicao, registrarNoLog } from "./_observabilidade.js";
 
 /**
  * Saúde, e não apenas sinal de vida (S-012).
@@ -32,7 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const r = await sondarBanco();
   if (!r.ok) {
-    registrarFalha("health", id, r.motivo, { ms: r.ms });
+    // banco fora: só a linha de log — tentar gravar o erro no banco só somaria espera
+    registrarNoLog("health", id, r.motivo, { ms: r.ms });
     return res.status(503).json({ ok: false, ...base, banco: { ok: false, ms: r.ms } });
   }
 
