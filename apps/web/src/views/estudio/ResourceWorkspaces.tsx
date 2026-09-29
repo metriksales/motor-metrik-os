@@ -31,7 +31,7 @@ export type FollowupSummary = {
 const resourceCopy: Record<string, { test: string; live: string; event: string }> = {
   conversa: {
     test: "Converse com o agente e confira a resposta que o lead receberia.",
-    live: "Conversas e decisões tomadas pelo prompt agora.",
+    live: "Conversas e decisões tomadas pelo prompt.",
     event: "conversa",
   },
   followup: {
@@ -41,7 +41,7 @@ const resourceCopy: Record<string, { test: string; live: string; event: string }
   },
   base: {
     test: "Faça uma pergunta e confira quais materiais seriam consultados.",
-    live: "Consultas feitas à base para responder os leads.",
+    live: "Consultas feitas à base para responder aos leads.",
     event: "consulta",
   },
   campos: {
@@ -117,11 +117,11 @@ export function ResourceTestWorkspace({
         <BentoGrid className="resource-bento-grid">
           <BentoCard title="Ensaio da cadência" description="Cenário: o lead parou de responder no meio da conversa." eyebrow="SIMULAÇÃO SEGURA" icon={<TimerReset size={17} />} colSpan={3}>
             <div className="followup-simulation" data-running={simulation ? "true" : "false"}>
-              <div data-state="done"><span><Check size={13} /></span><div><strong>Lead ficou sem responder</strong><small>gatilho identificado na conversa</small></div></div>
+              <div data-state="done"><span><Check size={13} /></span><div><strong>Lead ficou sem responder</strong><small>Gatilho identificado na conversa</small></div></div>
               <i />
-              <div data-state={simulation ? "done" : "next"}><span>{simulation ? <Check size={13} /> : <Clock3 size={13} />}</span><div><strong>Espera {followup.wait}</strong><small>nenhuma mensagem é enviada durante a espera</small></div></div>
+              <div data-state={simulation ? "done" : "next"}><span>{simulation ? <Check size={13} /> : <Clock3 size={13} />}</span><div><strong>Espera {followup.wait}</strong><small>Nenhuma mensagem sai durante a espera.</small></div></div>
               <i />
-              <div data-state={simulation ? "active" : "waiting"}><span><Send size={13} /></span><div><strong>Primeiro toque</strong><small>{simulation ? `pronto para sair por ${followup.channel}` : "aguardando a simulação"}</small></div></div>
+              <div data-state={simulation ? "active" : "waiting"}><span><Send size={13} /></span><div><strong>Primeiro toque</strong><small>{simulation ? `Pronto para sair por ${followup.channel}` : "Aguardando a simulação"}</small></div></div>
             </div>
             <button type="button" className="resource-primary-action" onClick={() => setSimulation(true)}>
               <Play size={14} /> {simulation ? "Rodar de novo" : "Simular cadência"}
@@ -134,12 +134,12 @@ export function ResourceTestWorkspace({
               <div><dt>Canal</dt><dd>{followup.channel}</dd></div>
             </dl>
           </BentoCard>
-          <BentoCard title="O que o Guardião confere" description="Antes de valer, o agente precisa respeitar estas travas." eyebrow="CRITÉRIOS" icon={<FlaskConical size={17} />} colSpan={4}>
+          <BentoCard title="O que o guardião confere" description="Antes de valer, o agente precisa respeitar estas travas." eyebrow="CRITÉRIOS" icon={<FlaskConical size={17} />} colSpan={4}>
             <div className="resource-checks">
-              <span><Check size={13} /> não dispara antes da espera</span>
-              <span><Check size={13} /> para quando o lead responde</span>
-              <span><Check size={13} /> respeita o limite de toques</span>
-              <span><Check size={13} /> usa apenas o canal conectado</span>
+              <span><Check size={13} /> Não dispara antes da espera</span>
+              <span><Check size={13} /> Para quando o lead responde</span>
+              <span><Check size={13} /> Respeita o limite de toques</span>
+              <span><Check size={13} /> Usa apenas o canal conectado</span>
             </div>
           </BentoCard>
         </BentoGrid>
@@ -156,20 +156,20 @@ export function ResourceTestWorkspace({
           <TestBadge>{versionLabel}</TestBadge>
         </header>
         <BentoGrid className="resource-bento-grid">
-          <BentoCard title="Pergunta de teste" description="Isto consulta o índice visual; não envia nada ao lead." eyebrow="PERGUNTA" icon={<Search size={17} />} colSpan={3}>
+          <BentoCard title="Pergunta de teste" description="A busca usa a lista abaixo e não envia nada ao lead." eyebrow="PERGUNTA" icon={<Search size={17} />} colSpan={3}>
             <form className="resource-query" onSubmit={(event) => { event.preventDefault(); setSearched(true); }}>
-              <input value={query} onChange={(event) => { setQuery(event.target.value); setSearched(false); }} placeholder="Ex.: qual é o prazo de implantação?" />
+              <input value={query} onChange={(event) => { setQuery(event.target.value); setSearched(false); }} placeholder="Qual é o prazo de implantação?" />
               <button type="submit"><Search size={14} /> Buscar fontes</button>
             </form>
           </BentoCard>
           <BentoCard title="Materiais disponíveis" description="Itens que o agente pode consultar." eyebrow="BASE ATUAL" icon={<BookOpenText size={17} />}>
             <strong className="resource-big-number">{knowledge.length}</strong>
-            <span className="resource-big-caption">fontes cadastradas</span>
+            <span className="resource-big-caption">Fontes cadastradas</span>
           </BentoCard>
           <BentoCard title={searched ? "Fontes encontradas" : "Fontes que serão verificadas"} description={searched && visible.length === 0 ? "Nenhum material correspondeu a esta busca." : "A resposta só pode usar o que estiver disponível aqui."} eyebrow="RASTREABILIDADE" icon={<Zap size={17} />} colSpan={4}>
             <div className="resource-source-list">
               {(visible.length ? visible : knowledge).slice(0, 6).map((item, index) => <span key={`${item.titulo}-${index}`}><small>{item.cat}</small><strong>{item.titulo}</strong></span>)}
-              {knowledge.length === 0 ? <div className="resource-inline-empty">Nenhum material disponível neste agente.</div> : null}
+              {knowledge.length === 0 ? <div className="resource-inline-empty">Nenhum material cadastrado neste agente. Envie um documento em Melhorar.</div> : null}
             </div>
           </BentoCard>
         </BentoGrid>
@@ -190,13 +190,13 @@ export function ResourceTestWorkspace({
             <blockquote className="resource-quote">“Sou a Marina, da Vértice. Quero entender a implantação e pode me chamar neste WhatsApp.”</blockquote>
             <button type="button" className="resource-primary-action" onClick={() => setSimulation(true)}><Play size={14} /> {simulation ? "Simular de novo" : "Simular preenchimento"}</button>
           </BentoCard>
-          <BentoCard title="Card que seria atualizado" description="Prévia sem escrever no CRM." eyebrow="SAÍDA" icon={<ContactRound size={17} />} colSpan={2}>
+          <BentoCard title="Card que seria atualizado" description="A prévia não grava nada no CRM." eyebrow="SAÍDA" icon={<ContactRound size={17} />} colSpan={2}>
             <div className="resource-field-list">
-              {fields.map((field, index) => <div key={field}><span>{field}</span><strong>{simulation ? ["Marina", "Vértice", "número da conversa", "Implantação"][index] : "—"}</strong>{simulation ? <Check size={13} /> : null}</div>)}
+              {fields.map((field, index) => <div key={field}><span>{field}</span><strong>{simulation ? ["Marina", "Vértice", "Número da conversa", "Implantação"][index] : "—"}</strong>{simulation ? <Check size={13} /> : null}</div>)}
             </div>
           </BentoCard>
           <BentoCard title="Regra de segurança" description="Só grava quando o valor aparece claramente na conversa." eyebrow="GUARDIÃO" icon={<ShieldCheck size={17} />} colSpan={4}>
-            <div className="resource-checks"><span><Check size={13} /> não inventa dados ausentes</span><span><Check size={13} /> preserva valores já confirmados</span><span><Check size={13} /> registra a origem da atualização</span></div>
+            <div className="resource-checks"><span><Check size={13} /> Não inventa dados ausentes</span><span><Check size={13} /> Preserva valores já confirmados</span><span><Check size={13} /> Registra a origem da atualização</span></div>
           </BentoCard>
         </BentoGrid>
       </div>
@@ -214,10 +214,10 @@ export function ResourceTestWorkspace({
           <p className="resource-card-copy">{piece.resumo}</p>
         </BentoCard>
         <BentoCard title="O que deve acontecer" description="Resultado esperado antes de publicar." eyebrow="RESULTADO" icon={<ArrowRight size={17} />} colSpan={2}>
-          <p className="resource-card-copy">O recurso executa sua função e deixa o resultado registrado no Ao vivo.</p>
+          <p className="resource-card-copy">O recurso executa a função e registra o resultado em Ao vivo.</p>
         </BentoCard>
         <BentoCard title="Guardião" description="Valida o comportamento sem afetar um lead real." eyebrow="PROTEÇÃO" icon={<ShieldCheck size={17} />} colSpan={4}>
-          <div className="resource-checks"><span><Check size={13} /> gatilho correto</span><span><Check size={13} /> ação esperada</span><span><Check size={13} /> resultado rastreável</span></div>
+          <div className="resource-checks"><span><Check size={13} /> Gatilho correto</span><span><Check size={13} /> Ação esperada</span><span><Check size={13} /> Resultado rastreável</span></div>
         </BentoCard>
       </BentoGrid>
     </div>
@@ -235,11 +235,11 @@ export function ResourceLiveWorkspace({ piece, agent, logs }: { piece: BrainPiec
     <div className="resource-workspace scroll-thin">
       <header className="resource-workspace-head">
         <div><span>AO VIVO · {piece.nome.toUpperCase()}</span><h2>{piece.id === "followup" ? "Disparos e fila agora" : `Atividade de ${piece.nome}`}</h2><p>{copy.live}</p></div>
-        <span className="resource-live-badge"><i /> atualiza sozinho</span>
+        <span className="resource-live-badge"><i /> Atualização automática</span>
       </header>
       <BentoGrid className="resource-bento-grid">
         <BentoCard
-          title={piece.id === "followup" ? "Últimos disparos" : `Últimas ${copy.event === "execução" ? "execuções" : `${copy.event}s`}`}
+          title={piece.id === "followup" ? "Últimos disparos" : `Registros de ${copy.event}`}
           description={piece.id === "followup" ? "Somente eventos do Follow-up aparecem aqui." : `Somente eventos ligados a ${piece.nome}.`}
           eyebrow="ATIVIDADE REAL"
           icon={piece.id === "followup" ? <Send size={17} /> : <Zap size={17} />}
@@ -252,18 +252,18 @@ export function ResourceLiveWorkspace({ piece, agent, logs }: { piece: BrainPiec
               <div key={log.id}><span data-ok={log.ok ? "true" : "false"}>{log.ok ? <Check size={13} /> : <CircleDashed size={13} />}</span><div><strong>{log.resumo}</strong><small>{piece.id === "followup" ? "Follow-up" : (log.motor || piece.nome)}</small></div><time>{tempoRelativo(log.at)}</time></div>
             ))}
             {followups.length === 0 && resourceLogs.length === 0 ? (
-              <div className="resource-event-empty"><span><CircleDashed size={17} /></span><strong>Nenhuma {copy.event} registrada</strong><small>Quando {piece.nome} agir, o evento aparece aqui — sem misturar com outros recursos.</small></div>
+              <div className="resource-event-empty"><span><CircleDashed size={17} /></span><strong>Nenhum registro de {copy.event}</strong><small>Quando {piece.nome} agir, o evento aparece aqui.</small></div>
             ) : null}
           </div>
         </BentoCard>
         <div className="resource-side-stack lg:col-span-1">
-          <BentoCard title={piece.id === "followup" ? "Na fila" : "Hoje"} eyebrow="AGORA" icon={<Clock3 size={16} />}>
+          <BentoCard title={piece.id === "followup" ? "Na fila" : "Recentes"} eyebrow="AGORA" icon={<Clock3 size={16} />}>
             <strong className="resource-big-number">{piece.id === "followup" ? queued.length : resourceLogs.length}</strong>
-            <span className="resource-big-caption">{piece.id === "followup" ? "contatos aguardando" : `${copy.event}s registradas`}</span>
+            <span className="resource-big-caption">{piece.id === "followup" ? "Contatos aguardando" : "Eventos registrados"}</span>
           </BentoCard>
           <BentoCard title="Sem erro" eyebrow="SAÚDE" icon={<ShieldCheck size={16} />}>
             <strong className="resource-big-number">{resourceLogs.length ? `${successful}/${resourceLogs.length}` : "—"}</strong>
-            <span className="resource-big-caption">execuções concluídas</span>
+            <span className="resource-big-caption">Execuções concluídas</span>
           </BentoCard>
         </div>
       </BentoGrid>

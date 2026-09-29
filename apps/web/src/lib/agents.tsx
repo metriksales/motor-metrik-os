@@ -49,7 +49,7 @@ function mapReal(row: DbAgent, i: number): Agent {
       state: state ?? "idle",
       real: true,
       version: row.currentSpecVersion ?? 0,
-      agora: "de plantão — aguardando o próximo lead",
+      agora: "Aguardando o próximo lead",
       live: [],
       insights: [],
       metrics: { execucoes: 0, acertos: 0, erros: 0, custo: "R$ 0,00" },
@@ -70,7 +70,7 @@ function mapReal(row: DbAgent, i: number): Agent {
     papel: tipo === "acao" ? "Executa ações no CRM" : "Responde e qualifica no WhatsApp",
     state: state ?? "idle",
     color: PALETTE[i % PALETTE.length],
-    agora: `versão ${row.currentSpecVersion ?? 0} — sem atividade registrada ainda`,
+    agora: `Versão ${row.currentSpecVersion ?? 0} · Sem atividade registrada`,
     metrics: { execucoes: 0, acertos: 0, erros: 0, custo: "R$ 0,00" },
     shield: "Núcleo blindado. Você ajusta o que é seguro; o motor não quebra.",
     features: [],
@@ -134,7 +134,7 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
           console.error("[agents] control API falhou:", e);
           setAgents([]);
           setSource("neon");
-          setErro(e instanceof Error ? e.message : "falha ao falar com a API");
+          setErro(e instanceof Error ? e.message : "Erro sem detalhe.");
         }
       } finally {
         if (alive) setLoading(false);

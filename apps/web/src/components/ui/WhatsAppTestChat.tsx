@@ -94,7 +94,7 @@ export function WhatsAppTestChat({
           <strong>{agentName}</strong>
           <small><i /> {modeLabel}</small>
         </span>
-        <span className="wa-test-chat-isolated"><ShieldCheck size={13} /> ambiente isolado</span>
+        <span className="wa-test-chat-isolated"><ShieldCheck size={13} /> Ambiente isolado</span>
         <span className="wa-test-header-actions" aria-hidden="true">
           <Video size={16} />
           <Phone size={15} />
@@ -123,19 +123,19 @@ export function WhatsAppTestChat({
               <div className={`wa-test-bubble${message.aviso ? " wa-test-bubble--notice" : ""}`}>
                 <p>{message.texto}</p>
                 <span className="wa-test-time">
-                  agora {message.de === "voce" ? <CheckCheck size={13} aria-label="entregue" /> : null}
+                  Agora {message.de === "voce" ? <CheckCheck size={13} aria-label="Entregue" /> : null}
                 </span>
               </div>
               {message.de === "ia" && !message.aviso ? (
                 <div className="wa-test-message-meta">
                   {message.fonte ? <span className="wa-test-source">{message.fonte}</span> : null}
                   {feedback[index] === "sim" ? (
-                    <span className="wa-test-feedback-state wa-test-feedback-state--ok">✓ é isso</span>
+                    <span className="wa-test-feedback-state wa-test-feedback-state--ok">Aprovada</span>
                   ) : feedback[index] === "nao" ? (
-                    <span className="wa-test-feedback-state wa-test-feedback-state--fix">corrigindo…</span>
+                    <span className="wa-test-feedback-state wa-test-feedback-state--fix">Corrigindo</span>
                   ) : (
                     <span className="wa-test-feedback">
-                      <button type="button" onClick={() => onAccept(index)}>É isso</button>
+                      <button type="button" onClick={() => onAccept(index)}>Aprovar</button>
                       <button type="button" onClick={() => onCorrect(index)}>Corrigir</button>
                     </span>
                   )}
@@ -188,8 +188,8 @@ export function WhatsAppTestChat({
               {testRun.status === "pronto" && runCases.length > 0 ? (
                 <div className="wa-test-run-result">
                   <div className="wa-test-run-summary">
-                    <span>{testRun.testedMode === "ensaio" ? "mudança nova" : "versão no ar"}</span>
-                    <span>{testRun.mode === "real" ? "cérebro real" : "roteiro"}</span>
+                    <span>{testRun.testedMode === "ensaio" ? "Mudança nova" : "Versão no ar"}</span>
+                    <span>{testRun.mode === "real" ? "Cérebro real" : "Roteiro"}</span>
                     {testRun.durationMs != null ? <span>{(testRun.durationMs / 1000).toFixed(1)}s</span> : null}
                   </div>
 
@@ -204,7 +204,7 @@ export function WhatsAppTestChat({
                           {testCase.passou ? <CircleCheck size={15} /> : <CircleX size={15} />}
                           <span><strong>{testCase.nome}</strong>{testCase.falhas?.[0] ? <small>{testCase.falhas[0]}</small> : null}</span>
                           {testCase.ms != null ? <time>{(testCase.ms / 1000).toFixed(1)}s</time> : null}
-                          <em>{open ? "fechar" : "ver prova"}</em>
+                          <em>{open ? "Fechar" : "Ver prova"}</em>
                           <ChevronDown size={13} />
                         </button>
                       );
@@ -218,14 +218,14 @@ export function WhatsAppTestChat({
                         <article><small>O AGENTE RESPONDEU</small><p>{selectedCase.saida?.texto || selectedCase.falhas?.[0] || "Resposta não registrada."}</p></article>
                       </div>
                       <section>
-                        <small>POR QUE DEU ESSE RESULTADO</small>
+                        <small>CRITÉRIOS E AÇÕES</small>
                         <div>
                           {(selectedCase.criterios ?? []).map((criterio, index) => (
                             <span key={`${criterio.tipo}-${criterio.esperado}-${index}`} data-state={criterio.passou ? "ok" : "fail"}>
                               {criterio.passou ? <Check size={11} /> : <CircleX size={11} />}{criterio.rotulo}: {criterio.esperado}
                             </span>
                           ))}
-                          {(selectedCase.saida?.toolCalls ?? []).map((tool, index) => <span key={`${tool.tool}-${index}`}><Wrench size={11} /> ação: {tool.tool}</span>)}
+                          {(selectedCase.saida?.toolCalls ?? []).map((tool, index) => <span key={`${tool.tool}-${index}`}><Wrench size={11} /> Ação: {tool.tool}</span>)}
                         </div>
                       </section>
                       {!selectedCase.passou ? <button type="button" onClick={() => onFixCase(selectedCase)}>Corrigir esta falha</button> : null}
@@ -235,9 +235,9 @@ export function WhatsAppTestChat({
               ) : null}
 
               {testRun.status === "pronto" && runCases.length === 0 ? (
-                <p className="wa-test-guard-note">Roteiro base conferido. Com o cérebro ligado, esta mesma rodada ataca as respostas reais.</p>
+                <p className="wa-test-guard-note">O roteiro base foi conferido. Com o cérebro ligado, a rodada testa as respostas reais.</p>
               ) : testRun.mode === "roteiro" ? (
-                <p className="wa-test-guard-note">Conferido no roteiro. Com o cérebro ligado, a mesma rodada vira ataque real.</p>
+                <p className="wa-test-guard-note">A rodada usou só o roteiro. Com o cérebro ligado, ela testa as respostas reais.</p>
               ) : null}
             </motion.article>
           ) : null}

@@ -109,12 +109,11 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <div className="mono-label mb-1">Fluxo ao vivo</div>
-                <div className="font-display font-semibold text-[15px]">O que a frota fez agora</div>
+                <div className="font-display font-semibold text-[15px]">Últimas execuções</div>
               </div>
               <span className="pill" style={real ? { color: "var(--emerald)" } : undefined}>
                 {real ? <Database size={11} /> : <span className="live-dot" style={{ width: 6, height: 6 }} />}
-                {real ? "dado real ✓" : "demo"}
+                {real ? "Dado real" : "Demo"}
               </span>
             </div>
             {carregandoReal ? (
@@ -184,7 +183,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
             </ul>
             )}
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--line)] text-[11.5px] text-[var(--txt-4)]">
-              <MessageSquareText size={13} /> clique numa linha pra ler a conversa que a IA teve
+              <MessageSquareText size={13} /> Clique numa linha para ler a conversa.
             </div>
           </div>
         </Reveal>
@@ -192,15 +191,15 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
         {/* trabalhando agora */}
         <Reveal delay={0.1}>
           <div className="card p-5 h-full">
-            <div className="mono-label mb-4">Trabalhando agora</div>
+            <div className="mono-label mb-4">Agentes no ar</div>
             <div className="space-y-2.5">
               {ativos.map((a) => {
                 const ultimo = ultimoPorAgente.get(a.id);
                 // real: fala do último trabalho DE VERDADE; sem log = de plantão.
                 const linha = real
                   ? ultimo
-                    ? `há ${tempoRelativo(ultimo.at)} — ${ultimo.resumo}`
-                    : "de plantão — aguardando o próximo lead"
+                    ? `Há ${tempoRelativo(ultimo.at)} · ${ultimo.resumo}`
+                    : "Aguardando o próximo lead"
                   : a.agora;
                 const digitando = real ? (ultimo ? minutosDesde(ultimo.at) < 10 : false) : true;
                 return (
@@ -223,7 +222,7 @@ export default function AoVivo({ onOpen }: { onOpen: (id: string) => void }) {
               })}
             </div>
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[var(--line)] text-[11.5px] text-[var(--txt-4)]">
-              <Radio size={13} /> clique num robô pra ver por dentro
+              <Radio size={13} /> Clique num agente para ver os detalhes.
             </div>
           </div>
         </Reveal>

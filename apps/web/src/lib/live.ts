@@ -244,11 +244,12 @@ export function kpiDinheiro(stats: StatsReais): { label: string; value: string; 
   const d7 = stats.valor7dCentavos ?? 0;
   const total = stats.valorTotalCentavos ?? 0;
   const u = stats.ultimoValor;
-  const ultimo = u ? `último: +${reais(u.valorCentavos)} · há ${tempoRelativo(u.at)}` : "";
-  if (dia > 0) return { label: "Gerado hoje", value: reais(dia), delta: d7 > dia ? `${reais(d7)} na semana` : "Radar de Dinheiro" };
-  if (d7 > 0) return { label: "Gerado · 7 dias", value: reais(d7), delta: ultimo || "hoje começa agora" };
-  if (total > 0) return { label: "Gerado · desde o início", value: reais(total), delta: ultimo || "hoje começa agora" };
-  return { label: "Gerado hoje", value: reais(0), delta: "robôs de plantão" };
+  const quando = u ? tempoRelativo(u.at) : "";
+  const ultimo = u ? `Último +${reais(u.valorCentavos)} · ${quando === "agora" ? "Agora" : `Há ${quando}`}` : "";
+  if (dia > 0) return { label: "Gerado hoje", value: reais(dia), delta: d7 > dia ? `${reais(d7)} na semana` : "Todo o valor da semana" };
+  if (d7 > 0) return { label: "Gerado · 7 dias", value: reais(d7), delta: ultimo || "Nada gerado hoje" };
+  if (total > 0) return { label: "Gerado · desde o início", value: reais(total), delta: ultimo || "Nada gerado hoje" };
+  return { label: "Gerado hoje", value: reais(0), delta: "Nenhum valor registrado" };
 }
 
 /** centavos → "R$ 1.500" (sem centavos quando é valor redondo) */

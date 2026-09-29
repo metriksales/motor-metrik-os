@@ -50,13 +50,12 @@ export default function Modulos({
               <Blocks size={20} style={{ color: "#3b82f6" }} className="flex-none mt-0.5" />
               <div>
                 <p className="text-[13.5px] text-[var(--txt-2)] max-w-2xl">
-                  <b className="text-[var(--txt)]">Módulos são habilidades simples que entram DENTRO de um agente.</b> Cada
-                  um já vem marcado pra <b className="text-[var(--txt)]">qual agente encaixa</b> — nada liga no lugar errado.
-                  Clique num e você vai direto pro agente certo pra ligar.
+                  <b className="text-[var(--txt)]">Cada módulo é uma habilidade que entra dentro de um agente.</b> Clique
+                  em um módulo para abrir o <b className="text-[var(--txt)]">agente em que ele encaixa</b>.
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2.5">
-                  <Pill color="#3fb950"><Check size={12} /> prontos da Metrik</Pill>
-                  <Pill color="#3b82f6"><Plug size={12} /> ou traga o seu pelo Claude</Pill>
+                  <Pill color="#3fb950"><Check size={12} /> Prontos da Metrik</Pill>
+                  <Pill color="#3b82f6"><Plug size={12} /> Do seu Claude Code</Pill>
                 </div>
               </div>
             </div>
@@ -91,8 +90,8 @@ export default function Modulos({
                   <Plug size={20} style={{ color: "#3b82f6" }} />
                 </span>
                 <div>
-                  <div className="font-display font-semibold text-[15px] mb-1">Traga a sua</div>
-                  <p className="text-[12.5px] text-[var(--txt-3)] leading-snug">Fez uma habilidade no Claude Code? Ela aparece aqui e vira um recurso de um robô seu, já marcada pro agente certo.</p>
+                  <div className="font-display font-semibold text-[15px] mb-1">Habilidade própria</div>
+                  <p className="text-[12.5px] text-[var(--txt-3)] leading-snug">Uma habilidade feita no Claude Code aparece aqui, já marcada para o agente certo.</p>
                 </div>
                 <span className="text-[12.5px] flex items-center gap-1.5 mt-1" style={{ color: "#3b82f6" }}><Plug size={13} /> Conectar <ArrowRight size={13} /></span>
               </button>
@@ -110,7 +109,7 @@ function ModuloCard({ m, compat, onOpen }: { m: Modulo; compat?: { id: string; l
     <div className="card card-hover p-5 h-full flex flex-col">
       <div className="flex items-start justify-between gap-3 mb-3.5">
         <IconBox icon={m.icon} color={m.color} />
-        {m.tag && <Pill color={m.tag === "novo" ? "#58aae4" : "#fbbf24"}>{m.tag}</Pill>}
+        {m.tag && <Pill color={m.tag === "novo" ? "#58aae4" : "#fbbf24"}>{m.tag === "novo" ? "Novo" : "Popular"}</Pill>}
       </div>
       <div className="font-display font-semibold text-[15.5px] mb-1.5">{m.name}</div>
       <p className="text-[13px] text-[var(--txt-2)] leading-snug mb-4 flex-1">{m.blurb}</p>
@@ -124,12 +123,12 @@ function ModuloCard({ m, compat, onOpen }: { m: Modulo; compat?: { id: string; l
       {/* onde encaixa */}
       <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--txt-3)] mb-3">
         <Bot size={13} style={{ color: m.color }} className="flex-none" />
-        encaixa no <b className="text-[var(--txt-2)]">{compat?.label ?? "—"}</b>
+        Encaixa no <b className="text-[var(--txt-2)]">{compat?.label ?? "—"}</b>
       </div>
 
       {m.installed ? (
         <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--line)]">
-          <span className="pill" style={{ color: "#3fb950", borderColor: "#3fb95040", background: "#3fb95014" }}><Check size={12} /> já ligado</span>
+          <span className="pill" style={{ color: "#3fb950", borderColor: "#3fb95040", background: "#3fb95014" }}><Check size={12} /> Em uso</span>
           <button className="btn btn-ghost btn-sm" onClick={abrir}>Abrir <ArrowRight size={13} /></button>
         </div>
       ) : (

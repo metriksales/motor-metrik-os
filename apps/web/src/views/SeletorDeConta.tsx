@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as TeclaReact 
 import { Check, ChevronsUpDown, LogOut, Search } from "lucide-react";
 import { useMotorAuth, type Conta } from "../lib/auth";
 import { anotarUso, escolherRecentes, filtrarContas } from "../lib/contas";
+import { rotuloDoPapel } from "../lib/papeis";
 
 /**
  * Seletor de conta (S-045) — o que era o OrganizationSwitcher do Clerk.
@@ -128,7 +129,7 @@ export function SeletorDeConta({ compacto }: { compacto?: boolean }) {
         <span className="conta-avatar">{c.nome.slice(0, 1).toUpperCase()}</span>
         <span className="conta-texto">
           <strong>{c.nome}</strong>
-          <small>{c.role}</small>
+          <small>{rotuloDoPapel(c.role)}</small>
         </span>
         {atual && <Check size={14} className="conta-check" aria-hidden="true" />}
       </button>
@@ -173,14 +174,14 @@ export function SeletorDeConta({ compacto }: { compacto?: boolean }) {
           <div className="conta-lista" role="listbox" aria-label="Suas contas">
             {recentes.length > 0 && (
               <>
-                <div className="conta-secao">recentes</div>
+                <div className="conta-secao">Recentes</div>
                 {recentes.map((c) => linha(c, `r-${c.orgId}`))}
                 <div className="conta-risco" />
               </>
             )}
 
             <div className="conta-secao">
-              todas as contas<span>{filtradas.length}</span>
+              Todas as contas<span>{filtradas.length}</span>
             </div>
             {filtradas.length === 0 ? (
               <p className="conta-vazio">Nenhuma conta com esse nome.</p>
@@ -234,7 +235,7 @@ export function MenuDaPessoa() {
         <div role="menu" className="absolute right-0 z-50 mt-1 card p-1.5 shadow-xl min-w-[220px]" style={{ background: "var(--surface)" }}>
           <div className="px-2 py-1.5">
             <div className="text-[13px] truncate">{auth.email}</div>
-            <div className="text-[11px] text-[var(--txt-4)]">{auth.role}</div>
+            <div className="text-[11px] text-[var(--txt-4)]">{rotuloDoPapel(auth.role)}</div>
           </div>
           <div className="border-t border-[var(--line)] my-1" />
           <button

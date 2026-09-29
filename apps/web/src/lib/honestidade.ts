@@ -38,14 +38,14 @@ export const SEM_DADO = "—";
 export function legendaDoEstado(estado: EstadoDoDado): string {
   switch (estado) {
     case "demo":
-      return "números de demonstração";
+      return "Números de demonstração";
     case "erro":
-      return "não consegui ler os dados da sua conta";
+      return "Não foi possível ler os dados da conta.";
     case "carregando":
-      return "lendo os dados da sua conta…";
+      return "Lendo os dados da conta";
     case "vazio":
-      return "sem atividade registrada ainda";
+      return "Nenhuma atividade registrada";
     case "ok":
-      return "dados reais da sua conta";
+      return "Dados reais da conta";
   }
 }

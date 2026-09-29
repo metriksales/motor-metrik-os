@@ -122,7 +122,7 @@ export function planejarMudanca(texto: string): ChangePlan {
       titulo: "Acompanhar quem parar de responder",
       descricao: "A automação espera o tempo definido e retoma o contato pelo canal conectado.",
       quando: "lead para de responder",
-      faz: "espera e envia uma mensagem de acompanhamento",
+      faz: "Espera o tempo definido e envia uma mensagem de acompanhamento.",
       configPatch,
     };
   }
@@ -135,7 +135,7 @@ export function planejarMudanca(texto: string): ChangePlan {
       pedido,
       ferramenta,
       titulo: `Conectar ${nome}`,
-      descricao: "Isso exige uma conexão segura; não altera a fala nem a automação do agente.",
+      descricao: "Este pedido exige uma conexão segura. Ele não altera a fala nem a automação do agente.",
     };
   }
 
@@ -245,18 +245,18 @@ export function criarProvaOperacional(specAntes: AgentSpec, specAgora: AgentSpec
   const esperadoPassos = plano.configPatch.passos;
   const regrasIntactas = JSON.stringify(specAntes.cerebro.regras) === JSON.stringify(specAgora.cerebro.regras);
   const checks = [
-    { id: "motor-on", rotulo: "automação ligada", passou: agora.ligado },
+    { id: "motor-on", rotulo: "Automação ligada", passou: agora.ligado },
     {
       id: "cadencia",
-      rotulo: "tempo de espera configurado",
+      rotulo: "Tempo de espera configurado",
       passou: esperadoPassos === undefined || JSON.stringify(config.passos) === JSON.stringify(esperadoPassos),
     },
     {
       id: "limite",
-      rotulo: "limite de mensagens configurado",
+      rotulo: "Limite de mensagens configurado",
       passou: esperadoToques === undefined || Number(config.maxToques) === Number(esperadoToques),
     },
-    { id: "separacao", rotulo: "conversa não foi alterada", passou: regrasIntactas },
+    { id: "separacao", rotulo: "Conversa sem alteração", passou: regrasIntactas },
   ];
   return {
     kind: "motor",

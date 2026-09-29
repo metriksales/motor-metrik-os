@@ -28,10 +28,11 @@ describe("estado do dado", () => {
   });
 
   test("cada estado tem uma frase honesta, e nenhuma promete dado que não existe", () => {
-    expect(legendaDoEstado("erro")).toContain("não consegui");
-    expect(legendaDoEstado("vazio")).toContain("sem atividade");
-    expect(legendaDoEstado("ok")).toContain("dados reais");
-    expect(legendaDoEstado("demo")).toContain("demonstração");
+    expect(legendaDoEstado("erro")).toBe("Não foi possível ler os dados da conta.");
+    expect(legendaDoEstado("carregando")).toBe("Lendo os dados da conta");
+    expect(legendaDoEstado("vazio")).toBe("Nenhuma atividade registrada");
+    expect(legendaDoEstado("ok")).toBe("Dados reais da conta");
+    expect(legendaDoEstado("demo")).toBe("Números de demonstração");
     expect(SEM_DADO).toBe("—");
   });
 });

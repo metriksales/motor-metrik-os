@@ -175,7 +175,7 @@ export default function App() {
 
         {compactSide ? (
           <div className="app-sidebar-footer app-sidebar-footer--compact">
-            <span className="app-operation-beacon" title={`${ativos} agentes trabalhando`}><i /></span>
+            <span className="app-operation-beacon" title={`${ativos} ${ativos === 1 ? "agente no ar" : "agentes no ar"}`}><i /></span>
             <button onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} className="app-sidebar-theme" aria-label="Alternar tema" title="Alternar tema">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
@@ -186,7 +186,7 @@ export default function App() {
               <span className="app-operation-beacon"><i /></span>
               <span>
                 <strong>Operação ativa</strong>
-                <small>{ativos} {ativos === 1 ? "agente trabalhando" : "agentes trabalhando"}</small>
+                <small>{ativos} {ativos === 1 ? "agente no ar" : "agentes no ar"}</small>
               </span>
             </div>
             <div className="app-sidebar-meta">
@@ -229,11 +229,11 @@ export default function App() {
                   <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="absolute right-0 mt-2 w-[320px] card !rounded-2xl z-40 overflow-hidden">
                     <div className="px-4 py-3 border-b border-[var(--line)] flex items-center gap-2">
                       <Bell size={14} style={{ color: "#fbbf24" }} />
-                      <span className="font-display font-semibold text-[13.5px]">Seus robôs pedem atenção</span>
+                      <span className="font-display font-semibold text-[13.5px]">Agentes que pedem atenção</span>
                     </div>
                     <div className="p-2">
                       {totalAvisos === 0 ? (
-                        <div className="text-[12.5px] text-[var(--txt-3)] p-3">Nada pendente 🎉</div>
+                        <div className="text-[12.5px] text-[var(--txt-3)] p-3">Nada pendente.</div>
                       ) : (
                         <>
                           {/* PENDÊNCIAS do porteiro: o pedido do cliente esperando o aval dele */}
@@ -243,8 +243,8 @@ export default function App() {
                               <button key={p.id} onClick={() => openAgent(p.agentId, "melhorar")} className="w-full text-left rounded-xl p-2.5 hover:bg-[var(--surface-2)] transition-colors flex gap-2.5">
                                 <span className="grid place-items-center rounded-md flex-none mt-0.5" style={{ width: 18, height: 18, background: "rgba(63,185,80,.16)", border: "1px solid rgba(63,185,80,.34)", color: "#3fb950", fontSize: 10, fontWeight: 700 }}>✓</span>
                                 <div className="min-w-0">
-                                  <div className="text-[12.5px] font-medium">{p.agentName} · passou no porteiro{nota ? ` · nota ${nota}` : ""}</div>
-                                  <div className="text-[11.5px] text-[var(--txt-3)] truncate">“{p.intent}” — falta você aprovar</div>
+                                  <div className="text-[12.5px] font-medium">{p.agentName} · Passou no porteiro{nota ? ` · Nota ${nota}` : ""}</div>
+                                  <div className="text-[11.5px] text-[var(--txt-3)] truncate">Aguarda aprovação · “{p.intent}”</div>
                                 </div>
                               </button>
                             );
@@ -284,7 +284,7 @@ export default function App() {
               <Wand2 size={14} /> <span className="hidden sm:inline">Pedir melhoria</span>
             </button>
             {auth.demo ? (
-              <span className="pill hidden sm:inline-flex" title="Modo vitrine — dados de demonstração">Demo</span>
+              <span className="pill hidden sm:inline-flex" title="Modo vitrine, com dados de demonstração">Demo</span>
             ) : (
               <MenuDaPessoa />
             )}
@@ -313,7 +313,7 @@ export default function App() {
               style={{ borderColor: agent ? "var(--line)" : "rgba(59,130,246,.35)", background: "rgba(59,130,246,.08)", color: "var(--txt-2)" }}
             >
               <Sparkles size={13} style={{ color: "#3b82f6" }} className="flex-none" />
-              <span><b className="text-[var(--txt)]">Isto é um exemplo</b> — números e conversas de demonstração. A sua conta começa limpa e vai enchendo sozinha conforme a IA trabalha.</span>
+              <span><b className="text-[var(--txt)]">Isto é um exemplo</b>, com números e conversas de demonstração. A conta real começa vazia e se enche com o trabalho dos agentes.</span>
             </div>
           )}
           {/* modo LOGADO: falha real da API nunca vira maquete — vira aviso claro */}
@@ -322,7 +322,7 @@ export default function App() {
               className={agent ? "flex-none border-b px-5 py-2 text-[12.5px]" : "max-w-[1180px] mx-auto mb-4 rounded-xl border px-4 py-3 text-[13px]"}
               style={{ borderColor: "rgba(248,81,73,.4)", background: "rgba(248,81,73,.08)", color: "#f85149" }}
             >
-              Não consegui falar com o motor agora: <span className="font-mono">{erro}</span>. A Metrik já enxerga isso do outro lado — se persistir, chama a gente.
+              Não foi possível falar com o motor. Se o erro persistir, avise a Metrik. <span className="font-mono">{erro}</span>
             </div>
           )}
           {/* remonte por chave (sem AnimatePresence/exit): trocar de tela SEMPRE
@@ -337,10 +337,9 @@ export default function App() {
           >
               {!auth.demo && !erro && !agentsLoading && agents.length === 0 ? (
                 <div className="card !rounded-2xl px-6 py-10 text-center">
-                  <div className="font-display font-semibold text-[17px] mb-2">Sua organização está pronta — os agentes chegam por aqui</div>
+                  <div className="font-display font-semibold text-[17px] mb-2">Nenhum agente instalado nesta conta</div>
                   <p className="text-[13px] text-[var(--txt-3)] max-w-[520px] mx-auto">
-                    Ainda não há nenhum agente instalado nesta organização. A Metrik monta e liga o primeiro pra você;
-                    assim que ele estiver no ar, esta tela vira o seu painel de acompanhamento ao vivo.
+                    A Metrik monta e liga o primeiro agente. Quando ele entrar no ar, esta tela passa a mostrar a operação.
                   </p>
                 </div>
               ) : agent ? (
@@ -367,8 +366,8 @@ export default function App() {
             <motion.div className="relative w-full max-w-[520px] card !rounded-2xl overflow-hidden" initial={{ scale: 0.97, y: -8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.97, y: -8 }} transition={{ duration: 0.18 }} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--line)]">
                 <Search size={16} className="text-[var(--txt-3)]" />
-                <input autoFocus placeholder="Ir para…" className="flex-1 bg-transparent outline-none text-[14px] placeholder:text-[var(--txt-4)]" />
-                <span className="tick">esc</span>
+                <input autoFocus placeholder="Ir para" className="flex-1 bg-transparent outline-none text-[14px] placeholder:text-[var(--txt-4)]" />
+                <span className="tick">Esc</span>
               </div>
               <div className="p-2">
                 {NAV.map((n) => (
@@ -390,7 +389,7 @@ export default function App() {
               </div>
               <div className="px-4 py-2.5 border-t border-[var(--line)] flex items-center justify-between text-[11px] text-[var(--txt-4)]">
                 <span>Motor · Metrik OS</span>
-                <span className="flex items-center gap-1">navegar <ArrowRight size={11} /></span>
+                <span className="flex items-center gap-1">Navegar <ArrowRight size={11} /></span>
               </div>
             </motion.div>
           </motion.div>

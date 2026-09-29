@@ -33,8 +33,8 @@ export default function Marcos({ stats, orgKey }: { stats: StatsReais | null; or
 
     // candidatos com a chave estável (track + limiar) e o texto comemorativo
     const candidatos: { chave: string; texto: string }[] = [];
-    if (mReais > 0) candidatos.push({ chave: `$:${mReais}`, texto: `${rotuloReais(mReais)} gerados desde que você ligou o Motor` });
-    if (mReuniao > 0) candidatos.push({ chave: `r:${mReuniao}`, texto: mReuniao === 1 ? "1ª reunião marcada pela sua equipe 🎉" : `${mReuniao}ª reunião marcada pela sua equipe` });
+    if (mReais > 0) candidatos.push({ chave: `$:${mReais}`, texto: `O Motor gerou ${rotuloReais(mReais)} desde a ativação.` });
+    if (mReuniao > 0) candidatos.push({ chave: `r:${mReuniao}`, texto: `A equipe marcou a ${mReuniao}ª reunião.` });
 
     let vistos: string[] = [];
     try { vistos = JSON.parse(localStorage.getItem(`motor:marcos:${orgKey}`) || "[]"); } catch { vistos = []; }

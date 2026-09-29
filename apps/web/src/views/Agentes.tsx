@@ -31,32 +31,19 @@ export default function Agentes({
 
   return (
     <div className="space-y-6">
-      <Reveal>
-        <div className="grad-border overflow-hidden">
-          <div className="relative p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="aurora !h-[70%] !opacity-30" />
-            <div className="relative max-w-xl">
-              <div className="mono-label mb-2">A frota que trabalha por você</div>
-              <h2 className="font-display text-[21px] md:text-[24px] font-semibold tracking-tight">
-                Cada robô é uma habilidade nossa, <span className="grad-text">já pronta e blindada</span>.
-              </h2>
-              <p className="text-[13.5px] text-[var(--txt-2)] mt-2 leading-relaxed">
-                Você liga, observa e afina. Quando estão trabalhando, eles mexem; parados, ficam quietos.
-                O que roda por dentro é com a Metrik.
-              </p>
-            </div>
-            <div className="relative flex flex-col items-start md:items-end gap-2">
-              <Pill color={source === "neon" ? "#3b82f6" : "#83879a"}>
-                <Database size={12} /> {source === "neon" ? "dados reais ✓" : "Demo"}
-              </Pill>
-              <Pill color="#3fb950"><span className="live-dot" style={{ width: 7, height: 7 }} /> {ativos} trabalhando agora</Pill>
-            </div>
-          </div>
-        </div>
-      </Reveal>
-
       <div>
-        <SectionHeader label="Sua frota" title={<>Agentes <span className="text-[var(--txt-3)] font-normal">· {agents.length}</span></>} />
+        <SectionHeader
+          label="Sua frota"
+          title={<>Agentes <span className="text-[var(--txt-3)] font-normal">· {agents.length}</span></>}
+          right={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Pill color={source === "neon" ? "#3b82f6" : "#83879a"}>
+                <Database size={12} /> {source === "neon" ? "Dado real" : "Demo"}
+              </Pill>
+              <Pill color="#3fb950"><span className="live-dot" style={{ width: 7, height: 7 }} /> {ativos} no ar</Pill>
+            </div>
+          }
+        />
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {carregandoReal
             ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} lines={2} h={210} />)
@@ -78,11 +65,11 @@ export default function Agentes({
               <div>
                 <div className="font-display font-semibold text-[15px] mb-1">Novo agente</div>
                 <p className="text-[12.5px] text-[var(--txt-3)] leading-snug">
-                  Instale uma habilidade da loja ou traga a sua pelo Claude Code — vira um robô seu.
+                  Instale uma habilidade da loja ou traga a sua pelo Claude Code.
                 </p>
               </div>
               <span className="text-[12.5px] flex items-center gap-1.5 mt-1" style={{ color: "#3b82f6" }}>
-                <Plug size={13} /> Conectar <ArrowRight size={13} />
+                <Plug size={13} /> Ver conexões <ArrowRight size={13} />
               </span>
             </button>
           </Reveal>
@@ -132,13 +119,13 @@ function AgentCard({ a, vivo, onOpen }: { a: Agent; vivo: Vivo; onOpen: () => vo
 
       {semMovimento ? (
         <div className="mt-auto pt-3 border-t border-[var(--line)] text-[12px] text-[var(--txt-3)]">
-          de plantão — nenhum atendimento ainda hoje
+          Nenhum atendimento registrado hoje.
         </div>
       ) : (
         <div className="mt-auto grid grid-cols-3 gap-2 pt-3 border-t border-[var(--line)]">
-          <Metric label="hoje" value={String(execucoes)} />
-          <Metric label="acertos" value={`${acerto}%`} />
-          <Metric label="custo" value={a.metrics.custo.replace("R$ ", "R$")} />
+          <Metric label="Hoje" value={String(execucoes)} />
+          <Metric label="Acertos" value={`${acerto}%`} />
+          <Metric label="Custo" value={a.metrics.custo.replace("R$ ", "R$")} />
         </div>
       )}
     </button>

@@ -32,7 +32,7 @@ function Raiz() {
   const { estado, valor, recarregar } = useSessao(modoDemo);
 
   if (estado === "carregando") {
-    return <Centered><span style={{ color: "var(--txt-3)", fontSize: 13.5 }}>carregando…</span></Centered>;
+    return <Centered><span style={{ color: "var(--txt-3)", fontSize: 13.5 }}>Carregando</span></Centered>;
   }
 
   if (estado === "fora") {

@@ -30,7 +30,7 @@ const DEMO: MotorAuth = {
   demo: true,
   carregando: false,
   orgName: "Vega Consultoria",
-  orgDesc: "demonstração",
+  orgDesc: "Demonstração",
   orgInitial: "V",
   contas: [],
   trocarConta: async () => {},
