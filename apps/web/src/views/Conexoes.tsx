@@ -18,6 +18,7 @@ import {
   Loader2,
   MessageCircle,
   Plug,
+  QrCode,
   RefreshCw,
   Send,
   Wrench,
@@ -35,6 +36,7 @@ import {
   ondeChegamOsEventos,
   quemRespondeu,
   type ConexaoReal,
+  type EstadoDaConexao,
   type TipoCadastravel,
 } from "../lib/conexoes";
 import { tempoRelativo, useConexoes } from "../lib/live";
@@ -106,8 +108,9 @@ function ConexoesDaConta() {
                   testando={testando === c.id}
                   erro={erroDoTeste[c.id]}
                   aviso={aviso?.id === c.id ? aviso : null}
-                  podeEnviar={podeGerenciar && c.kind === "whatsapp"}
+                  podeGerenciar={podeGerenciar}
                   onTestar={() => testar(c)}
+                  onConectada={substituir}
                 />
               </Reveal>
             ))}
@@ -166,27 +169,35 @@ function CartaoDeConexao({
   testando,
   erro,
   aviso,
-  podeEnviar,
+  podeGerenciar,
   onTestar,
+  onConectada,
 }: {
   c: ConexaoReal;
   testando: boolean;
   erro?: string;
   aviso: { mesma: boolean } | null;
-  podeEnviar: boolean;
+  podeGerenciar: boolean;
   onTestar: () => void;
+  onConectada: (c: ConexaoReal) => void;
 }) {
-  const [envioAberto, setEnvioAberto] = useState(false);
+  const [painel, setPainel] = useState<"envio" | "conectar" | null>(null);
+  const whatsapp = c.kind === "whatsapp";
+  // no ar: dá para mandar uma mensagem de teste; fora: dá para conectar por aqui
+  const podeEnviar = podeGerenciar && whatsapp && c.status === "ok";
+  const podeConectar = podeGerenciar && whatsapp && (c.status === "falha" || c.status === "nao_testada");
+  const alternar = (p: "envio" | "conectar") => setPainel((atual) => (atual === p ? null : p));
   const eventos = ondeChegamOsEventos(c);
   const tipo = TIPO_DE_CONEXAO[c.kind];
   const Icon = tipo?.icon ?? Plug;
   const provedor = tipo?.provedor ?? "provedor";
   const st = STATUS_DA_CONEXAO[c.status] ?? { label: c.status, cor: "var(--txt-4)" };
-  const quem = c.status === "ok" ? quemRespondeu(c) : "";
+  const quem = quemRespondeu(c);
   const foto = c.status === "ok" ? c.ultimoTesteDados?.foto : undefined;
-  // Quem respondeu já está na linha de cima; a frase "Conectado como Luã" não
-  // se repete embaixo dela (texto-de-tela, regra 13).
-  const frase = quem ? null : c.ultimoTesteDetalhe ?? "Sem teste até agora.";
+  // No ar, quem respondeu já está na linha de cima; a frase "Conectado como
+  // Luã" não se repete embaixo dela (texto-de-tela, regra 13). Fora do ar, a
+  // linha de cima só diz qual instância, e a frase diz o que houve.
+  const frase = c.status === "ok" && quem ? null : c.ultimoTesteDetalhe ?? "Sem teste até agora.";
   return (
     <div className={cx("card p-4 h-full flex flex-col", aviso ? "connection-respondeu" : undefined)} data-status={c.status}>
       <div className="flex items-start gap-3">
@@ -218,12 +229,21 @@ function CartaoDeConexao({
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[var(--line)]">
-        {podeEnviar ? (
+        {podeConectar ? (
           <button
             type="button"
             className="btn btn-sm btn-ghost"
-            aria-expanded={envioAberto}
-            onClick={() => setEnvioAberto((v) => !v)}
+            aria-expanded={painel === "conectar"}
+            onClick={() => alternar("conectar")}
+          >
+            <QrCode size={13} /> Conectar WhatsApp
+          </button>
+        ) : podeEnviar ? (
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            aria-expanded={painel === "envio"}
+            onClick={() => alternar("envio")}
           >
             <Send size={13} /> Enviar mensagem de teste
           </button>
@@ -241,7 +261,16 @@ function CartaoDeConexao({
           {testando ? "Testando" : "Testar agora"}
         </button>
       </div>
-      {podeEnviar && envioAberto && <EnvioDeTeste id={c.id} />}
+      {podeEnviar && painel === "envio" && <EnvioDeTeste id={c.id} />}
+      {podeConectar && painel === "conectar" && (
+        <ConectarWhatsApp
+          id={c.id}
+          onConectada={(nova) => {
+            onConectada(nova);
+            setPainel(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -300,6 +329,206 @@ function EnvioDeTeste({ id }: { id: string }) {
         </p>
       )}
     </form>
+  );
+}
+
+/** A cada quanto a tela pergunta se a instância já conectou. */
+const INTERVALO_CONEXAO_MS = 5000;
+/** A uazapi mantém o QR por 2 minutos e o código de pareamento por 5. */
+const VALIDADE_MS = { qrcode: 2 * 60_000, codigo: 5 * 60_000 } as const;
+
+/** "ABCD1234" → "ABCD-1234", como o WhatsApp mostra. */
+function formatarCodigo(codigo: string): string {
+  const c = codigo.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : codigo;
+}
+
+/**
+ * Conectar o WhatsApp sem sair da plataforma (S-019). Abre pedindo o QR code
+ * à uazapi; quem está no próprio celular troca para o código de pareamento. A
+ * tela pergunta a cada poucos segundos se já conectou e, quando conecta, troca
+ * o cartão pela conexão já testada. O QR e o código não são guardados.
+ */
+function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: ConexaoReal) => void }) {
+  const auth = useMotorAuth();
+  const [modo, setModo] = useState<"qrcode" | "codigo">("qrcode");
+  const [telefone, setTelefone] = useState("");
+  const [estado, setEstado] = useState<EstadoDaConexao | null>(null);
+  const [pedindo, setPedindo] = useState(false);
+  const [erro, setErro] = useState<string | undefined>(undefined);
+  const [expiraEm, setExpiraEm] = useState<number | null>(null);
+  const [expirou, setExpirou] = useState(false);
+  const vivo = useRef(true);
+  useEffect(() => {
+    vivo.current = true;
+    return () => {
+      vivo.current = false;
+    };
+  }, []);
+
+  const pedir = async (m: "qrcode" | "codigo", fone?: string) => {
+    setPedindo(true);
+    setErro(undefined);
+    setExpirou(false);
+    setEstado(null);
+    try {
+      const r = (await api.conectarWhatsApp(id, m === "codigo" ? fone : undefined, auth.getToken)) as EstadoDaConexao;
+      if (!vivo.current) return;
+      setEstado(r);
+      setExpiraEm(r.qrcode || r.codigo ? Date.now() + VALIDADE_MS[m] : null);
+    } catch (e) {
+      if (vivo.current) setErro(e instanceof Error ? e.message : "Falha ao pedir a conexão.");
+    } finally {
+      if (vivo.current) setPedindo(false);
+    }
+  };
+
+  // ao abrir, já pede o QR code
+  useEffect(() => {
+    void pedir("qrcode");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // enquanto há QR ou código na tela, pergunta se já conectou
+  const aguardando = !!estado && !estado.conectado && !!(estado.qrcode || estado.codigo) && !expirou;
+  useEffect(() => {
+    if (!aguardando) return;
+    const t = setTimeout(async () => {
+      if (expiraEm && Date.now() >= expiraEm) {
+        setExpirou(true);
+        return;
+      }
+      try {
+        const r = (await api.acompanharWhatsApp(id, auth.getToken)) as EstadoDaConexao;
+        if (!vivo.current) return;
+        if (r.conexao) {
+          setEstado(r);
+          onConectada(r.conexao);
+          return;
+        }
+        // o status devolve o QR renovado, mas não repete o código de pareamento
+        setEstado((antes) => ({
+          ...r,
+          codigo: r.codigo ?? antes?.codigo,
+          qrcode: antes?.codigo ? undefined : (r.qrcode ?? antes?.qrcode),
+        }));
+      } catch (e) {
+        if (vivo.current) setErro(e instanceof Error ? e.message : "Falha ao acompanhar a conexão.");
+      }
+    }, INTERVALO_CONEXAO_MS);
+    return () => clearTimeout(t);
+  }, [aguardando, estado, expiraEm, id, auth.getToken, onConectada]);
+
+  const trocarModo = (m: "qrcode" | "codigo") => {
+    setModo(m);
+    setEstado(null);
+    setErro(undefined);
+    setExpirou(false);
+    if (m === "qrcode") void pedir("qrcode");
+  };
+
+  const semResultado = !!estado && !estado.conectado && !estado.qrcode && !estado.codigo && !pedindo;
+
+  return (
+    <div className="conexao-cadastro mt-3 pt-3 border-t border-[var(--line)]">
+      {estado?.conectado ? (
+        <p className="text-[12.5px] flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
+          <Check size={12} /> WhatsApp conectado.
+        </p>
+      ) : modo === "qrcode" ? (
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          <div className="connection-qr flex-none grid place-items-center" aria-busy={pedindo}>
+            {estado?.qrcode && !expirou ? (
+              <img src={estado.qrcode} alt="QR code para conectar o WhatsApp" width={200} height={200} />
+            ) : pedindo ? (
+              <Loader2 size={20} className="animate-spin text-[var(--txt-4)]" />
+            ) : (
+              <QrCode size={28} className="text-[var(--txt-4)]" />
+            )}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
+              No celular, abra o WhatsApp, toque em Aparelhos conectados e leia o QR code.
+            </p>
+            {aguardando && (
+              <p className="text-[12px] text-[var(--txt-3)] flex items-center gap-1.5" role="status">
+                <Loader2 size={12} className="animate-spin" /> Aguardando a leitura no celular
+              </p>
+            )}
+            {expirou && (
+              <p className="text-[12.5px]" style={{ color: "var(--amber)" }} role="status">
+                O QR code expirou.
+              </p>
+            )}
+            {(expirou || semResultado) && (
+              <button type="button" className="btn btn-sm" onClick={() => void pedir("qrcode")}>
+                <RefreshCw size={13} /> Gerar novo QR code
+              </button>
+            )}
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => trocarModo("codigo")}>
+              Conectar com o número de telefone
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {estado?.codigo && !expirou ? (
+            <>
+              <div className="connection-codigo" aria-label="Código de pareamento">
+                {formatarCodigo(estado.codigo)}
+              </div>
+              <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
+                No WhatsApp, toque em Aparelhos conectados, depois em Conectar com número de telefone, e digite o código.
+              </p>
+              {aguardando && (
+                <p className="text-[12px] text-[var(--txt-3)] flex items-center gap-1.5" role="status">
+                  <Loader2 size={12} className="animate-spin" /> Aguardando a confirmação no celular
+                </p>
+              )}
+            </>
+          ) : (
+            <form
+              onSubmit={(ev: FormEvent) => {
+                ev.preventDefault();
+                void pedir("codigo", telefone);
+              }}
+            >
+              <label className="auth-campo">
+                <span className="mono-label">Número do WhatsApp com DDI e DDD</span>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    required
+                    disabled={pedindo}
+                    placeholder="5561991840065"
+                    value={telefone}
+                    onChange={(ev) => setTelefone(ev.target.value)}
+                  />
+                  <button type="submit" className="btn btn-primary btn-sm flex-none" disabled={pedindo || !telefone.trim()}>
+                    {pedindo ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                    {pedindo ? "Gerando" : "Gerar código"}
+                  </button>
+                </div>
+              </label>
+              {expirou && (
+                <p className="text-[12.5px]" style={{ color: "var(--amber)" }} role="status">
+                  O código expirou. Gere um novo.
+                </p>
+              )}
+            </form>
+          )}
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => trocarModo("qrcode")}>
+            Usar QR code
+          </button>
+        </div>
+      )}
+      {(erro || semResultado) && (
+        <p className="text-[12.5px] mt-2 flex items-center gap-1.5" style={{ color: "var(--rose)" }} role="alert">
+          <AlertTriangle size={12} /> {erro ?? estado?.detalhe}
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -341,5 +341,17 @@ describe.skipIf(!temBanco)("conexões pela porta única (S-019)", () => {
     });
     expect(envio.status).toBe(200);
     expect(envio.corpo).toEqual({ ok: false, detalhe: "Nenhuma credencial guardada no cofre para esta conexão." });
+
+    // conectar o WhatsApp mostra um QR que é uma chave: só admin, e só por POST
+    for (const acao of ["conectarWhatsApp", "acompanharWhatsApp"]) {
+      const semEscopo = await chamar({ action: acao, token: mudanca, metodo: "POST", body: { id: conexao.id } });
+      expect(semEscopo.status, acao).toBe(403);
+      const porGet = await chamar({ action: acao, token, metodo: "GET" });
+      expect(porGet.status, acao).toBe(405);
+    }
+    // sem credencial no cofre, a recusa diz isso antes de falar com a uazapi
+    const semCredencial = await chamar({ action: "conectarWhatsApp", token, metodo: "POST", body: { id: conexao.id } });
+    expect(semCredencial.status).toBe(400);
+    expect((semCredencial.corpo as { error: string }).error).toBe("Nenhuma credencial guardada no cofre para esta conexão.");
   });
 });

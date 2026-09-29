@@ -3579,6 +3579,11 @@ html[data-theme="light"] .est-feature-copy small { color: #707985; }
 .auth-campo select:disabled { opacity: 0.6; cursor: not-allowed; }
 /* a foto de perfil que o provedor mandou (S-019); cai no ícone se a URL vencer */
 .connection-avatar { width: 40px; height: 40px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); background: var(--surface-2); }
+/* o QR code da uazapi: fundo branco sempre, senão a câmera do celular não lê no tema escuro */
+.connection-qr { width: 216px; height: 216px; padding: 8px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+.connection-qr img { display: block; width: 200px; height: 200px; image-rendering: pixelated; }
+/* o código de pareamento, grande e espaçado como o WhatsApp mostra */
+.connection-codigo { display: inline-block; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--txt); font: 600 26px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .12em; }
 /* o cartão anuncia que a resposta do provedor acabou de chegar */
 @keyframes connection-respondeu { 0% { box-shadow: 0 0 0 0 rgba(63,185,80,.55); } 100% { box-shadow: 0 0 0 10px rgba(63,185,80,0); } }
 .connection-respondeu { animation: connection-respondeu 1.1s ease-out 1; }

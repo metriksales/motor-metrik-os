@@ -10,7 +10,17 @@
  * texto EXATO: maiúscula, ponto, sem travessão, "o que aconteceu, o que fazer".
  */
 import { describe, expect, test } from "vitest";
-import { ESPERA_MS, TESTADORES, testarGhl, testarKommo, testarUazapi, testavel, type Http } from "./conexoes.js";
+import {
+  ESPERA_MS,
+  TESTADORES,
+  iniciarConexaoUazapi,
+  lerEstadoUazapi,
+  testarGhl,
+  testarKommo,
+  testarUazapi,
+  testavel,
+  type Http,
+} from "./conexoes.js";
 
 /** Um `fetch` de mentira: responde por URL e anota o que recebeu. */
 function rede(respostas: Record<string, { status: number; body?: unknown } | Error>) {
@@ -63,12 +73,30 @@ describe("uazapi (WhatsApp)", () => {
     // o segredo nunca vai parar na frase
     expect(v.detalhe).not.toContain("tok-123");
     // o que o provedor contou, para a tela mostrar — só chaves presentes
+    // o nome do perfil e o nome da instância no servidor são coisas diferentes
     expect(v.dados).toEqual({
       estado: "connected",
       nome: "Metrik",
       numero: "5521981740018",
+      instancia: "linha-1",
       foto: "https://pps.whatsapp.net/v/t61/foto.jpg",
     });
+  });
+
+  test("desconectada também diz qual instância; o nome da instância não vira nome do perfil", async () => {
+    const { http } = rede({
+      "/instance/status": { status: 200, body: { instance: { name: "metrik-01", status: "disconnected" }, status: { connected: false } } },
+    });
+    const v = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, http);
+    expect(v.ok).toBe(false);
+    expect(v.dados).toEqual({ estado: "disconnected", instancia: "metrik-01" });
+
+    const semPerfil = rede({
+      "/instance/status": { status: 200, body: { instance: { name: "metrik-01", status: "connected" }, status: { connected: true, loggedIn: true } } },
+    });
+    const c = await testarUazapi({ segredo: "t", meta: { baseUrl: "https://x.uazapi.com" } }, semPerfil.http);
+    expect(c.detalhe).toBe("Conectado.");
+    expect(c.dados).toEqual({ estado: "connected", instancia: "metrik-01" });
   });
 
   test("sem jid, o número vem do owner da instância; foto que não é https fica de fora", async () => {
@@ -347,5 +375,72 @@ describe("registro", () => {
     expect(testavel("gcal")).toBe(false);
     expect(testavel("advbox")).toBe(false);
     expect(Object.keys(TESTADORES).sort()).toEqual(["ghl", "kommo", "whatsapp"]);
+  });
+});
+
+describe("uazapi: conectar pela plataforma", () => {
+  const META = { baseUrl: "https://x.uazapi.com" };
+  const QR = `data:image/png;base64,${"A".repeat(120)}`;
+
+  test("sem telefone: pede o QR code, com o token, e devolve a imagem", async () => {
+    const { http, chamadas } = rede({
+      "/instance/connect": {
+        status: 200,
+        body: { connected: false, loggedIn: false, jid: null, instance: { name: "metrik-01", status: "connecting", qrcode: QR } },
+      },
+    });
+    const r = await iniciarConexaoUazapi(http, { segredo: "tok", meta: META });
+    expect(r).toEqual({
+      conectado: false,
+      estado: "connecting",
+      qrcode: QR,
+      instancia: "metrik-01",
+      detalhe: "Aguardando a leitura no celular.",
+    });
+    expect(chamadas[0].url).toBe("https://x.uazapi.com/instance/connect");
+    expect(chamadas[0].headers.token).toBe("tok");
+  });
+
+  test("com telefone: pede o código de pareamento e manda o número", async () => {
+    const pedidos: unknown[] = [];
+    const http: Http = async (_url, init) => {
+      pedidos.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify({ connected: false, instance: { status: "connecting", paircode: "ABCD1234" } }), { status: 200 });
+    };
+    const r = await iniciarConexaoUazapi(http, { segredo: "t", meta: META, telefone: "5561991840065" });
+    expect(r.codigo).toBe("ABCD1234");
+    expect(r.qrcode).toBeUndefined();
+    expect(pedidos).toEqual([{ phone: "5561991840065" }]);
+  });
+
+  test("QR sem prefixo ganha o prefixo; o que não é imagem em base64 não passa", async () => {
+    const cru = rede({ "/instance/connect": { status: 200, body: { instance: { status: "connecting", qrcode: "B".repeat(150) } } } });
+    expect((await iniciarConexaoUazapi(cru.http, { segredo: "t", meta: META })).qrcode).toBe(`data:image/png;base64,${"B".repeat(150)}`);
+    const url = rede({ "/instance/connect": { status: 200, body: { instance: { status: "connecting", qrcode: "https://mal.example/x.png" } } } });
+    const r = await iniciarConexaoUazapi(url.http, { segredo: "t", meta: META });
+    expect(r.qrcode).toBeUndefined();
+    expect(r.detalhe).toBe("Instância aguardando a leitura do QR code.");
+  });
+
+  test("status conectado: diz que conectou e não devolve QR nenhum", async () => {
+    const { http } = rede({
+      "/instance/status": { status: 200, body: { instance: { status: "connected", qrcode: QR, name: "metrik-01" }, status: { connected: true, loggedIn: true } } },
+    });
+    const r = await lerEstadoUazapi(http, { segredo: "t", meta: META });
+    expect(r).toEqual({ conectado: true, estado: "connected", instancia: "metrik-01", detalhe: "WhatsApp conectado." });
+  });
+
+  test("401, 429 e 503 têm frase própria; sem endereço não chama", async () => {
+    for (const [status, frase] of [
+      [401, "A uazapi recusou o token da instância."],
+      [429, "Limite de conexões simultâneas da uazapi atingido. Aguarde alguns minutos."],
+      [503, "A uazapi está sem capacidade para conectar agora. Aguarde alguns segundos."],
+    ] as const) {
+      const { http } = rede({ "/instance/connect": { status } });
+      expect(await iniciarConexaoUazapi(http, { segredo: "t", meta: META })).toEqual({ conectado: false, detalhe: frase });
+    }
+    const vazio = rede({});
+    expect(await iniciarConexaoUazapi(vazio.http, { segredo: "t", meta: {} })).toEqual({ conectado: false, detalhe: "Falta o endereço da instância." });
+    expect(vazio.chamadas).toHaveLength(0);
   });
 });

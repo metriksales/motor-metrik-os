@@ -44,6 +44,9 @@ const ESCOPO_POR_ACAO: Record<string, "log" | "leitura" | "mudanca" | "admin"> =
   cadastrarConexao: "admin",
   // sai uma mensagem de verdade, do número do cliente (S-026)
   enviarMensagemDeTeste: "admin",
+  // conectar um WhatsApp à instância do cliente: o QR code é uma chave (S-019)
+  conectarWhatsApp: "admin",
+  acompanharWhatsApp: "admin",
   // O cofre (S-025) é sempre `admin`. Note que NÃO existe ação para LER o
   // segredo: ele sai em um único lugar, `usarCredencial`, que é interno e não
   // está no despacho. Um token de máquina comprometido não extrai credencial
@@ -186,6 +189,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await control.testarConexao(ctx, { id: String(body.id ?? "") }, { nossosHosts: nossosHosts(req) });
       case "cadastrarConexao":
         return await control.cadastrarConexao(ctx, body, { nossosHosts: nossosHosts(req) });
+      case "conectarWhatsApp":
+        return await control.conectarWhatsApp(ctx, {
+          id: String(body.id ?? ""),
+          telefone: body.telefone === undefined ? undefined : String(body.telefone),
+        });
+      case "acompanharWhatsApp":
+        return await control.acompanharWhatsApp(ctx, { id: String(body.id ?? "") }, { nossosHosts: nossosHosts(req) });
       case "enviarMensagemDeTeste":
         return await control.enviarMensagemDeTeste(ctx, {
           id: String(body.id ?? ""),
@@ -227,6 +237,7 @@ const SOMENTE_POST = new Set([
   "criarToken", "revogarToken", "testar", "rodarTestes",
   "guardarCredencial", "revogarCredencial",
   "testarConexao", "cadastrarConexao", "enviarMensagemDeTeste",
+  "conectarWhatsApp", "acompanharWhatsApp",
 ]);
 
 /**
