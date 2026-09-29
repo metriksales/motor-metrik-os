@@ -22,7 +22,7 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
       setModoSeco(Boolean(r.modoSeco));
       setPasso("codigo");
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "não consegui pedir o código");
+      setErro(err instanceof Error ? err.message : "Não foi possível pedir o código.");
     } finally {
       setOcupado(false);
     }
@@ -36,7 +36,7 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
       await auth.entrar(email, codigo);
       aoEntrar();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : "não consegui entrar");
+      setErro(err instanceof Error ? err.message : "Não foi possível entrar.");
     } finally {
       setOcupado(false);
     }
@@ -57,7 +57,6 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
               <strong className="font-display">
                 Metrik<span className="grad-text">-OS</span>
               </strong>
-              <small>sua operação trabalhando sozinha</small>
             </span>
           </div>
 
@@ -65,11 +64,11 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
             <form onSubmit={pedir}>
               <div className="auth-titulo">Entrar</div>
               <p className="auth-sub">
-                Sem senha. Você recebe um código no e-mail e entra com ele.
+                Não há senha. A entrada é por um código enviado ao e-mail.
               </p>
 
               <label className="auth-campo">
-                <span className="mono-label">seu e-mail</span>
+                <span className="mono-label">E-mail</span>
                 <input
                   type="email"
                   required
@@ -84,13 +83,12 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
 
               <button type="submit" disabled={ocupado} className="btn btn-primary auth-acao">
                 {ocupado ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
-                {ocupado ? "enviando…" : "Receber código"}
+                {ocupado ? "Enviando o código" : "Receber código"}
               </button>
 
               <div className="auth-nota">
                 <ShieldCheck size={13} style={{ display: "inline", marginRight: 6, verticalAlign: -2, color: "var(--emerald)" }} />
-                O código vale por 10 minutos e só funciona uma vez. Não existe senha para esquecer,
-                nem para vazar.
+                O código vale por 10 minutos e só funciona uma vez.
               </div>
             </form>
           ) : (
@@ -98,20 +96,20 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
               <div className="auth-titulo">Digite o código</div>
               <p className="auth-sub">
                 Se <strong style={{ color: "var(--txt-2)" }}>{email}</strong> tiver acesso, o código
-                acabou de chegar.
+                foi enviado.
               </p>
 
               {modoSeco && (
                 <div className="auth-aviso">
                   <Terminal size={14} style={{ flex: "none", marginTop: 2, color: "var(--txt-3)" }} />
                   <span>
-                    Este ambiente não envia e-mail: o código está no <strong>log do servidor</strong>.
+                    Este ambiente não envia e-mail. O código está no <strong>log do servidor</strong>.
                   </span>
                 </div>
               )}
 
               <label className="auth-campo auth-codigo">
-                <span className="mono-label">código de 6 dígitos</span>
+                <span className="mono-label">Código de 6 dígitos</span>
                 <input
                   inputMode="numeric"
                   pattern="\d{6}"
@@ -132,7 +130,7 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
                 className="btn btn-primary auth-acao"
               >
                 {ocupado ? <Loader2 size={15} className="animate-spin" /> : <MailCheck size={15} />}
-                {ocupado ? "entrando…" : "Entrar"}
+                {ocupado ? "Entrando" : "Entrar"}
               </button>
 
               <button
@@ -144,7 +142,7 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
                   setErro(null);
                 }}
               >
-                usar outro e-mail
+                Usar outro e-mail
               </button>
             </form>
           )}
@@ -152,7 +150,7 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
           {erro && <div className="auth-erro">{erro}</div>}
         </div>
 
-        <div className="auth-rodape">Metrik · agentes de IA que trabalham dentro do seu CRM</div>
+        <div className="auth-rodape">Metrik · Agentes de IA que trabalham dentro do CRM</div>
       </div>
     </div>
   );

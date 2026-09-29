@@ -27,10 +27,10 @@ function identificar(m: Membro): { nome: string; morta: boolean } {
 }
 
 const ROLE_LABEL: Record<string, { label: string; cor: string }> = {
-  owner: { label: "dono", cor: "#3b82f6" },
-  admin: { label: "admin", cor: "#58aae4" },
-  operator: { label: "operador", cor: "#3fb950" },
-  viewer: { label: "só leitura", cor: "#83879a" },
+  owner: { label: "Dono", cor: "#3b82f6" },
+  admin: { label: "Admin", cor: "#58aae4" },
+  operator: { label: "Operador", cor: "#3fb950" },
+  viewer: { label: "Só leitura", cor: "#83879a" },
 };
 
 export default function Admin() {
@@ -66,10 +66,10 @@ export default function Admin() {
           <div className="min-w-0 flex-1">
             <div className="font-display font-semibold text-[16px]">{auth.orgName}</div>
             <div className="text-[12.5px] text-[var(--txt-3)] mt-0.5">
-              {auth.demo ? "organização de exemplo" : "a sua organização — os dados são só seus"}
+              {auth.demo ? "Conta de exemplo" : "Os dados desta conta são só seus."}
             </div>
           </div>
-          <Pill color={auth.demo ? "#83879a" : "#3fb950"}>{auth.demo ? "demo" : "conta real"}</Pill>
+          <Pill color={auth.demo ? "#83879a" : "#3fb950"}>{auth.demo ? "Demo" : "Conta real"}</Pill>
         </div>
       </Reveal>
 
@@ -79,7 +79,7 @@ export default function Admin() {
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="mono-label flex items-center gap-1.5"><Users size={12} /> Usuários com acesso</div>
             <span className="pill" style={real ? { color: "#3b82f6" } : undefined}>
-              {real ? <Database size={11} /> : null} {real ? "dado real ✓" : "demo"}
+              {real ? <Database size={11} /> : null} {real ? "Dado real" : "Demo"}
             </span>
           </div>
           <ul className="space-y-1">
@@ -100,7 +100,7 @@ export default function Admin() {
                     </span>
                     {morta && (
                       <span className="block text-[11px] text-[var(--txt-4)]">
-                        acesso antigo, do Clerk — esta identidade não entra mais
+                        Acesso antigo do Clerk. Esta identidade não entra mais.
                       </span>
                     )}
                   </span>
@@ -111,7 +111,7 @@ export default function Admin() {
             })}
           </ul>
           <p className="text-[11.5px] text-[var(--txt-4)] mt-3">
-            Não existe senha aqui: quem é convidado recebe um código por e-mail, entra com ele e já cai nesta organização com o papel do convite.
+            Não há senha. Cada convidado recebe um código por e-mail e entra com o papel do convite.
           </p>
         </div>
       </Reveal>
@@ -123,8 +123,8 @@ export default function Admin() {
           <p className="text-[13px] text-[var(--txt-2)] leading-relaxed flex items-start gap-2">
             <Check size={15} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
             {auth.demo
-              ? "Cada pessoa da sua equipe entra com o próprio login e senha, e vê só a sua operação. A Metrik cuida de toda a configuração de acesso."
-              : "Login ativo — cada pessoa entra com a própria conta e vê só a sua operação. Pra convidar alguém, é só pedir pra Metrik."}
+              ? "Cada pessoa da equipe tem o próprio acesso e vê só a operação desta conta. A Metrik configura os acessos."
+              : "Cada pessoa tem o próprio acesso e vê só a operação desta conta. Para convidar alguém, peça à Metrik."}
           </p>
         </div>
       </Reveal>
@@ -134,10 +134,10 @@ export default function Admin() {
         <div className="card p-5 flex items-start gap-3">
           <ShieldCheck size={18} style={{ color: "#3fb950" }} className="flex-none mt-0.5" />
           <div>
-            <div className="text-[13.5px] font-medium text-[var(--txt)]">Seus dados, protegidos</div>
+            <div className="text-[13.5px] font-medium text-[var(--txt)]">Dados protegidos</div>
             <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed mt-0.5">
-              A Metrik opera o seu motor pelos bastidores com acesso seguro — cada conversa e cada número ficam só
-              na sua operação, separados de qualquer outro cliente.
+              A Metrik opera o motor por trás, com acesso seguro. Conversas e números ficam só nesta conta,
+              separados dos outros clientes.
             </p>
           </div>
         </div>

@@ -32,6 +32,11 @@ export function pedidoVago(t: string): boolean {
   const palavras = t.split(/\s+/).filter(Boolean);
   return t.length < 18 || palavras.length < 4;
 }
+// tempoRelativo devolve "agora" abaixo de 1 min; "há agora" não é frase.
+function haQuanto(iso: string) {
+  const t = tempoRelativo(iso);
+  return t === "agora" ? "agora" : `há ${t}`;
+}
 
 /* ── LIGAR MÓDULO em 1 minuto (modal do canvas): escolhas prontas + Ativar.
    Real → propor(hub_visual)+ensaio (cérebro+guardião ✓ publica; sem cérebro
@@ -56,7 +61,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
       } else if (r?.evals && r.evals.aprovado === false) setFase("segurada");
       else setFase("registrado");
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "não consegui registrar");
+      setErro(e instanceof Error ? e.message : "Não foi possível ligar o módulo.");
       setFase("erro");
     }
   };
@@ -67,7 +72,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
         <div className="flex items-start justify-between gap-3 mb-1">
           <div>
             <div className="emo text-[11.5px]" style={{ color: "var(--e-amber)", letterSpacing: ".1em" }}>LIGAR · {u.name.toUpperCase()}</div>
-            <div className="text-[16px] font-semibold tracking-tight mt-1">{(u.config?.length ?? 0) > 0 ? `${u.config!.length} ${u.config!.length === 1 ? "escolha" : "escolhas"} — já vem pronto` : "Já vem pronto"}</div>
+            <div className="text-[16px] font-semibold tracking-tight mt-1">{(u.config?.length ?? 0) > 0 ? `${u.config!.length} ${u.config!.length === 1 ? "escolha já preenchida" : "escolhas já preenchidas"}` : "Nada a configurar"}</div>
           </div>
           <button onClick={onClose} className="est-ghost !p-1.5"><X size={15} /></button>
         </div>
@@ -83,7 +88,7 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
                       const sel = escolhas[i] === o;
                       return (
                         <button key={o} onClick={() => setEscolhas((s) => ({ ...s, [i]: o }))} className="text-[12.5px] rounded-lg px-3 py-1.5" style={sel ? { background: "var(--e-amber)", color: "#ffffff", fontWeight: 600 } : { border: "1px solid var(--e-line)", color: "var(--e-mut)" }}>
-                          {o}{sel ? " ✓" : ""}
+                          {o}{sel ? <Check size={12} className="inline ml-1" /> : null}
                         </button>
                       );
                     })}
@@ -97,20 +102,20 @@ export function LigarModulo({ agent, u, onClose }: { agent: Agent; u: Upgrade; o
             {fase === "erro" && <div className="text-[12.5px] mt-3" style={{ color: "var(--e-red)" }}>{erro}</div>}
             <div className="flex items-center gap-2.5 mt-4">
               <button onClick={() => void ativar()} disabled={fase === "rodando"} className="est-btn">{fase === "rodando" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Ativar</button>
-              <button onClick={onClose} className="est-ghost">depois</button>
+              <button onClick={onClose} className="est-ghost">Deixar para depois</button>
             </div>
-            <p className="text-[11.5px] mt-3 m-0" style={{ color: "var(--e-dim)" }}>o ensaio roda antes de valer — se quebrar uma trava, não liga.</p>
+            <p className="text-[11.5px] mt-3 m-0" style={{ color: "var(--e-dim)" }}>O ensaio roda antes de ligar. Se uma trava quebrar, o módulo não liga.</p>
           </>
         ) : (
           <div className="mt-4">
             <div className="flex items-center gap-2.5 text-[14px] font-medium" style={{ color: fase === "ok" ? "var(--e-green)" : fase === "segurada" ? "var(--e-red)" : "var(--e-amber)" }}>
               {fase === "ok" ? <Check size={16} /> : fase === "segurada" ? <ShieldCheck size={16} /> : fase === "demo" ? <Sparkles size={16} /> : <Clock size={16} />}
-              {fase === "ok" ? "Ligado — no ar." : fase === "segurada" ? "O guardião segurou." : fase === "demo" ? "Modo demonstração." : "Registrado pra Metrik."}
+              {fase === "ok" ? "Módulo ligado." : fase === "segurada" ? "O guardião segurou a mudança." : fase === "demo" ? "Nada foi ligado na demonstração." : "Pedido registrado para a Metrik."}
             </div>
             <p className="text-[12px] mt-1.5" style={{ color: "var(--e-dim)" }}>
-              {fase === "ok" ? "Passou no guardião e já está valendo — está no log de mudanças." : fase === "segurada" ? "Essa configuração encostaria numa trava do núcleo — por isso não ligou." : fase === "demo" ? "No agente real, isto registra a mudança, roda o ensaio e só liga com o guardião ✓." : "Sem o cérebro ligado não dá pra provar sozinho — a Metrik ativa com o ensaio de verdade."}
+              {fase === "ok" ? "O guardião aprovou o ensaio. A mudança aparece na aba Mudanças." : fase === "segurada" ? "A configuração escolhida quebra uma trava do núcleo." : fase === "demo" ? "Num agente real, o módulo só liga com a aprovação do guardião." : "Sem o cérebro ligado, o ensaio não roda neste ambiente. A Metrik liga o módulo depois do ensaio."}
             </p>
-            <button onClick={onClose} className="est-btn mt-4">Beleza</button>
+            <button onClick={onClose} className="est-btn mt-4">Fechar</button>
           </div>
         )}
       </div>
@@ -133,9 +138,9 @@ type EnvioE = {
   erro?: string;
 };
 const DEMO_PRATICA: { re: RegExp; resp: string; fonte: string }[] = [
-  { re: /academy|comprar|checkout/i, resp: "A Academy é R$ 197 — te mando o checkout: vega.com/academy. Qualquer dúvida na compra eu te ajudo por aqui!", fonte: "usou: a rota que você mudou" },
-  { re: /start|pre[cç]o|quanto|custa|valor/i, resp: "O Start sai por R$ 497! Quer que eu te mostre o que vem nele?", fonte: "usou: Lista · Preços" },
-  { re: /desconto|vista/i, resp: "Consigo até 10% à vista — e o retorno paga o resto. Monto a conta pro seu caso?", fonte: "segurou no teto de 10% — trava valendo" },
+  { re: /academy|comprar|checkout/i, resp: "A Academy é R$ 197 — te mando o checkout: vega.com/academy. Qualquer dúvida na compra eu te ajudo por aqui!", fonte: "Fonte: a rota alterada" },
+  { re: /start|pre[cç]o|quanto|custa|valor/i, resp: "O Start sai por R$ 497! Quer que eu te mostre o que vem nele?", fonte: "Fonte: Lista · Preços" },
+  { re: /desconto|vista/i, resp: "Consigo até 10% à vista — e o retorno paga o resto. Monto a conta pro seu caso?", fonte: "Trava do teto de 10% aplicada" },
 ];
 
 export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, seed }: {
@@ -254,7 +259,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const baseVozRef = useRef("");
   const falar = () => {
     const SR: any = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-    if (!SR) return setVozErro("este navegador não faz voz — escreve que funciona igual");
+    if (!SR) return setVozErro("Este navegador não reconhece voz. Escreva o pedido.");
     if (gravando) { try { recRef.current?.stop(); } catch { /* já parou */ } return; }
     const r = new SR();
     r.lang = "pt-BR"; r.interimResults = true; r.continuous = true;
@@ -265,7 +270,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       setTexto(baseVozRef.current + t);
     };
     r.onerror = (e: any) => {
-      setVozErro(e?.error === "not-allowed" ? "libera o microfone no navegador pra falar" : "a voz falhou — escreve que funciona igual");
+      setVozErro(e?.error === "not-allowed" ? "O navegador bloqueou o microfone. Libere o acesso para falar." : "O reconhecimento de voz falhou. Escreva o pedido.");
       setGravando(false);
     };
     r.onend = () => setGravando(false);
@@ -275,7 +280,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
   const rodarEnsaio = async () => {
     const bruto = envio.pedido ?? "";
     const destino: Destino = envio.destino ?? "conversa";
-    if (!agent.real) return setEnvio({ fase: "erro", pedido: bruto, destino, erro: "modo demo — no agente real o pedido entra no ledger, passa no guardião e o diff aparece aqui." });
+    if (!agent.real) return setEnvio({ fase: "erro", pedido: bruto, destino, erro: "Nada muda na demonstração. Num agente real, o guardião testa o pedido antes de publicar." });
     if (destino === "documento") {
       try {
         setEnvio({ fase: "rodando", pedido: bruto, destino });
@@ -283,7 +288,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         setEnvio({ fase: "guardado", pedido: bruto, destino });
         setTrocas((t) => [...t, { pedido: bruto, status: "guardada" }]);
         setTexto(""); setTick((x) => x + 1);
-      } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao registrar" }); }
+      } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "Não foi possível registrar o pedido." }); }
       return;
     }
     if (destino === "ferramenta") {
@@ -298,7 +303,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       const r: any = await api.avaliar(novo.id, auth.getToken);
       setEnvio({ fase: "pronto", cs: novo, evals: r.evals, ensaio: r.ensaio, pedido: bruto, destino });
       setTexto(""); setTick((x) => x + 1);
-    } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao registrar" }); }
+    } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "Não foi possível registrar o pedido." }); }
   };
   const publicar = async () => {
     try {
@@ -307,7 +312,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       setEnvio((s) => ({ ...s, fase: "publicado" }));
       setTrocas((t) => [...t, { pedido: envio.pedido ?? "", status: "no ar" }]);
       setTick((x) => x + 1);
-    } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "erro ao publicar" }); }
+    } catch (e) { setEnvio({ fase: "erro", erro: e instanceof Error ? e.message : "Não foi possível publicar a mudança." }); }
   };
 
   // publicar direto uma mudança que ficou "em revisão" (do Histórico)
@@ -317,7 +322,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     const alvo = changeSetId ?? emRev?.id;
     if (!alvo || revIndo) return;
     try { setRevErro(null); setRevIndo(true); await api.publicarMudanca(alvo, auth.getToken); setTick((x) => x + 1); }
-    catch (e) { setRevErro(e instanceof Error ? e.message : "não consegui publicar — retoma pelo chat"); }
+    catch (e) { setRevErro(e instanceof Error ? e.message : "Não foi possível publicar a mudança. Retome o pedido em Melhorar."); }
     finally { setRevIndo(false); }
   };
 
@@ -344,16 +349,16 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
     setMsgs(novo); setInput("");
     if (!agent.real) {
       const d = DEMO_PRATICA.find((x) => x.re.test(t));
-      return setMsgs([...novo, d ? { de: "ia", texto: d.resp, fonte: d.fonte } : { de: "ia", texto: "Na sua conta, quem responde aqui é o cérebro do ar — isto é a demonstração.", aviso: true }]);
+      return setMsgs([...novo, d ? { de: "ia", texto: d.resp, fonte: d.fonte } : { de: "ia", texto: "A demonstração não responde a esta pergunta. Na sua conta, responde a versão no ar.", aviso: true }]);
     }
     try {
       setPensando(true);
       const historico = novo.filter((m) => !m.aviso).map((m) => ({ role: m.de === "voce" ? ("user" as const) : ("assistant" as const), content: m.texto }));
       const r: any = await api.testar(agent.id, historico, modoTeste, auth.getToken, mudancaTesteId);
-      if (r?.modo === "sem-cerebro") setMsgs([...novo, { de: "ia", texto: "O teste usa o cérebro (chave OpenAI) e ele não está ligado neste ambiente — a Metrik liga e esta conversa vira a IA real.", aviso: true }]);
-      else setMsgs([...novo, { de: "ia", texto: String(r?.texto ?? "…"), fonte: r?.fonte ? `usou: ${r.fonte}` : r?.base === "semente" ? "cérebro-semente da vertical" : null }]);
+      if (r?.modo === "sem-cerebro") setMsgs([...novo, { de: "ia", texto: "O cérebro não está ligado neste ambiente. A Metrik precisa ligar a chave da OpenAI.", aviso: true }]);
+      else setMsgs([...novo, { de: "ia", texto: String(r?.texto ?? "…"), fonte: r?.fonte ? `Fonte: ${r.fonte}` : r?.base === "semente" ? "Cérebro-semente da vertical" : null }]);
     } catch (e) {
-      setMsgs([...novo, { de: "ia", texto: e instanceof Error ? e.message : "o teste falhou — tenta de novo", aviso: true }]);
+      setMsgs([...novo, { de: "ia", texto: e instanceof Error ? e.message : "O teste falhou. Envie a mensagem de novo.", aviso: true }]);
     } finally { setPensando(false); }
   };
   const corrigir = (i: number) => {
@@ -370,7 +375,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       setRun({ status: "rodando" });
       const r: any = await api.rodarTestes(agent.id, modoTeste, auth.getToken, mudancaTesteId);
       setRun({ status: "pronto", r });
-    } catch (e) { setRun({ status: "idle", erro: e instanceof Error ? e.message : "a rodada falhou" }); }
+    } catch (e) { setRun({ status: "idle", erro: e instanceof Error ? e.message : "A rodada de testes falhou." }); }
   };
 
   const sugestoes = agent.real ? ["quanto custa?", "que horas vocês atendem?", "quero falar com uma pessoa"] : ["quero comprar a academy", "quanto custa o start?", "tem desconto à vista?"];
@@ -458,7 +463,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
       {/* ── cabeçalho do workspace: identidade + estado + recibo compacto ── */}
       <header className="est-agentbar flex-none">
         <div className="est-agentbar-main">
-          <button onClick={onBack} title="voltar pra frota" aria-label="voltar pra frota" className="est-icon-btn"><ArrowLeft size={17} /></button>
+          <button onClick={onBack} title="Voltar para a frota" aria-label="Voltar para a frota" className="est-icon-btn"><ArrowLeft size={17} /></button>
           <div className="est-agent-avatar"><Robot state={estado} color={agent.color} size={30} /></div>
           <div className="min-w-0 est-agent-identity">
             <div className="flex items-center gap-2">
@@ -466,15 +471,15 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <span className="est-status-dot" data-on={estado !== "pausado" ? "true" : "false"} />
             </div>
             <div className="text-[11.5px] truncate" style={{ color: "var(--e-dim)" }}>
-              {agent.tipo === "acao" ? "Executa tarefas" : "Conversa com leads"} · {estado === "pausado" ? "pausado" : "no ar"}
+              {agent.tipo === "acao" ? "Executa tarefas" : "Conversa com leads"} · {estado === "pausado" ? "Pausado" : "No ar"}
             </div>
           </div>
 
           <div className="est-agentbar-today" role="status" aria-label={`${execsHoje} atendimentos hoje`}><b>{execsHoje}</b><span>hoje</span></div>
 
           <div className="flex items-center gap-1">
-            <button onClick={onAoVivo} title="abrir atividade ao vivo" aria-label="abrir atividade ao vivo" className="est-icon-btn"><Radio size={16} /></button>
-            <button onClick={onToggle} title={estado === "pausado" ? "ligar agente" : "pausar agente"} aria-label={estado === "pausado" ? "ligar agente" : "pausar agente"} className="est-switch">
+            <button onClick={onAoVivo} title="Abrir atividade ao vivo" aria-label="Abrir atividade ao vivo" className="est-icon-btn"><Radio size={16} /></button>
+            <button onClick={onToggle} title={estado === "pausado" ? "Ligar agente" : "Pausar agente"} aria-label={estado === "pausado" ? "Ligar agente" : "Pausar agente"} className="est-switch">
               <span data-on={estado === "pausado" ? "false" : "true"}><i /></span>
             </button>
           </div>
@@ -493,7 +498,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
         ]).map((t) => (
           <button key={t.id} onClick={() => abrirAba(t.id)} aria-current={mobilePane === "resultado" && aba === t.id ? "page" : undefined}>
             <span className="sm:hidden">{t.curto}</span><span className="hidden sm:inline">{t.longo}</span>
-            {t.id === "historico" && emRev && <i aria-label="uma mudança pendente">1</i>}
+            {t.id === "historico" && emRev && <i aria-label="Uma mudança pendente">1</i>}
           </button>
         ))}
       </nav>
@@ -509,7 +514,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
             {/* boas-vindas do motor + pontos de partida (ninguém fica olhando pro vazio) */}
             <div className="est-improve-intro">
               <h2>O que deve mudar?</h2>
-              <p>Diga do seu jeito. Eu separo conversa, automação e ferramenta, testo a peça certa e mostro antes de publicar.</p>
+              <p>Descreva a mudança com suas palavras. O resultado aparece aqui antes de ir ao ar.</p>
                 {trocas.length === 0 && envio.fase === "idle" && (
                   <div className="est-suggestions">
                     {[
@@ -529,7 +534,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <div className={bolhaMotor}>
                   <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                   <p className="text-[14px] leading-relaxed m-0" style={{ color: t.status === "no ar" ? "var(--e-green)" : "var(--e-txt2)" }}>
-                    {t.status === "no ar" ? "✓ Publicado — já está no ar e marcado no artefato." : "Documento recebido — a Metrik vai preparar o conteúdo antes de colocá-lo nas respostas."}
+                    {t.status === "no ar" ? "Mudança publicada e marcada em Como funciona." : "Documento recebido. A Metrik prepara o conteúdo antes de usá-lo nas respostas."}
                   </p>
                 </div>
               </div>
@@ -543,7 +548,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className={bolhaMotor + " est-entra"}>
                 <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                 <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>
-                  Só isso não me diz o que mudar. O que ela <b>passa a fazer</b>, e <b>em que momento</b>?
+                  O pedido está vago. Descreva o que o agente <b>passa a fazer</b> e <b>em que momento</b>.
                 </p>
               </div>
             )}
@@ -555,7 +560,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     const confirmacao = confirmacaoDoPedido(envio.pedido ?? "", envio.destino ?? "conversa", agent.name);
                     return (
                       <>
-                        <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>Entendi: <b style={{ color: "var(--e-txt)" }}>{confirmacao.titulo}</b>.</p>
+                        <p className="text-[14.5px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>Mudança proposta: <b style={{ color: "var(--e-txt)" }}>{confirmacao.titulo}</b></p>
                         <p className="text-[13px] leading-relaxed mt-1.5 mb-0" style={{ color: "var(--e-mut)" }}>{confirmacao.descricao}</p>
                       </>
                     );
@@ -566,7 +571,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     </button>
                     <button onClick={ajustarPedido} className="est-ghost">Ajustar pedido</button>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-[12px] mt-2" style={{ color: "var(--e-dim)" }}><Lock size={11} /> {envio.destino === "motor" ? "Valido a cadência sem alterar a conversa." : envio.destino === "ferramenta" ? "Credenciais nunca entram neste chat." : "Nada muda no atendimento sem teste e aprovação."}</span>
+                  <span className="inline-flex items-center gap-1 text-[12px] mt-2" style={{ color: "var(--e-dim)" }}><Lock size={11} /> {envio.destino === "motor" ? "A cadência é validada sem alterar a conversa." : envio.destino === "ferramenta" ? "Credenciais nunca entram neste chat." : "Nada muda no atendimento sem teste e aprovação."}</span>
                 </div>
               </div>
             )}
@@ -574,7 +579,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               <div className={bolhaMotor + " est-entra"}>
                 <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                 <p className="text-[14px] leading-relaxed m-0 flex items-center gap-2.5" style={{ color: "var(--e-mut)" }}>
-                  <span className="est-spin" /> Testando essa mudança antes de publicar — pode levar até 30 segundos…
+                  <span className="est-spin" /> Testando a mudança antes de publicar
                 </p>
               </div>
             )}
@@ -589,8 +594,8 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <div className="flex-none mt-0.5"><Robot state="ativo" color={agent.color} size={22} /></div>
                 <p className="text-[14px] leading-relaxed m-0" style={{ color: "var(--e-txt2)" }}>
                   {envio.destino === "ferramenta"
-                    ? "Isso é uma conexão, não uma mudança de conversa. Abra Conexões no menu lateral para autenticar a ferramenta com segurança. Não alterei o agente."
-                    : "Documento recebido. A Metrik vai preparar o conteúdo antes de colocá-lo nas respostas."} <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost !p-0 !px-1">Ok</button>
+                    ? "Este pedido é uma conexão e não altera o agente. Abra Conexões no menu lateral para autenticar a ferramenta."
+                    : "Documento recebido. A Metrik prepara o conteúdo antes de usá-lo nas respostas."} <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost !p-0 !px-1">Fechar</button>
                 </p>
               </div>
             )}
@@ -600,10 +605,10 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <div className="min-w-0 flex-1">
                   <p className="text-[14.5px] leading-relaxed m-0 mb-2" style={{ color: "var(--e-txt2)" }}>
                     {envio.fase === "publicado"
-                      ? <b style={{ color: "var(--e-green)" }}>✓ No ar — marquei no artefato o que mudou.</b>
+                      ? <b style={{ color: "var(--e-green)" }}>Mudança publicada e marcada em Como funciona.</b>
                       : envio.ensaio?.modo === "operacional"
-                        ? <>Automação pronta — <b style={{ color: "var(--e-txt)" }}>confira o que vai acontecer</b>:</>
-                        : <>Conversa ajustada — <b style={{ color: "var(--e-txt)" }}>olha o antes e o depois</b>:</>}
+                        ? <>Ensaio da automação concluído. <b style={{ color: "var(--e-txt)" }}>Confira o que vai acontecer.</b></>
+                        : <>Mudança na conversa preparada. <b style={{ color: "var(--e-txt)" }}>Compare o antes e o depois.</b></>}
                   </p>
                   {envio.ensaio?.modo === "operacional" ? (
                     <div className="est-operation-proof">
@@ -619,14 +624,14 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         <div><dt>Por</dt><dd>{envio.ensaio.agora.canal}</dd></div>
                       </dl>
                       <div className="est-operation-checks">
-                        {envio.ensaio.checks.map((check) => <span key={check.id} data-ok={check.passou ? "true" : "false"}>{check.passou ? "✓" : "×"} {check.rotulo}</span>)}
+                        {envio.ensaio.checks.map((check) => <span key={check.id} data-ok={check.passou ? "true" : "false"}>{check.passou ? <Check size={11} className="inline" /> : <X size={11} className="inline" />} {check.rotulo}</span>)}
                       </div>
                     </div>
                   ) : envio.ensaio?.modo === "real" && envio.ensaio.situacoes[0] ? (
                     <div className="rounded-[9px] overflow-hidden" style={{ border: "1px solid #2b2415", background: "var(--e-surface)" }}>
                       <div className="px-3.5 py-1.5 text-[12px]" style={{ color: "var(--e-dim)", borderBottom: "1px solid var(--e-line-soft)" }}>
-                        situação: {envio.ensaio.situacoes[0].pergunta}
-                        {envio.ensaio.situacoes[0].nome === "do seu pedido" && <span className="emo ml-2" style={{ color: "var(--e-amber)" }}>do SEU pedido</span>}
+                        Situação: {envio.ensaio.situacoes[0].pergunta}
+                        {envio.ensaio.situacoes[0].nome === "do seu pedido" && <span className="emo ml-2" style={{ color: "var(--e-amber)" }}>Seu pedido</span>}
                       </div>
                       <div className="emo">
                         <div className="est-diff-del"><i>−</i><s>{envio.ensaio.situacoes[0].antes.slice(0, 180)}</s></div>
@@ -638,14 +643,14 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                   )}
                   <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                     <span className="emo text-[12px]" style={{ color: envio.evals.aprovado ? "var(--e-green)" : "var(--e-red)" }}>
-                      {envio.evals.aprovado ? "✓" : "✗"} {envio.ensaio?.modo === "operacional" ? "configuração validada" : "guardião"} {envio.evals.passaram}/{envio.evals.total}
+                      {envio.evals.aprovado ? <Check size={12} className="inline" /> : <X size={12} className="inline" />} {envio.ensaio?.modo === "operacional" ? "Validação" : "Guardião"} {envio.evals.passaram}/{envio.evals.total}
                     </span>
-                    {envio.ensaio?.modo === "sem-cerebro" && <span className="emo text-[12.5px]" style={{ color: "var(--e-amber)" }}>sem cérebro — registrado pra Metrik</span>}
+                    {envio.ensaio?.modo === "sem-cerebro" && <span className="emo text-[12.5px]" style={{ color: "var(--e-amber)" }}>Sem cérebro · Registrado para a Metrik</span>}
                     {envio.fase === "publicado" ? (
-                      <button onClick={() => { if (envio.destino === "motor") setPeca("followup"); abrirAba(envio.destino === "motor" ? "artefato" : "testar"); }} className="est-btn ml-auto">{envio.destino === "motor" ? "Ver automação →" : "Testar na prática →"}</button>
+                      <button onClick={() => { if (envio.destino === "motor") setPeca("followup"); abrirAba(envio.destino === "motor" ? "artefato" : "testar"); }} className="est-btn ml-auto">{envio.destino === "motor" ? "Ver automação" : "Testar na prática"}</button>
                     ) : (
                       <div className="ml-auto flex items-center gap-2">
-                        <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">deixar de fora</button>
+                        <button onClick={() => setEnvio({ fase: "idle" })} className="est-ghost">Deixar de fora</button>
                         {(envio.ensaio?.modo === "real" || envio.ensaio?.modo === "operacional") && (
                           <button onClick={() => void publicar()} disabled={!envio.evals.aprovado || envio.fase === "publicando"} className="est-btn" style={!envio.evals.aprovado ? { opacity: 0.5 } : undefined}>
                             {envio.fase === "publicando" ? <Loader2 size={13} className="animate-spin" /> : null} Publicar
@@ -668,7 +673,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
               onVoice={falar}
               isRecording={gravando}
               voiceError={vozErro}
-              placeholder={`Peça uma mudança para ${agent.name}…`}
+              placeholder={`Peça uma mudança para ${agent.name}`}
               disabled={envio.fase === "rodando"}
             />
           </div>
@@ -683,7 +688,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
           aria-valuemax={440}
           aria-valuenow={Math.round(chatWidth)}
           tabIndex={0}
-          title="Arraste para aumentar ou diminuir o chat"
+          title="Arraste para aumentar ou diminuir o chat."
           onDoubleClick={() => setChatWidth(320)}
           onPointerDown={startResize}
           onPointerMove={moveResize}
@@ -710,7 +715,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <button key={t.id} onClick={() => abrirAba(t.id)} aria-current={ativo ? "page" : undefined} className="est-tab" title={t.rotulo}>
                   <span className="est-tab-icon"><Icone size={16} />{t.id === "exec" && <i className="live-dot" />}</span>
                   <b>{t.rotulo}</b>
-                  {t.id === "historico" && emRev && <span className="est-tab-badge" aria-label="uma mudança pendente">1</span>}
+                  {t.id === "historico" && emRev && <span className="est-tab-badge" aria-label="Uma mudança pendente">1</span>}
                 </button>
               );
             })}
@@ -791,15 +796,14 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     <header className="est-piece-head">
                       <div className="est-piece-icon" style={{ color: aberta.cor }} aria-hidden="true">{aberta.glifo}</div>
                       <div className="min-w-0">
-                        <span className="est-piece-context">Como {agent.name} funciona</span>
                         <h2 id="selected-piece-title">{aberta.nome}</h2>
                       </div>
                       {aberta.estado !== "off" ? (
                         <span className="emo est-piece-status" data-state="live">
-                          {agent.real ? (rod ? (rod.base === "semente" ? "cérebro-semente" : `versão ${rod.versao}`) : "lendo…") : "demonstração"} · no ar
+                          {agent.real ? (rod ? (rod.base === "semente" ? "Cérebro-semente" : `Versão ${rod.versao}`) : "Lendo a versão") : "Demonstração"} · No ar
                         </span>
                       ) : (
-                        <span className="emo est-piece-status" data-state="available">disponível · desligada</span>
+                        <span className="emo est-piece-status" data-state="available">Disponível · Desligada</span>
                       )}
                     </header>
 
@@ -818,11 +822,11 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                           <div className="est-facts-grid">
                             <section>
                               <h4>Jeito de falar</h4>
-                              <p>{c?.identidade ?? "Identidade ainda não descrita."}</p>
+                              <p>{c?.identidade ?? "A identidade ainda não foi descrita."}</p>
                             </section>
                             <section>
                               <h4>O que oferece</h4>
-                              <p>{c?.oferta ?? "Oferta ainda não descrita."}</p>
+                              <p>{c?.oferta ?? "A oferta ainda não foi descrita."}</p>
                             </section>
                           </div>
 
@@ -841,18 +845,18 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                                   <div key={i} className="est-rule-row" data-authored={sua ? "true" : "false"} style={sua ? { "--rule-color": badge.c } as CSSProperties : undefined}>
                                     <span className="emo est-rule-origin" style={{ color: badge.c, borderColor: `${badge.c}55`, background: `${badge.c}12` }}>{badge.t}</span>
                                     <span>{fato ? r.replace(/^fato:\s*/i, "") : r}</span>
-                                    {nova && <span className="emo est-rule-new">novo</span>}
+                                    {nova && <span className="emo est-rule-new">Nova</span>}
                                     <button onClick={() => { setInput(fato ? r.replace(/^fato:\s*/i, "") : r); abrirAba("testar"); }}>Testar</button>
                                   </div>
                                 );
                               })}
-                              {regras.length === 0 && <div className="est-rules-empty">Ainda sem regras — peça a primeira em Melhorar.</div>}
+                              {regras.length === 0 && <div className="est-rules-empty">Nenhuma regra cadastrada. Peça a primeira em Melhorar.</div>}
                             </div>
                           </section>
 
                           {publicadasConversa[0] && (
                             <section className="est-latest">
-                              <div className="est-section-head"><div><span className="emo est-kicker">ÚLTIMA PUBLICAÇÃO</span><h3>O que entrou por último</h3></div><span>{publicadasConversa[0].createdAt ? `há ${tempoRelativo(publicadasConversa[0].createdAt)}` : ""}</span></div>
+                              <div className="est-section-head"><div><h3>Última publicação</h3></div><span>{publicadasConversa[0].createdAt ? `Publicada ${haQuanto(publicadasConversa[0].createdAt)}` : ""}</span></div>
                               <div className="est-diff-add emo"><i>+</i><s>{publicadasConversa[0].intent}</s></div>
                             </section>
                           )}
@@ -861,7 +865,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         <div className="est-demo-note">
                           <span className="emo est-kicker">EXEMPLO GUIADO</span>
                           <p>{agent.papel || `${agent.name} atende, entende a necessidade e conduz cada conversa ao próximo passo.`}</p>
-                          <span>Na sua conta, esta página é montada com as peças, regras e fatos lidos do motor real.</span>
+                          <span>Numa conta real, esta página mostra as regras e os fatos lidos do motor.</span>
                         </div>
                       ))}
 
@@ -870,7 +874,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                           {aberta.id === "followup" && agent.real && followMotor ? (
                             <>
                               <span className="est-piece-context">Automação operacional</span>
-                              <h3>{followMotor.faz || "Retoma o contato automaticamente"}.</h3>
+                              <h3>{followMotor.faz || "Retoma o contato automaticamente"}</h3>
                               <div className="est-automation-grid">
                                 <div><span>Quando</span><b>{followMotor.quando}</b></div>
                                 <div><span>Espera</span><b>{followEspera}</b></div>
@@ -880,13 +884,13 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                               <div className="est-automation-foot">
                                 <span><i /> Automação ligada</span>
                                 {naFila != null && <span>{naFila} na fila agora</span>}
-                                {ultimaFollow?.createdAt && <span>ajustada há {tempoRelativo(ultimaFollow.createdAt)}</span>}
+                                {ultimaFollow?.createdAt && <span>Ajustada {haQuanto(ultimaFollow.createdAt)}</span>}
                               </div>
-                              <p>Essa peça age sozinha quando o gatilho acontece. Ela não muda o jeito que {agent.name} conversa.</p>
+                              <p>Esta peça age sozinha quando o gatilho acontece. Ela não altera a conversa de {agent.name}.</p>
                             </>
                           ) : (
                             <>
-                              <h3>{aberta.resumo}.</h3>
+                              <h3>{aberta.resumo}</h3>
                               {aberta.meta && <div className="est-module-now"><span className="emo">AGORA</span><b>{aberta.meta}</b></div>}
                               <p>Para mudar como esta peça age, descreva o ajuste em Melhorar. O guardião testa antes de publicar.</p>
                             </>
@@ -897,9 +901,9 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                       {aberta.estado === "off" && (
                         <section className="est-module-detail">
                           <span className="est-piece-context">Disponível para ligar</span>
-                          <h3>{aberta.resumo}.</h3>
+                          <h3>{aberta.resumo}</h3>
                           {aberta.upg?.resultado && <div className="est-upgrade-result">{aberta.upg.resultado}</div>}
-                          {aberta.upg ? <button onClick={() => setModal(aberta.upg!)} className="est-btn"><Plus size={14} /> Ligar esta peça</button> : <p>Na sua conta, a Metrik liga esta peça e ela entra no caminho depois de ensaio e aprovação.</p>}
+                          {aberta.upg ? <button onClick={() => setModal(aberta.upg!)} className="est-btn"><Plus size={14} /> Ligar esta peça</button> : <p>A Metrik liga esta peça depois do ensaio e da aprovação.</p>}
                         </section>
                       )}
                     </div>
@@ -922,7 +926,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                 <div className="est-test-layout scroll-thin">
                 <WhatsAppTestChat
                   agentName={agent.name}
-                  modeLabel={modoTeste === "ensaio" ? "prévia da mudança" : "versão no ar"}
+                  modeLabel={modoTeste === "ensaio" ? "Prévia da mudança" : "Versão no ar"}
                   messages={msgs}
                   feedback={feedback}
                   thinking={pensando}
@@ -961,7 +965,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                         <button type="button" onClick={() => { setModoTeste("ensaio"); setMudancaTesteId(emRev.id); }} aria-pressed={modoTeste === "ensaio"}>Mudança nova</button>
                       </div>
                     ) : (
-                      <div className="est-test-version-static"><i /> versão no ar agora</div>
+                      <div className="est-test-version-static"><i /> Versão no ar</div>
                     )}
                     <p>{modoTeste === "ensaio" ? "Prévia ainda não publicada." : "O que os leads recebem hoje."}</p>
                   </section>
@@ -977,15 +981,15 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
 
                   <section className="est-test-console-section est-test-session">
                     <span className="est-test-panel-label">SESSÃO ATUAL</span>
-                    <div><strong>{msgs.filter((m) => m.de === "voce").length}</strong><span>perguntas</span></div>
-                    <div><strong className="is-ok">{nSim}</strong><span>respostas certas</span></div>
-                    <div><strong className={nNao > 0 ? "is-fix" : ""}>{nNao}</strong><span>correções abertas</span></div>
+                    <div><strong>{msgs.filter((m) => m.de === "voce").length}</strong><span>Perguntas</span></div>
+                    <div><strong className="is-ok">{nSim}</strong><span>Respostas aprovadas</span></div>
+                    <div><strong className={nNao > 0 ? "is-fix" : ""}>{nNao}</strong><span>Correções abertas</span></div>
                   </section>
 
                   <section className="est-test-console-section est-test-console-guardian">
                     <span className="est-test-panel-label">GUARDIÃO AUTOMÁTICO</span>
                     <h3>{run.r?.evals ? `${run.r.evals.passaram}/${run.r.evals.total} comportamentos protegidos` : modoTeste === "ensaio" ? "Provar a mudança antes de publicar" : "Atacar a versão que atende seus leads"}</h3>
-                    <p>{run.r?.evals ? "Abra cada ataque na conversa para ver resposta, critérios e ações." : `O Guardião vai testar ${modoTeste === "ensaio" ? "a prévia selecionada" : "a versão no ar"} e guardar a prova.`}</p>
+                    <p>{run.r?.evals ? "Abra cada ataque na conversa para ver resposta, critérios e ações." : `O guardião testa ${modoTeste === "ensaio" ? "a prévia selecionada" : "a versão no ar"} e guarda a prova.`}</p>
                     <button type="button" onClick={() => void rodarTestes()} disabled={run.status === "rodando"} className="est-btn2 est-test-run">
                       {run.status === "rodando" ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
                       {run.r ? "Rodar nova prova" : "Iniciar prova"}
@@ -1000,7 +1004,7 @@ export default function Estudio({ agent, estado, onBack, onToggle, onAoVivo, see
                     piece={selectedPiece}
                     agent={agent}
                     followup={contextFollowup}
-                    versionLabel={modoTeste === "ensaio" ? "prévia da mudança" : "versão no ar"}
+                    versionLabel={modoTeste === "ensaio" ? "Prévia da mudança" : "Versão no ar"}
                   />
                 )}
                 </section>

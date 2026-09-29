@@ -24,9 +24,9 @@ type Fio = {
 };
 
 const DEMO_FIOS: { contato: string; snippet: string; quando: string }[] = [
-  { contato: "Marina Duarte", snippet: "IA: Pra te passar o valor certo: hoje o atendimento é você mesma ou tem equipe?", quando: "há 2 min" },
-  { contato: "Beatriz Nunes", snippet: "reunião marcada pra quinta, 14h — confirmação enviada", quando: "há 40 min" },
-  { contato: "Dona Cléia", snippet: "IA: Seu caso tem tudo pra seguir! Já deixo um horário reservado com a doutora.", quando: "há 1 h" },
+  { contato: "Marina Duarte", snippet: "IA: Pra te passar o valor certo: hoje o atendimento é você mesma ou tem equipe?", quando: "Há 2 min" },
+  { contato: "Beatriz Nunes", snippet: "Reunião marcada para quinta às 14h. Confirmação enviada.", quando: "Há 40 min" },
+  { contato: "Dona Cléia", snippet: "IA: Seu caso tem tudo pra seguir! Já deixo um horário reservado com a doutora.", quando: "Há 1 h" },
 ];
 
 export default function Conversas({ agent }: { agent: Agent }) {
@@ -61,7 +61,7 @@ export default function Conversas({ agent }: { agent: Agent }) {
       const temConversa = !!(did && (did.lead || did.ia));
       if (!temConversa) continue;
       const contactId = l.meta?.contactId ?? null;
-      const contato = did?.contato || "lead";
+      const contato = did?.contato || "Lead";
       const chave = `${l.agentId ?? "?"}:${contactId ?? contato}`;
       if (out.has(chave)) continue; // logs vêm do mais novo pro mais velho
       out.set(chave, {
@@ -88,9 +88,9 @@ export default function Conversas({ agent }: { agent: Agent }) {
         <Reveal>
           <div className="card p-8 text-center">
             <MessageCircleHeart size={26} className="mx-auto mb-3" style={{ color: "var(--txt-4)" }} />
-            <p className="text-[13.5px] text-[var(--txt)] font-medium">Ainda sem conversas espelhadas.</p>
+            <p className="text-[13.5px] text-[var(--txt)] font-medium">Nenhuma conversa registrada até agora.</p>
             <p className="text-[12px] text-[var(--txt-3)] mt-1.5 max-w-md mx-auto leading-relaxed">
-              Assim que este robô atender, cada conversa aparece aqui — palavra por palavra, com o botão de assumir quando você precisar.
+              As conversas deste agente aparecem aqui assim que ele atender.
             </p>
           </div>
         </Reveal>
@@ -98,10 +98,10 @@ export default function Conversas({ agent }: { agent: Agent }) {
         <Reveal>
           <div className="card">
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--line)]">
-              <span className="mono-label !text-[9px]">Conversas — toque pra ler por dentro</span>
+              <span className="mono-label !text-[9px]">Toque numa conversa para abri-la.</span>
               <Pill color={real ? "var(--emerald)" : undefined}>
                 {real ? <Database size={11} /> : <span className="live-dot" style={{ width: 6, height: 6 }} />}
-                {real ? "dado real ✓" : "demo"}
+                {real ? "Dado real" : "Demo"}
               </Pill>
             </div>
             <ul>
@@ -112,7 +112,7 @@ export default function Conversas({ agent }: { agent: Agent }) {
                     agente: f.agente,
                     cor: f.cor,
                     snippet: f.snippet,
-                    quando: `há ${tempoRelativo(f.at)}`,
+                    quando: `Há ${tempoRelativo(f.at)}`,
                     comVoce: f.comVoce,
                     abrir: () => setAberta({ tipo: "real", log: f.log, agente: f.agente, cor: f.cor }),
                   }))
@@ -140,7 +140,7 @@ export default function Conversas({ agent }: { agent: Agent }) {
                         <b className="text-[13.5px] font-semibold truncate">{f.contato}</b>
                         {f.comVoce && (
                           <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full flex-none" style={{ color: "#fbbf24", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)" }}>
-                            <Headphones size={9} /> com você
+                            <Headphones size={9} /> Com você
                           </span>
                         )}
                       </span>

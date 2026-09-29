@@ -45,7 +45,7 @@ function Agenda({ w, color }: { w: Work; color: string }) {
                 <div className="text-[13.5px] font-medium truncate">{a.quem}</div>
                 <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--txt-3)] mt-0.5"><CI size={11} /> {a.canal}</div>
               </div>
-              <Pill color={ok ? "#3fb950" : "#fbbf24"}>{a.status}</Pill>
+              <Pill color={ok ? "#3fb950" : "#fbbf24"}>{ok ? "Confirmado" : "Aguardando"}</Pill>
             </li>
           );
         })}
@@ -57,9 +57,9 @@ function Agenda({ w, color }: { w: Work; color: string }) {
 function Followups({ w, color }: { w: Work; color: string }) {
   const items = w.followups ?? [];
   const meta: Record<string, { color: string; label: string }> = {
-    agora: { color: "#3b82f6", label: "enviando" },
-    agendado: { color: "#58aae4", label: "vai enviar" },
-    feito: { color: "#3fb950", label: "enviado" },
+    agora: { color: "#3b82f6", label: "Enviando" },
+    agendado: { color: "#58aae4", label: "Agendado" },
+    feito: { color: "#3fb950", label: "Enviado" },
   };
   return (
     <div className="card p-5">
@@ -96,8 +96,8 @@ function Followups({ w, color }: { w: Work; color: string }) {
 
 function Contratos({ w }: { w: Work }) {
   const items = w.contratos ?? [];
-  const meta: Record<string, { color: string }> = {
-    assinado: { color: "#3fb950" }, enviado: { color: "#58aae4" }, vencendo: { color: "#fbbf24" }, expirado: { color: "#f85149" },
+  const meta: Record<string, { color: string; label: string }> = {
+    assinado: { color: "#3fb950", label: "Assinado" }, enviado: { color: "#58aae4", label: "Enviado" }, vencendo: { color: "#fbbf24", label: "Vencendo" }, expirado: { color: "#f85149", label: "Expirado" },
   };
   const atencao = items.filter((c) => c.status === "vencendo" || c.status === "expirado");
   return (
@@ -105,7 +105,7 @@ function Contratos({ w }: { w: Work }) {
       {atencao.length > 0 && (
         <div className="card p-4 flex items-center gap-3" style={{ borderColor: "#fbbf2440", background: "linear-gradient(160deg, rgba(251,191,36,.08), var(--surface))" }}>
           <AlertTriangle size={17} style={{ color: "#fbbf24" }} className="flex-none" />
-          <p className="text-[13px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">{atencao.length} contrato(s) pedindo atenção</b> — perto de vencer ou já vencido.</p>
+          <p className="text-[13px] text-[var(--txt-2)]"><b className="text-[var(--txt)]">{atencao.length === 1 ? "1 contrato pede atenção." : `${atencao.length} contratos pedem atenção.`}</b> O prazo está perto do fim ou já venceu.</p>
         </div>
       )}
       <div className="card p-5">
@@ -124,7 +124,7 @@ function Contratos({ w }: { w: Work }) {
                   {c.prazo && <div className="text-[11.5px] mt-0.5" style={{ color: alerta ? m.color : "var(--txt-3)" }}>{c.prazo}</div>}
                 </div>
                 <div className="num text-[13.5px] flex-none mr-2">{c.valor}</div>
-                <Pill color={m.color}>{c.status}</Pill>
+                <Pill color={m.color}>{m.label}</Pill>
               </li>
             );
           })}
@@ -144,11 +144,11 @@ function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelh
         <div className="flex items-center justify-between gap-3 mb-1">
           <div className="flex items-center gap-2">
             <BookOpen size={17} style={{ color }} />
-            <span className="font-display font-semibold text-[16px]">Tudo que sua IA sabe hoje</span>
+            <span className="font-display font-semibold text-[16px]">O que o agente sabe hoje</span>
           </div>
           <span className="text-[11.5px] text-[var(--txt-4)] flex-none">{itens.length} informações</span>
         </div>
-        <p className="text-[13px] text-[var(--txt-3)] mb-5">É daqui que ela tira as respostas quando conversa com seus leads. Esta é a lista completa — nada fica escondido.</p>
+        <p className="text-[13px] text-[var(--txt-3)] mb-5">O agente usa esta lista para responder aos leads.</p>
 
         {cats.map((cat) => {
           const doCat = itens.filter((i) => i.cat === cat);
@@ -174,8 +174,8 @@ function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelh
           <BookOpen size={19} style={{ color: "#3b82f6" }} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-medium text-[var(--txt)]">Quer ensinar algo novo — um plano, um preço, uma objeção?</div>
-          <p className="text-[12.5px] text-[var(--txt-3)] mt-0.5">Você escreve o que ela passa a saber, a IA faz um ensaio na sua frente (antes × agora) e só entra pra esta lista quando você aprovar.</p>
+          <div className="text-[14px] font-medium text-[var(--txt)]">Novo plano, preço ou objeção</div>
+          <p className="text-[12.5px] text-[var(--txt-3)] mt-0.5">O ensaio mostra o antes e o agora. O item entra nesta lista só depois da sua aprovação.</p>
         </div>
         {onMelhorar && (
           <button onClick={onMelhorar} className="btn btn-primary flex-none"><Wand2 size={15} /> Ensinar no Melhorar</button>
@@ -188,9 +188,9 @@ function Conhecimento({ w, color, onMelhorar }: { w: Work; color: string; onMelh
 function Acoes({ w, color }: { w: Work; color: string }) {
   const a = w.acoes!;
   const gatilhos = [
-    { icon: Layers, t: "por etapa do funil" },
-    { icon: MousePointerClick, t: "botão no card" },
-    { icon: ListChecks, t: "seleção em massa" },
+    { icon: Layers, t: "Etapa do funil" },
+    { icon: MousePointerClick, t: "Botão no card" },
+    { icon: ListChecks, t: "Seleção em massa" },
   ];
   return (
     <div className="space-y-4">
@@ -214,10 +214,10 @@ function Acoes({ w, color }: { w: Work; color: string }) {
             </span>
             <div>
               <div className="font-display font-semibold text-[15px]">{a.alvo}</div>
-              <div className="text-[12px] text-[var(--txt-3)]">a IA dispara sozinha no gatilho acima — você acompanha no log</div>
+              <div className="text-[12px] text-[var(--txt-3)]">O agente dispara sozinho no gatilho acima. Acompanhe em Últimas ações.</div>
             </div>
           </div>
-          <Pill color="#3fb950"><span className="live-dot" style={{ width: 6, height: 6, background: "#3fb950" }} /> na fila</Pill>
+          <Pill color="#3fb950"><span className="live-dot" style={{ width: 6, height: 6, background: "#3fb950" }} /> Na fila</Pill>
         </div>
       </div>
 

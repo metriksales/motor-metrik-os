@@ -17,6 +17,28 @@ export type ConversaAberta =
   | { tipo: "real"; log: LogReal; agente: string; cor: string; conf?: Conferencia }
   | { tipo: "demo"; agente: string; cor: string; conf?: Conferencia };
 
+/**
+ * O nome da ferramenta, como a tela o escreve. O runtime registra o nome
+ * interno ("moverEtapa", às vezes com o alvo: "addTag:vip"); mostrar isso cru
+ * é nome interno na tela (texto-de-tela, regra 10). Nome desconhecido passa
+ * como veio: melhor um nome técnico que uma ação inventada.
+ */
+const FERRAMENTA: Record<string, string> = {
+  moverEtapa: "Mudou a etapa",
+  preencherCampo: "Preencheu um campo",
+  criarTarefa: "Criou uma tarefa",
+  agendar: "Agendou",
+  addTag: "Adicionou etiqueta",
+  removerTag: "Removeu etiqueta",
+  criarOportunidade: "Criou oportunidade",
+  enviarMensagem: "Enviou mensagem",
+  handoff: "Passou para um humano",
+};
+function rotuloDaFerramenta(t: string): string {
+  const nome = t.split(/[→:]/)[0].trim();
+  return FERRAMENTA[nome] ?? t;
+}
+
 const DEMO: Conversa = {
   contato: "Marina",
   lead: "Oi! Vi o anúncio de vocês. Como funciona a implantação do CRM com IA?",
@@ -55,8 +77,8 @@ export default function ConversaDrawer({ aberta, onClose }: { aberta: ConversaAb
 function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => void }) {
   const conversa: Conversa = aberta.tipo === "demo" ? DEMO : ((aberta.log.did ?? {}) as Conversa);
   const temConversa = !!(conversa.lead || conversa.ia);
-  const contato = conversa.contato || (aberta.tipo === "real" ? "lead" : "Marina");
-  const quando = aberta.tipo === "real" ? `há ${tempoRelativo(aberta.log.at)}` : "agora";
+  const contato = conversa.contato || (aberta.tipo === "real" ? "Lead" : "Marina");
+  const quando = aberta.tipo === "real" ? `Há ${tempoRelativo(aberta.log.at)}` : "Agora";
   const valor = aberta.tipo === "real" ? aberta.log.valorCentavos : null;
 
   return (
@@ -80,10 +102,6 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
 
       {/* corpo: a conversa como no WhatsApp */}
       <div className="flex-1 min-h-0 overflow-y-auto scroll-thin px-5 py-5 space-y-3">
-        <div className="text-center">
-          <span className="mono-label !text-[9px]">a conversa que a IA teve</span>
-        </div>
-
         {temConversa ? (
           <>
             {conversa.lead && (
@@ -99,7 +117,7 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
                 <div className="wa-bubble max-w-[85%]">
                   {conversa.voz && (
                     <div className="flex items-center gap-1.5 mb-1 text-[11px]" style={{ color: "rgba(233,237,239,.7)" }}>
-                      <Mic size={11} /> respondeu por áudio
+                      <Mic size={11} /> Resposta em áudio
                     </div>
                   )}
                   <p className="text-[13.5px] leading-relaxed">{conversa.ia}</p>
@@ -114,18 +132,18 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
               Essa execução não guardou o texto da conversa.
             </p>
             <p className="text-[12px] text-[var(--txt-3)] mt-1.5 leading-relaxed">
-              As próximas conversas da sua IA aparecem aqui pra você ler, palavra por palavra.
+              As próximas conversas deste agente aparecem aqui.
             </p>
           </div>
         )}
 
         {conversa.tools && conversa.tools.length > 0 && (
           <div className="pt-2">
-            <div className="mono-label !text-[9px] mb-2">o que ela fez no CRM</div>
+            <div className="mono-label !text-[9px] mb-2">Ações no CRM</div>
             <div className="flex flex-wrap gap-1.5">
               {conversa.tools.map((t, i) => (
                 <span key={i} className="inline-flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-lg" style={{ background: "var(--surface-2)", border: "1px solid var(--line)", color: "var(--txt-2)" }}>
-                  <Wrench size={11} style={{ color: aberta.cor }} /> {t}
+                  <Wrench size={11} style={{ color: aberta.cor }} /> {rotuloDaFerramenta(t)}
                 </span>
               ))}
             </div>
@@ -162,7 +180,7 @@ function Corpo({ aberta, onClose }: { aberta: ConversaAberta; onClose: () => voi
                   <p className="text-[12.5px] text-[var(--txt-2)] leading-relaxed">{c.porque}</p>
                 )}
                 <div className="text-[11.5px] mt-2.5 inline-flex items-center gap-1" style={{ color: "var(--cyan)" }}>
-                  essa regra mora em O que faz <ArrowRight size={12} />
+                  Esta regra está na aba O que faz. <ArrowRight size={12} />
                 </div>
               </div>
             </div>
@@ -203,7 +221,7 @@ function AssumirFooter({ aberta }: { aberta: ConversaAberta }) {
       setEstado("humano");
     } catch (e) {
       setEstado("ia");
-      setErro(e instanceof Error ? e.message : "não consegui assumir");
+      setErro(e instanceof Error ? e.message : "Não foi possível assumir a conversa.");
     }
   };
   const devolver = async () => {
@@ -215,7 +233,7 @@ function AssumirFooter({ aberta }: { aberta: ConversaAberta }) {
       setEstado("ia");
     } catch (e) {
       setEstado("humano");
-      setErro(e instanceof Error ? e.message : "não consegui devolver");
+      setErro(e instanceof Error ? e.message : "Não foi possível devolver a conversa.");
     }
   };
 
@@ -226,11 +244,11 @@ function AssumirFooter({ aberta }: { aberta: ConversaAberta }) {
           <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5" style={{ border: "1px solid rgba(251,191,36,.3)", background: "rgba(251,191,36,.08)" }}>
             <Headphones size={16} style={{ color: "#fbbf24" }} className="flex-none" />
             <p className="text-[12px] leading-snug" style={{ color: "#f2cf86" }}>
-              <b>Você está no comando.</b> A IA está de fora <b>deste contato</b> — e segue atendendo o resto.
+              <b>Conversa assumida.</b> A IA parou de responder só <b>a este contato</b>.
             </p>
           </div>
           <button onClick={() => void devolver()} className="btn w-full !justify-center">
-            <Undo2 size={15} /> Devolver pra IA
+            <Undo2 size={15} /> Devolver para a IA
           </button>
         </>
       ) : (
@@ -245,7 +263,7 @@ function AssumirFooter({ aberta }: { aberta: ConversaAberta }) {
             Assumir a conversa
           </button>
           <p className="text-[10.5px] text-[var(--txt-4)] text-center leading-snug">
-            a IA para na hora, <b className="text-[var(--txt-3)]">só pra este contato</b> — e fica de fora até você devolver
+            A IA para de responder na hora, <b className="text-[var(--txt-3)]">só a este contato</b>. Ela volta quando a conversa for devolvida.
           </p>
         </>
       )}

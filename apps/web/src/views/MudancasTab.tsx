@@ -11,9 +11,15 @@ import { tempoRelativo } from "../lib/live";
 import { Reveal } from "../ui";
 
 const ORIGEM_LABEL: Record<Mudanca["origem"], string> = {
-  voce: "você pediu",
-  metrik: "a Metrik ajustou",
-  escola: "você corrigiu (Escola)",
+  voce: "Seu pedido",
+  metrik: "Ajuste da Metrik",
+  escola: "Sua correção na Escola",
+};
+
+const STATUS_LABEL: Record<Mudanca["status"], string> = {
+  "no ar": "No ar",
+  "em teste": "Em teste",
+  "aguardando aprovação": "Aguardando aprovação",
 };
 
 const STATUS_COR: Record<Mudanca["status"], string> = {
@@ -39,7 +45,7 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
           rows.map((r): Mudanca => ({
             quando: r.createdAt ? tempoRelativo(r.createdAt) : "",
             origem: r.origin === "hub_chat" ? "voce" : "metrik",
-            pedido: r.intent ?? "mudança",
+            pedido: r.intent ?? "Mudança sem descrição",
             status: r.status === "published" ? "no ar" : r.status === "approved" ? "em teste" : "aguardando aprovação",
             porteiro: r.impact?.evals
               ? {
@@ -66,9 +72,8 @@ export default function MudancasTab({ agent }: { agent: Agent }) {
         <div className="card p-4 flex items-start gap-3">
           <Sparkles size={16} className="flex-none mt-0.5" style={{ color: "#3b82f6" }} />
           <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
-            Você pede no <b className="text-[var(--txt)]">Melhorar</b> — e o que entra no ar aparece aqui,
-            com antes/depois, <b className="text-[var(--txt)]">onde encaixou</b> no processo e a prova do porteiro.
-            As situações alteradas ficam marcadas com ✨ no “O que faz”.
+            Os pedidos feitos no <b className="text-[var(--txt)]">Melhorar</b> aparecem aqui quando entram no ar.
+            As situações alteradas ficam marcadas em “O que faz”.
           </p>
         </div>
       </Reveal>
@@ -96,7 +101,7 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
         </span>
         <span className="pill flex-none" style={{ color: stCor, borderColor: `${stCor}40`, background: `${stCor}12` }}>
           {m.status === "no ar" && <span className="live-dot" style={{ width: 6, height: 6, background: stCor }} />}
-          {m.status}
+          {STATUS_LABEL[m.status]}
         </span>
       </div>
 
@@ -108,11 +113,11 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
       {(m.antes || m.agora) && (
         <div className="grid md:grid-cols-2 gap-2.5 mb-3">
           <div className="rounded-lg px-3.5 py-2.5 bg-[var(--surface-2)] border border-[var(--line)]">
-            <div className="mono-label !text-[9px] mb-1 !text-[var(--txt-4)]">antes</div>
+            <div className="mono-label !text-[9px] mb-1 !text-[var(--txt-4)]">Antes</div>
             <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">{m.antes}</p>
           </div>
           <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#3fb9500d", border: "1px solid #3fb95028" }}>
-            <div className="mono-label !text-[9px] mb-1" style={{ color: "#3fb950" }}>agora</div>
+            <div className="mono-label !text-[9px] mb-1" style={{ color: "#3fb950" }}>Agora</div>
             <p className="text-[13px] text-[var(--txt)] leading-relaxed">{m.agora}</p>
           </div>
         </div>
@@ -122,13 +127,13 @@ function MudancaCard({ m, ramo }: { m: Mudanca; ramo?: Ramo }) {
         {ramo && (
           <span className="inline-flex items-center gap-1.5 text-[var(--txt-2)]">
             <span className="dot" style={{ background: ramo.cor, width: 8, height: 8 }} />
-            encaixou no caminho <b>{ramo.nome}</b>
-            {m.situacao && <span className="text-[var(--txt-4)]">· situação “{m.situacao}”</span>}
+            Encaixou no caminho <b>{ramo.nome}</b>
+            {m.situacao && <span className="text-[var(--txt-4)]">· Situação “{m.situacao}”</span>}
           </span>
         )}
         {m.porteiro && (
           <span className="inline-flex items-center gap-1.5" style={{ color: "#3fb950" }}>
-            <ShieldCheck size={13} /> porteiro: {m.porteiro.casos} · nota {m.porteiro.nota}
+            <ShieldCheck size={13} /> Porteiro · {m.porteiro.casos} · Nota {m.porteiro.nota}
           </span>
         )}
       </div>
@@ -144,7 +149,7 @@ function SeloPorteiro({ nota, taxa }: { nota: string; taxa?: number }) {
   const C = 2 * Math.PI * R;
   const cor = t >= 0.75 ? "#3fb950" : "#fbbf24";
   return (
-    <div className="flex-none flex flex-col items-center" title={`porteiro: nota ${nota}`}>
+    <div className="flex-none flex flex-col items-center" title={`Nota do porteiro: ${nota}`}>
       <svg width={62} height={62} viewBox="0 0 62 62">
         <circle cx={31} cy={31} r={R} fill={`${cor}0d`} stroke="var(--line)" strokeWidth={3} />
         <circle
@@ -162,7 +167,7 @@ function SeloPorteiro({ nota, taxa }: { nota: string; taxa?: number }) {
           {nota}
         </text>
       </svg>
-      <span className="mono-label !text-[8px] mt-0.5" style={{ color: cor }}>porteiro</span>
+      <span className="mono-label !text-[8px] mt-0.5" style={{ color: cor }}>Porteiro</span>
     </div>
   );
 }

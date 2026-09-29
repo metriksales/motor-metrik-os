@@ -6,6 +6,7 @@
 import { Gauge, Trophy } from "lucide-react";
 import type { LogReal, StatsReais } from "../lib/live";
 import { reais, tempoRelativo } from "../lib/live";
+import { SEM_DADO } from "../lib/honestidade";
 
 function hojePorExtenso(): string {
   const s = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
@@ -28,24 +29,25 @@ export default function FechamentoDia({
   logs: LogReal[] | null;
   demo: boolean;
 }) {
-  // valores: reais quando existem; no demo, um retrato bonito da vitrine
-  const execucoes = stats ? stats.execucoes : 212;
-  const acerto = stats?.taxa != null ? Math.round(stats.taxa * 100) : 99;
-  const diaValor = stats ? stats.valorCentavos : 750000;
+  // valores: reais quando existem; no demo, um retrato da vitrine; numa conta
+  // real sem dado (leitura falhou), traço — nunca o número da vitrine (S-007)
+  const execucoes = stats ? stats.execucoes : demo ? 212 : null;
+  const acerto = stats?.taxa != null ? Math.round(stats.taxa * 100) : demo ? 99 : null;
+  const diaValor = stats ? stats.valorCentavos : demo ? 750000 : 0;
   const semanaValor = stats?.valor7dCentavos ?? (demo ? 3120000 : 0);
   // nunca abre em zero: dia parado mas semana com valor → mostra a semana
   const usaSemana = diaValor === 0 && semanaValor > 0;
   const valorMostrado = usaSemana ? semanaValor : diaValor;
-  const rotuloValor = usaSemana ? "gerado na semana" : "gerado hoje";
+  const rotuloValor = usaSemana ? "Gerado na semana" : "Gerado hoje";
 
   const melhor = melhorMomento(logs ?? []);
   const ehDeHoje = melhor ? new Date(melhor.at).toDateString() === new Date().toDateString() : true;
   const melhorTxt = melhor
-    ? { resumo: melhor.resumo, valor: reais(melhor.valorCentavos), quando: `há ${tempoRelativo(melhor.at)}` }
+    ? { resumo: melhor.resumo, valor: reais(melhor.valorCentavos), quando: tempoRelativo(melhor.at) === "agora" ? "Agora" : `Há ${tempoRelativo(melhor.at)}` }
     : demo
-      ? { resumo: "reunião marcada com Thiago", valor: "R$ 1.500", quando: "14h32" }
+      ? { resumo: "Reunião marcada com Thiago", valor: "R$ 1.500", quando: "14h32" }
       : null;
-  const melhorRotulo = ehDeHoje ? "melhor momento do dia" : "melhor momento recente";
+  const melhorRotulo = ehDeHoje ? "Melhor momento do dia" : "Melhor momento recente";
 
   return (
     <div className="grad-border overflow-hidden">
@@ -63,9 +65,9 @@ export default function FechamentoDia({
 
           {/* os três números grandes */}
           <div className="grid grid-cols-3 gap-4">
-            <Numero valor={String(execucoes)} rotulo={execucoes === 1 ? "atendimento" : "atendimentos"} />
-            <Numero valor={`${acerto}%`} rotulo="de acerto" cor="#3fb950" />
-            <Numero valor={reais(valorMostrado)} rotulo={rotuloValor} cor="#3b82f6" />
+            <Numero valor={execucoes == null ? SEM_DADO : String(execucoes)} rotulo={execucoes === 1 ? "Atendimento" : "Atendimentos"} />
+            <Numero valor={acerto == null ? SEM_DADO : `${acerto}%`} rotulo="Acertos" cor="#3fb950" />
+            <Numero valor={stats || demo ? reais(valorMostrado) : SEM_DADO} rotulo={rotuloValor} cor="#3b82f6" />
           </div>
 
           {/* melhor momento do dia */}

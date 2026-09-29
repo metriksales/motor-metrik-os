@@ -174,7 +174,7 @@ export function ClaudeStyleComposer({
           {pastedContent.map((paste) => (
             <article className="claude-paste" key={paste.id}>
               <p>{paste.content}</p>
-              <span>texto colado · {paste.content.length} caracteres</span>
+              <span>Texto colado · {paste.content.length} caracteres</span>
               <button type="button" onClick={() => setPastedContent((items) => items.filter((item) => item.id !== paste.id))} aria-label="Remover texto colado">
                 <X size={12} />
               </button>
@@ -214,7 +214,7 @@ export function ClaudeStyleComposer({
           <Mic size={15} />
           <span>{isRecording ? "Ouvindo" : "Voz"}</span>
         </button>
-        <span className="claude-composer-safe" title="Toda mudança passa pelo ensaio antes de ir ao ar">
+        <span className="claude-composer-safe" title="Toda mudança passa pelo ensaio antes de ir ao ar.">
           <ShieldCheck size={13} /> Ensaio seguro
         </span>
         <button
@@ -229,7 +229,7 @@ export function ClaudeStyleComposer({
       </div>
 
       {voiceError ? <p className="claude-composer-error" role="status">{voiceError}</p> : null}
-      {isDragging ? <div className="claude-composer-drop">Solte para adicionar o documento</div> : null}
+      {isDragging ? <div className="claude-composer-drop">Solte para adicionar o documento.</div> : null}
     </div>
   );
 }

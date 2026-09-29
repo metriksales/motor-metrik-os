@@ -26,14 +26,19 @@ type Props = {
 
 const STATUS = {
   draft: { label: "EM PREPARO", tone: "draft" },
-  evaluated: { label: "PROVADA", tone: "proved" },
-  approved: { label: "PRONTA", tone: "proved" },
+  evaluated: { label: "TESTADA", tone: "proved" },
+  approved: { label: "APROVADA", tone: "proved" },
   published: { label: "NO AR", tone: "live" },
   rejected: { label: "SEGURADA", tone: "blocked" },
 } as const;
 
 function meta(status: string) {
   return STATUS[status as keyof typeof STATUS] ?? STATUS.draft;
+}
+
+// relativeTime devolve "agora" abaixo de 1 min; "há agora" não é frase.
+function criadaQuando(tempo: string) {
+  return tempo === "agora" ? "Criada agora" : `Criada há ${tempo}`;
 }
 
 export function ChangeEvidenceLedger({ changes, relativeTime, publishing, publishError, onTest, onPublish }: Props) {
@@ -45,8 +50,8 @@ export function ChangeEvidenceLedger({ changes, relativeTime, publishing, publis
     return (
       <div className="change-history-empty">
         <History size={18} />
-        <strong>Nenhuma mudança ainda</strong>
-        <span>Quando você melhorar o agente, ela aparece aqui.</span>
+        <strong>Nenhuma mudança registrada</strong>
+        <span>Peça a primeira mudança em Melhorar.</span>
       </div>
     );
   }
@@ -73,7 +78,7 @@ export function ChangeEvidenceLedger({ changes, relativeTime, publishing, publis
               <div className="change-history-row">
                 <i />
                 <div className="change-history-copy">
-                  <span><b>{state.label}</b>{change.createdAt ? ` · há ${relativeTime(change.createdAt)}` : ""}</span>
+                  <span><b>{state.label}</b>{change.createdAt ? ` · ${criadaQuando(relativeTime(change.createdAt))}` : ""}</span>
                   <strong>{change.intent}</strong>
                 </div>
                 {evals?.total ? <span className="change-history-score" data-ok={evals.aprovado ? "true" : "false"}><ShieldCheck size={12} /> {evals.passaram ?? 0}/{evals.total}</span> : null}
@@ -104,7 +109,7 @@ export function ChangeEvidenceLedger({ changes, relativeTime, publishing, publis
                     <span>{evals?.aprovado ? <CircleCheck size={14} /> : <CircleX size={14} />}</span>
                     <div>
                       <strong>{evals?.total ? `Guardião: ${evals.passaram ?? 0} de ${evals.total} passaram` : "Guardião ainda não executado"}</strong>
-                      {failed[0] ? <small>{failed[0].nome}: {failed[0].falhas?.[0]}</small> : <small>{proof.suite ? `Suíte ${proof.suite}` : "Teste concluído"}{proof.ensaio?.modo === "real" ? " · cérebro real" : ""}</small>}
+                      {failed[0] ? <small>{failed[0].nome}: {failed[0].falhas?.[0]}</small> : <small>{proof.suite ? `Suíte ${proof.suite}` : "Teste concluído"}{proof.ensaio?.modo === "real" ? " · Cérebro real" : ""}</small>}
                     </div>
                   </div>
                 </div>

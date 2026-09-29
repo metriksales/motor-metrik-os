@@ -29,13 +29,13 @@ export default function MapaTab({ agent }: { agent: Agent }) {
       <Reveal>
         <div className="card p-5 md:p-7">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="mono-label">Como conversa — o caminho de todo lead</div>
-            <span className="text-[11px] text-[var(--txt-4)] flex-none">a fala é literal: é o que chega pro seu cliente</span>
+            <div className="mono-label">O caminho de todo lead</div>
+            <span className="text-[11px] text-[var(--txt-4)] flex-none">As falas aparecem exatamente como o lead recebe.</span>
           </div>
           {mudancas.length > 0 && (
             <div className="flex items-center gap-1.5 text-[12.5px] mb-4" style={{ color: "#3b82f6" }}>
               <Sparkles size={13} />
-              {mudancas.length === 1 ? "1 mudança recente" : `${mudancas.length} mudanças recentes`} no ar — marcadas com ✨ abaixo · a prova está em “O que mudou”, ao lado
+              {mudancas.length === 1 ? "1 mudança recente está no ar." : `${mudancas.length} mudanças recentes estão no ar.`} As situações alteradas estão marcadas abaixo.
             </div>
           )}
           {agent.expectativa && (
@@ -43,11 +43,11 @@ export default function MapaTab({ agent }: { agent: Agent }) {
           )}
 
           <ol>
-            <Passo n={1} titulo="Chega" cor="#3fb950">
+            <Passo n={1} titulo="O lead chega" cor="#3fb950">
               <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{frase(mapa.entrada)}</p>
             </Passo>
 
-            <Passo n={2} titulo="Ele descobre o caso" cor="#3b82f6">
+            <Passo n={2} titulo="O agente descobre o caso" cor="#3b82f6">
               <p className="text-[14px] text-[var(--txt-2)] leading-relaxed">{frase(mapa.triagem.faz)}</p>
               {mapa.triagem.coleta && (
                 <p className="text-[13px] text-[var(--txt-3)] leading-relaxed mt-1">
@@ -56,7 +56,7 @@ export default function MapaTab({ agent }: { agent: Agent }) {
               )}
             </Passo>
 
-            <Passo n={3} titulo={`Cai num dos ${mapa.ramos.length} caminhos`} cor="#58aae4" ultimo>
+            <Passo n={3} titulo={`O lead segue um dos ${mapa.ramos.length} caminhos`} cor="#58aae4" ultimo>
               <div className="space-y-4 mt-2">
                 {(() => {
                   // calor: o caminho mais rodado do dia fica visualmente óbvio
@@ -122,7 +122,7 @@ function Caminho({ ramo, mudancas, calor }: { ramo: Ramo; mudancas: Mudanca[]; c
       </div>
       <p className="text-[13px] text-[var(--txt-2)] leading-relaxed mt-2">
         {frase(`Entra aqui quando ${ramo.quando}`)}
-        {ramo.coleta ? ` ${frase(`Ele pergunta ${listar(ramo.coleta)}`)}` : ""}
+        {ramo.coleta ? ` ${frase(`O agente pergunta ${listar(ramo.coleta)}`)}` : ""}
       </p>
       <div className="mt-4 space-y-4">
         {ramo.regras.map((rg, i) => {
@@ -148,7 +148,7 @@ function Situacao({ regra, cor, mudanca, ultima }: { regra: Regra; cor: string; 
           <div className="wa-bubble max-w-[520px]">
             <p className="text-[13.5px] leading-relaxed">{regra.diz}</p>
             <span className="wa-meta">
-              {ultima ?? "modelo"} <CheckCheck size={13} style={{ color: "#53bdeb" }} />
+              {ultima ?? "Modelo"} <CheckCheck size={13} style={{ color: "#53bdeb" }} />
             </span>
           </div>
         </div>
@@ -163,13 +163,13 @@ function Situacao({ regra, cor, mudanca, ultima }: { regra: Regra; cor: string; 
           {destino && regra.aviso && <span className="mx-1.5 text-[var(--txt-4)]">·</span>}
           {regra.aviso && (
             <span className="inline-flex items-center gap-1">
-              <UserRound size={12} /> um humano é chamado na hora
+              <UserRound size={12} /> Humano chamado na hora
             </span>
           )}
           {(destino || regra.aviso) && mudanca && <span className="mx-1.5 text-[var(--txt-4)]">·</span>}
           {mudanca && (
             <span className="inline-flex items-center gap-1" style={{ color: "#3b82f6" }}>
-              <Sparkles size={12} /> alterado {mudanca.quando}
+              <Sparkles size={12} /> Alterado {mudanca.quando}
             </span>
           )}
         </p>

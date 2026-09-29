@@ -62,9 +62,9 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
   const dinheiro = stats ? kpiDinheiro(stats) : null;
   const kpisReais = stats && dinheiro
     ? [
-        { label: "Agentes no ar", value: String(ativos), delta: `de ${agents.length}`, up: true },
-        { label: "Atendimentos hoje", value: String(stats.execucoes), delta: dadosDaConta ? "dado real ✓" : "demonstração", up: true },
-        { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : SEM_DADO, delta: `${stats.erros} erros`, up: stats.erros === 0 },
+        { label: "Agentes no ar", value: String(ativos), delta: `De ${agents.length}`, up: true },
+        { label: "Atendimentos hoje", value: String(stats.execucoes), delta: dadosDaConta ? "Dado real" : "Demonstração", up: true },
+        { label: "Acertos", value: stats.taxa != null ? `${Math.round(stats.taxa * 100)}%` : SEM_DADO, delta: `${stats.erros} ${stats.erros === 1 ? "erro" : "erros"}`, up: stats.erros === 0 },
         { label: dinheiro.label, value: dinheiro.value, delta: dinheiro.delta, up: true },
       ]
     : null;
@@ -73,7 +73,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
     kpisReais ??
     apenasNoDemo(auth.demo, STATS) ??
     [
-      { label: "Agentes no ar", value: String(ativos), delta: `de ${agents.length}`, up: true },
+      { label: "Agentes no ar", value: String(ativos), delta: `De ${agents.length}`, up: true },
       { label: "Atendimentos hoje", value: SEM_DADO, delta: legendaDoEstado(estado), up: true },
       { label: "Acertos", value: SEM_DADO, delta: "", up: true },
       { label: "Valor gerado", value: SEM_DADO, delta: "", up: true },
@@ -91,7 +91,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
             </div>
             {dadosDaConta && fora.length > 0 ? (
               <span className="text-[12px] text-[var(--txt-3)]">
-                enquanto você esteve fora <span className="text-[var(--txt-4)]">(há {tempoRelativo(desde!)})</span>: {fora.length}{" "}
+                Desde a última visita <span className="text-[var(--txt-4)]">({tempoRelativo(desde!) === "agora" ? "agora" : `há ${tempoRelativo(desde!)}`})</span> · {fora.length}{" "}
                 {fora.length === 1 ? "atendimento" : "atendimentos"}
                 {foraReunioes > 0 && <> · {foraReunioes} {foraReunioes === 1 ? "reunião" : "reuniões"}</>}
                 {foraValor > 0 && <> · <span style={{ color: "var(--emerald)" }}>+{reais(foraValor)}</span></>}
@@ -129,8 +129,8 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           {stats && (
             <div className="px-5 py-2.5 border-t border-[var(--line)] font-mono text-[11.5px] text-[var(--txt-3)]">
               {reunioesHoje} {reunioesHoje === 1 ? "reunião marcada" : "reuniões marcadas"} hoje
-              <span className="text-[var(--txt-4)]"> · </span>semana {reais(stats.valor7dCentavos ?? 0)}
-              <span className="text-[var(--txt-4)]"> · </span>desde o início {reais(stats.valorTotalCentavos ?? 0)}
+              <span className="text-[var(--txt-4)]"> · </span>{reais(stats.valor7dCentavos ?? 0)} na semana
+              <span className="text-[var(--txt-4)]"> · </span>{reais(stats.valorTotalCentavos ?? 0)} desde o início
             </div>
           )}
         </div>
@@ -145,7 +145,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
           <div className="flex items-center justify-between px-5 py-3">
             <span className="mono-label">A frota · {agents.length}</span>
             <button className="text-[12px] flex items-center gap-1" style={{ color: "var(--violet)" }} onClick={() => go("agentes")}>
-              abrir a frota <ArrowRight size={13} />
+              Abrir a frota <ArrowRight size={13} />
             </button>
           </div>
           {agents.map((a) => (
@@ -164,7 +164,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                 className="font-mono text-[11.5px] flex-none"
                 style={{ color: a.state === "ativo" ? "var(--emerald)" : "var(--txt-4)" }}
               >
-                {a.state === "ativo" ? "no ar" : "pausado"}
+                {a.state === "ativo" ? "No ar" : a.state === "pausado" ? "Pausado" : "Em espera"}
               </span>
               <ArrowRight size={14} className="flex-none text-[var(--txt-4)]" />
             </button>
@@ -177,29 +177,29 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
       {auth.demo && (
         <Reveal delay={0.05}>
           <div className="card p-5 md:p-6">
-            <div className="mono-label mb-1.5">Por que isso não é (mais um) robozinho</div>
+            <div className="mono-label mb-1.5">Por que isto não é mais um chatbot</div>
             <h2 className="font-display text-[16px] md:text-[18px] font-semibold tracking-tight mb-4 max-w-2xl leading-snug">
-              Ferramenta de US$97 você configura e torce.{" "}
-              <span className="grad-text">Aqui, uma operação inteira trabalha — e te mostra a prova.</span>
+              Uma ferramenta de US$ 97 você configura e torce.{" "}
+              <span className="grad-text">Aqui, uma operação inteira trabalha e mostra a prova.</span>
             </h2>
             <div className="grid md:grid-cols-3 gap-3">
               <Pilar
                 icon={ShieldCheck}
                 color="#3fb950"
                 titulo="Operado com prova"
-                texto="A Metrik constrói e opera. Cada execução vira uma linha na sua caixa-preta — o que fez, por quê, e quanto rendeu."
+                texto="A Metrik constrói e opera. Cada execução vira uma linha na caixa-preta, com ação, motivo e valor."
               />
               <Pilar
                 icon={GraduationCap}
                 color="#3b82f6"
                 titulo="Escola"
-                texto="A IA errou? Você corrige apontando, como faria com uma pessoa. O motor aprende sem você tocar em nada por dentro."
+                texto="Quando o agente erra, basta apontar o erro, como com uma pessoa. O motor aprende sem ajuste interno."
               />
               <Pilar
                 icon={BadgeCheck}
                 color="#58aae4"
                 titulo="Porteiro"
-                texto="Nenhuma mudança vai pro ar sem passar no teste. Você vê a nota e a prova antes de aprovar."
+                texto="Nenhuma mudança entra no ar sem passar no teste. A nota e a prova aparecem antes da aprovação."
               />
             </div>
           </div>
@@ -213,7 +213,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
             <div className="flex items-center justify-between px-5 py-3">
               <span className="mono-label">Ao vivo</span>
               <button className="text-[12px] flex items-center gap-1" style={{ color: "var(--violet)" }} onClick={() => go("aovivo")}>
-                ver tudo <ArrowRight size={13} />
+                Ver tudo <ArrowRight size={13} />
               </button>
             </div>
             {logs && logs.length > 0 ? (
@@ -230,7 +230,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                           <span className="font-mono text-[11.5px] font-medium ml-1.5" style={{ color: "var(--emerald)" }}>+{reais(l.valorCentavos)}</span>
                         )}
                       </div>
-                      {!l.ok && <span className="font-mono text-[11px] flex-none" style={{ color: "var(--rose)" }}>erro</span>}
+                      {!l.ok && <span className="font-mono text-[11px] flex-none" style={{ color: "var(--rose)" }}>Erro</span>}
                     </li>
                   );
                 })}
@@ -241,7 +241,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                   <li key={a.id} className="flex items-center gap-3 px-5 py-2.5 border-t border-[var(--line)]">
                     <span className="live-dot flex-none" style={{ width: 6, height: 6, background: a.color }} />
                     <div className="min-w-0 flex-1">
-                      <span className="text-[13px] font-medium text-[var(--txt)]">{a.name}</span>{" "}
+                      <span className="text-[13px] font-medium text-[var(--txt)]">{a.name}</span>{" · "}
                       <span className="text-[13px] text-[var(--txt-2)]">{a.agora}</span>
                     </div>
                   </li>
@@ -256,7 +256,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
             <div className="card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <AlertCircle size={16} style={{ color: "var(--amber)" }} />
-                <span className="font-display font-semibold text-[14px]">Precisa de você</span>
+                <span className="font-display font-semibold text-[14px]">O que pede atenção</span>
               </div>
               <ul className="space-y-2 text-[13px] text-[var(--txt-2)]">
                 {stats ? (
@@ -268,7 +268,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                         <li key={c.id} className="flex gap-2">
                           <b className="text-[var(--txt)] flex-none">{nomeDaConexao(c)}</b>
                           <span className="min-w-0">
-                            {c.ultimoTesteDetalhe ?? "Com problema."}{" "}
+                            {c.ultimoTesteDetalhe ?? "A conexão está com problema."}{" "}
                             <button type="button" className="underline underline-offset-2" style={{ color: "var(--violet)" }} onClick={() => go("conexoes")}>Ver conexões</button>
                           </span>
                         </li>
@@ -280,11 +280,15 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                   ) : (
                     <li>Nada pendente. A frota está rodando sozinha.</li>
                   )
-                ) : (
+                ) : auth.demo ? (
                   <>
-                    <li className="flex gap-2"><b className="text-[var(--txt)]">Recuperador</b> bateu no limite de toques 1×</li>
-                    <li className="flex gap-2"><b className="text-[var(--txt)]">Contratos</b> está pausado</li>
+                    <li className="flex gap-2"><b className="text-[var(--txt)]">Recuperador</b> atingiu o limite de toques uma vez.</li>
+                    <li className="flex gap-2"><b className="text-[var(--txt)]">Contratos</b> está pausado.</li>
                   </>
+                ) : (
+                  // conta real sem dado (lendo ou falhou): diz isso, nunca os
+                  // exemplos da vitrine (S-007)
+                  <li>{legendaDoEstado(estado)}</li>
                 )}
               </ul>
             </div>
@@ -292,10 +296,10 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
             <div className="card p-5 flex-1 flex flex-col">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={16} style={{ color: "var(--violet)" }} />
-                <span className="font-display font-semibold text-[14px]">Quer mudar algo?</span>
+                <span className="font-display font-semibold text-[14px]">Mudanças nos agentes</span>
               </div>
               <p className="text-[13px] text-[var(--txt-3)] leading-relaxed">
-                Escolha um robô e peça em português. A Metrik simula, testa de verdade e te mostra a prova antes de qualquer coisa ir pro ar.
+                Escolha um agente e descreva a mudança em português. A Metrik simula, testa e mostra a prova antes de a mudança entrar no ar.
               </p>
               <button className="btn btn-primary mt-4 w-full" onClick={() => go("agentes")}>Escolher um agente <ArrowRight size={15} /></button>
             </div>

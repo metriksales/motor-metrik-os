@@ -13,22 +13,22 @@ import { type Agent, type Passo } from "../data";
 import { Reveal } from "../ui";
 
 const ALVO_META: Record<string, { icon: any; label: string; cor: string }> = {
-  etapa: { icon: Columns3, label: "etapa", cor: "#58aae4" },
-  campo: { icon: TextCursorInput, label: "campo", cor: "#3b82f6" },
-  integracao: { icon: Plug, label: "integração", cor: "#7c9fe0" },
-  canal: { icon: MessageCircle, label: "canal", cor: "#3fb950" },
-  documento: { icon: FileText, label: "documento", cor: "#60a5fa" },
+  etapa: { icon: Columns3, label: "Etapa", cor: "#58aae4" },
+  campo: { icon: TextCursorInput, label: "Campo", cor: "#3b82f6" },
+  integracao: { icon: Plug, label: "Integração", cor: "#7c9fe0" },
+  canal: { icon: MessageCircle, label: "Canal", cor: "#3fb950" },
+  documento: { icon: FileText, label: "Documento", cor: "#60a5fa" },
 };
 
 const ST_META: Record<Passo["status"], { icon: any; cor: string; label: string }> = {
-  ok: { icon: Check, cor: "#3fb950", label: "rodando certo" },
-  falha: { icon: X, cor: "#f85149", label: "travou" },
-  espera: { icon: Clock, cor: "#fbbf24", label: "em espera" },
+  ok: { icon: Check, cor: "#3fb950", label: "Funcionando" },
+  falha: { icon: X, cor: "#f85149", label: "Com falha" },
+  espera: { icon: Clock, cor: "#fbbf24", label: "Em espera" },
 };
 
 export default function MapaAcao({ agent, onMelhorar }: { agent: Agent; onMelhorar: () => void }) {
   const passos = agent.fluxo ?? [];
-  const gatilho = agent.work?.acoes?.gatilho ?? passos[0]?.deveria ?? "quando o gatilho acontece no funil";
+  const gatilho = agent.work?.acoes?.gatilho ?? passos[0]?.deveria ?? "Um evento do funil dispara o agente.";
   const entrega = passos[passos.length - 1];
 
   return (
@@ -36,8 +36,7 @@ export default function MapaAcao({ agent, onMelhorar }: { agent: Agent; onMelhor
       <Reveal>
         <div className="card p-5 md:p-7">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="mono-label">O que ele faz, passo a passo</div>
-            <span className="text-[11px] text-[var(--txt-4)] flex-none">lido do processo · atualiza sozinho</span>
+            <div className="mono-label">Passo a passo</div>
           </div>
           {agent.expectativa && (
             <p className="text-[15.5px] text-[var(--txt)] leading-relaxed mb-6 max-w-2xl">{agent.expectativa}</p>
@@ -49,7 +48,7 @@ export default function MapaAcao({ agent, onMelhorar }: { agent: Agent; onMelhor
               <Zap size={17} style={{ color: "#58aae4" }} />
             </span>
             <div>
-              <div className="mono-label !text-[9px] mb-1" style={{ color: "#58aae4" }}>dispara quando</div>
+              <div className="mono-label !text-[9px] mb-1" style={{ color: "#58aae4" }}>Gatilho</div>
               <p className="text-[14px] text-[var(--txt)] leading-relaxed">{frase(gatilho)}</p>
             </div>
           </div>
@@ -71,7 +70,7 @@ export default function MapaAcao({ agent, onMelhorar }: { agent: Agent; onMelhor
               <Check size={17} style={{ color: "#3fb950" }} />
             </span>
             <div>
-              <div className="mono-label !text-[9px] mb-1" style={{ color: "#3fb950" }}>no fim, você recebe</div>
+              <div className="mono-label !text-[9px] mb-1" style={{ color: "#3fb950" }}>Resultado</div>
               <p className="text-[14px] text-[var(--txt)] leading-relaxed">{frase(entrega.deveria)}</p>
             </div>
           </div>
