@@ -268,8 +268,8 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                         <li key={c.id} className="flex gap-2">
                           <b className="text-[var(--txt)] flex-none">{nomeDaConexao(c)}</b>
                           <span className="min-w-0">
-                            {c.ultimoTesteDetalhe ?? "com problema"}{" "}
-                            <button type="button" className="underline underline-offset-2" style={{ color: "var(--violet)" }} onClick={() => go("conexoes")}>ver conexões</button>
+                            {c.ultimoTesteDetalhe ?? "Com problema."}{" "}
+                            <button type="button" className="underline underline-offset-2" style={{ color: "var(--violet)" }} onClick={() => go("conexoes")}>Ver conexões</button>
                           </span>
                         </li>
                       ))}
@@ -278,7 +278,7 @@ export default function Inicio({ go, onOpen }: { go: (v: ViewId) => void; onOpen
                       ))}
                     </>
                   ) : (
-                    <li>nada pendente — a frota está rodando sozinha ✓</li>
+                    <li>Nada pendente. A frota está rodando sozinha.</li>
                   )
                 ) : (
                   <>

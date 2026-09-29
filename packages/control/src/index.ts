@@ -627,7 +627,7 @@ export async function testarConexao(
   if (!linha) throw new NaoEncontrado("conexão");
 
   const testador = TESTADORES[linha.kind];
-  if (!testador) throw new EntradaInvalida(`ainda não existe teste para conexões do tipo "${linha.kind}"`);
+  if (!testador) throw new EntradaInvalida(`Conexões do tipo "${linha.kind}" ainda não têm teste.`);
 
   const rotulo = linha.vaultRef ?? "padrao";
   const credencial = await usarCredencial(ctx, { kind: linha.kind, rotulo });
@@ -636,7 +636,7 @@ export async function testarConexao(
   let veredito: Veredito;
   if (!credencial) {
     status = "sem_credencial";
-    veredito = { ok: false, detalhe: `nenhuma credencial "${rotulo}" do tipo ${linha.kind} guardada no cofre desta conta` };
+    veredito = { ok: false, detalhe: `Nenhuma credencial guardada no cofre para esta conexão (rótulo "${rotulo}").` };
   } else {
     // o meta NÃO secreto mora na credencial (id da subconta, base url); o da
     // conexão, quando houver, tem a última palavra
