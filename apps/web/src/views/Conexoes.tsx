@@ -19,6 +19,7 @@ import {
   MessageCircle,
   Plug,
   RefreshCw,
+  Send,
   Wrench,
 } from "lucide-react";
 import { AnimatedBeam } from "../components/ui/AnimatedBeam";
@@ -31,6 +32,7 @@ import {
   TIPO_DE_CONEXAO,
   TIPOS_CADASTRAVEIS,
   nomeDaConexao,
+  ondeChegamOsEventos,
   quemRespondeu,
   type ConexaoReal,
   type TipoCadastravel,
@@ -104,6 +106,7 @@ function ConexoesDaConta() {
                   testando={testando === c.id}
                   erro={erroDoTeste[c.id]}
                   aviso={aviso?.id === c.id ? aviso : null}
+                  podeEnviar={podeGerenciar && c.kind === "whatsapp"}
                   onTestar={() => testar(c)}
                 />
               </Reveal>
@@ -113,19 +116,6 @@ function ConexoesDaConta() {
       </div>
 
       {podeGerenciar && <Cadastro onCadastrada={substituir} />}
-
-      <Reveal delay={0.1}>
-        <div className="connection-backstage">
-          <span><KeyRound size={17} /></span>
-          <div>
-            <strong>Onde mora o token</strong>
-            <p>
-              No cofre da conta, cifrado com uma chave que só abre para ela. O token nunca volta a esta tela. Trocar é
-              substituir. Cada uso por um teste fica registrado na auditoria.
-            </p>
-          </div>
-        </div>
-      </Reveal>
     </div>
   );
 }
@@ -176,14 +166,18 @@ function CartaoDeConexao({
   testando,
   erro,
   aviso,
+  podeEnviar,
   onTestar,
 }: {
   c: ConexaoReal;
   testando: boolean;
   erro?: string;
   aviso: { mesma: boolean } | null;
+  podeEnviar: boolean;
   onTestar: () => void;
 }) {
+  const [envioAberto, setEnvioAberto] = useState(false);
+  const eventos = ondeChegamOsEventos(c);
   const tipo = TIPO_DE_CONEXAO[c.kind];
   const Icon = tipo?.icon ?? Plug;
   const provedor = tipo?.provedor ?? "provedor";
@@ -205,6 +199,14 @@ function CartaoDeConexao({
           {quem && <div className="text-[12.5px] text-[var(--txt-2)] mt-0.5 truncate">{quem}</div>}
           <div className="mono-label mt-1">{tipo?.tipo ?? c.kind} · {quandoTestou(c.ultimoTesteEm)}</div>
           {frase && <p className="text-[13px] text-[var(--txt-2)] mt-2 leading-relaxed">{frase}</p>}
+          {eventos && (
+            <p
+              className="text-[12.5px] mt-1.5 leading-relaxed"
+              style={{ color: eventos.alerta ? "var(--amber)" : "var(--txt-3)" }}
+            >
+              {eventos.frase}
+            </p>
+          )}
           {aviso && (
             <p className="text-[12px] mt-1.5 flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
               <Check size={12} /> {aviso.mesma ? "Resposta recebida agora. Igual à anterior." : "Resposta recebida agora."}
@@ -216,21 +218,88 @@ function CartaoDeConexao({
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[var(--line)]">
-        <span className="text-[11.5px] text-[var(--txt-4)]">
-          {c.testavel ? `Pergunta à ${provedor} e grava a resposta.` : "Sem teste para este tipo."}
-        </span>
+        {podeEnviar ? (
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            aria-expanded={envioAberto}
+            onClick={() => setEnvioAberto((v) => !v)}
+          >
+            <Send size={13} /> Enviar mensagem de teste
+          </button>
+        ) : (
+          <span className="text-[11.5px] text-[var(--txt-4)]">{c.testavel ? "" : "Sem teste para este tipo."}</span>
+        )}
         <button
           type="button"
           className="btn btn-sm"
           disabled={!c.testavel || testando}
           onClick={onTestar}
-          title={c.testavel ? undefined : "Sem teste para este tipo."}
+          title={c.testavel ? `Pergunta à ${provedor} e grava a resposta.` : "Sem teste para este tipo."}
         >
           {testando ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
           {testando ? "Testando" : "Testar agora"}
         </button>
       </div>
+      {podeEnviar && envioAberto && <EnvioDeTeste id={c.id} />}
     </div>
+  );
+}
+
+/**
+ * Uma mensagem real pela instância (S-026): a prova de que o envio funciona.
+ * O número fica só neste campo; a auditoria guarda os quatro últimos dígitos.
+ */
+function EnvioDeTeste({ id }: { id: string }) {
+  const auth = useMotorAuth();
+  const [numero, setNumero] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; detalhe: string } | null>(null);
+
+  const enviar = async (ev: FormEvent) => {
+    ev.preventDefault();
+    setOcupado(true);
+    setResultado(null);
+    try {
+      const r = (await api.enviarMensagemDeTeste(id, numero, auth.getToken)) as { ok: boolean; detalhe: string };
+      setResultado(r);
+    } catch (e) {
+      setResultado({ ok: false, detalhe: e instanceof Error ? e.message : "Falha ao enviar." });
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  return (
+    <form className="conexao-cadastro mt-3" onSubmit={enviar} autoComplete="off">
+      <label className="auth-campo">
+        <span className="mono-label">Número com DDI e DDD</span>
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            inputMode="numeric"
+            required
+            disabled={ocupado}
+            placeholder="5561991840065"
+            value={numero}
+            onChange={(ev) => setNumero(ev.target.value)}
+          />
+          <button type="submit" className="btn btn-primary btn-sm flex-none" disabled={ocupado || !numero.trim()}>
+            {ocupado ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+            {ocupado ? "Enviando" : "Enviar"}
+          </button>
+        </div>
+      </label>
+      {resultado && (
+        <p
+          className="text-[12.5px] flex items-center gap-1.5"
+          style={{ color: resultado.ok ? "var(--emerald)" : "var(--rose)" }}
+          role={resultado.ok ? "status" : "alert"}
+        >
+          {resultado.ok ? <Check size={12} /> : <AlertTriangle size={12} />} {resultado.detalhe}
+        </p>
+      )}
+    </form>
   );
 }
 

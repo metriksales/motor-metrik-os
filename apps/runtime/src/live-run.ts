@@ -89,7 +89,11 @@ const ports: MotorPorts = {
   crm,
   llm: brain,
   sender: makeSender("llm-freeform", { llm: brain }),
-  transport: makeTransport("uazapi-multi", { instancias: [{ instanceId: "inst_metrik", token: "x" }] }),
+  // ensaio declarado: o transporte real enviaria de verdade (S-026)
+  transport: makeTransport("uazapi-multi", {
+    instancias: [{ instanceId: "inst_metrik", token: "x" }],
+    http: async () => ({ ok: true, providerId: "ensaio" }),
+  }),
   getState: async (k) => estado.get(k),
   setState: async (k, v) => {
     estado.set(k, v);

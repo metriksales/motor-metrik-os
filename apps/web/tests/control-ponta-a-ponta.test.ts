@@ -321,5 +321,25 @@ describe.skipIf(!temBanco)("conexões pela porta única (S-019)", () => {
       body: { kind: "kommo", segredo: SEGREDO },
     });
     expect(cadastro.status).toBe(403);
+
+    // mensagem de teste sai do número do cliente: só admin, e só por POST
+    const envioSemEscopo = await chamar({
+      action: "enviarMensagemDeTeste",
+      token: mudanca,
+      metodo: "POST",
+      body: { id: conexao.id, numero: "5561991840065" },
+    });
+    expect(envioSemEscopo.status).toBe(403);
+    const envioPorGet = await chamar({ action: "enviarMensagemDeTeste", token, metodo: "GET" });
+    expect(envioPorGet.status).toBe(405);
+    // sem credencial no cofre, a resposta diz isso — e nada é enviado
+    const envio = await chamar({
+      action: "enviarMensagemDeTeste",
+      token,
+      metodo: "POST",
+      body: { id: conexao.id, numero: "5561991840065" },
+    });
+    expect(envio.status).toBe(200);
+    expect(envio.corpo).toEqual({ ok: false, detalhe: "Nenhuma credencial guardada no cofre para esta conexão." });
   });
 });

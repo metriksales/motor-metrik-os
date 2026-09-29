@@ -58,6 +58,11 @@ async function main() {
         { ownerId: "vend_joao", instanceId: "inst_joao", token: "fake" },
         { instanceId: "inst_geral", token: "fake" },
       ],
+      // ensaio declarado: o transporte real enviaria de verdade (S-026)
+      http: async (e) => {
+        console.log(`   [ensaio] a uazapi enviaria para ${e.numero}: ${e.texto.slice(0, 60)}`);
+        return { ok: true, providerId: "ensaio" };
+      },
     },
   });
 

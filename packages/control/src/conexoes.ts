@@ -15,6 +15,7 @@
 // provedor confirmou nada — é um CAMPO da resposta que decide. Aqui, cada
 // testador diz qual.
 import type { ConnKind } from "@motor/core";
+import { enderecoHttps } from "@motor/messaging";
 
 export type Http = typeof fetch;
 
@@ -29,6 +30,21 @@ export interface Veredito {
 export interface EntradaDoTeste {
   segredo: string;
   meta: Record<string, unknown>;
+  /** os hosts por onde este sistema responde — para dizer se um webhook aponta para cá */
+  nossosHosts?: string[];
+}
+
+/**
+ * Para onde a instância manda os eventos (S-019/S-026). Guarda SÓ o host:
+ * caminho e query ficam de fora porque uma URL de webhook costuma carregar
+ * segredo — o leitor de grupos já teve o segredo na query (S-029).
+ */
+export interface DestinoDeEventos {
+  host: string;
+  ativo: boolean;
+  /** quando o destino é este sistema: qual porta de entrada */
+  destino?: "atendimento" | "grupos" | "este sistema";
+  eventos: string[];
 }
 
 export type Testador = (entrada: EntradaDoTeste, http: Http) => Promise<Veredito>;
@@ -47,17 +63,14 @@ function texto(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
-/** "https://x.uazapi.com/" → "https://x.uazapi.com"; recusa o que não é https. */
-function enderecoBase(v: unknown): string | undefined {
-  const t = texto(v);
-  if (!t) return undefined;
-  const semBarra = t.replace(/\/+$/, "");
-  return /^https:\/\/[^\s/]+$/i.test(semBarra) ? semBarra : undefined;
-}
+/** "https://x.uazapi.com/" → "https://x.uazapi.com"; recusa o que não é https. Um só critério, o do envio. */
+const enderecoBase = enderecoHttps;
 
 interface Resposta {
   status: number;
   json: Record<string, unknown> | null;
+  /** o corpo lido, qualquer que seja a forma (o webhook da uazapi é um array) */
+  bruto: unknown;
 }
 
 /** Resultado de uma chamada: a resposta, ou a razão (uma frase) de não ter havido uma. */
@@ -86,14 +99,16 @@ async function chamar(http: Http, url: string, init: RequestInit): Promise<Chama
     return { falha: `Falha ao conectar a ${host}.` };
   }
   let json: Record<string, unknown> | null = null;
+  let bruto: unknown = null;
   try {
     const corpo = await res.text();
-    const lido: unknown = corpo ? JSON.parse(corpo) : null;
-    json = lido && typeof lido === "object" && !Array.isArray(lido) ? (lido as Record<string, unknown>) : null;
+    bruto = corpo ? JSON.parse(corpo) : null;
+    json = bruto && typeof bruto === "object" && !Array.isArray(bruto) ? (bruto as Record<string, unknown>) : null;
   } catch {
     json = null;
+    bruto = null;
   }
-  return { resposta: { status: res.status, json } };
+  return { resposta: { status: res.status, json, bruto } };
 }
 
 function obj(v: unknown): Record<string, unknown> {
@@ -133,11 +148,55 @@ const ESTADO_UAZAPI: Record<string, string> = {
 };
 
 /**
+ * `GET /webhook` da instância: para onde ela manda os eventos. Só leitura —
+ * trocar o destino quebraria qualquer outro sistema que dependa da instância.
+ * Falhou a leitura: `undefined`, e a tela simplesmente não diz nada sobre isso.
+ */
+async function lerDestinos(
+  http: Http,
+  base: string,
+  segredo: string,
+  nossosHosts: string[],
+): Promise<DestinoDeEventos[] | undefined> {
+  const r = await chamar(http, `${base}/webhook`, { method: "GET", headers: { token: segredo, accept: "application/json" } });
+  if ("falha" in r || r.resposta.status !== 200 || !Array.isArray(r.resposta.bruto)) return undefined;
+  const nossos = new Set(nossosHosts.map((h) => h.toLowerCase()));
+  const destinos: DestinoDeEventos[] = [];
+  for (const item of r.resposta.bruto.map(obj)) {
+    const url = texto(item.url);
+    if (!url) continue;
+    let alvo: URL;
+    try {
+      alvo = new URL(url);
+    } catch {
+      continue;
+    }
+    const host = alvo.host.toLowerCase();
+    const d: DestinoDeEventos = {
+      host,
+      ativo: item.enabled !== false,
+      eventos: Array.isArray(item.events) ? item.events.filter((e): e is string => typeof e === "string").slice(0, 12) : [],
+    };
+    if (nossos.has(host)) {
+      d.destino = alvo.pathname.startsWith("/api/webhook")
+        ? "atendimento"
+        : alvo.pathname.startsWith("/api/group-reader")
+          ? "grupos"
+          : "este sistema";
+    }
+    destinos.push(d);
+  }
+  return destinos;
+}
+
+/**
  * `GET /instance/status` com o token da instância no header `token`.
  * O que decide é `status.connected` + `status.loggedIn` (e, na falta deles,
  * `instance.status === "connected"`); o HTTP 200 sozinho não diz nada.
+ * Depois, EM SEQUÊNCIA (uma instância é um soquete só), lê para onde ela
+ * manda os eventos.
  */
-export const testarUazapi: Testador = async ({ segredo, meta }, http) => {
+export const testarUazapi: Testador = async ({ segredo, meta, nossosHosts = [] }, http) => {
   const base = enderecoBase(meta.baseUrl);
   if (!base) return { ok: false, detalhe: "Falta o endereço da instância." };
   const r = await chamar(http, `${base}/instance/status`, {
@@ -160,11 +219,13 @@ export const testarUazapi: Testador = async ({ segredo, meta }, http) => {
   const numero = numeroDeTelefone(obj(st.jid).user) ?? numeroDeTelefone(inst.owner);
   // a foto é uma URL do CDN do WhatsApp; a tela a mostra e cai no ícone se vencer
   const foto = texto(inst.profilePicUrl);
+  const webhooks = await lerDestinos(http, base, segredo, nossosHosts);
   if (conectado) {
     const dados: Record<string, unknown> = { estado: estado ?? "connected" };
     if (nome) dados.nome = nome;
     if (numero) dados.numero = numero;
     if (foto && /^https:\/\//i.test(foto)) dados.foto = foto;
+    if (webhooks) dados.webhooks = webhooks;
     // "Conectado como Luã (+55…)." / "Conectado como Luã." / "Conectado (+55…)." / "Conectado."
     const detalhe = nome
       ? `Conectado como ${nome}${numero ? ` (+${numero})` : ""}.`
@@ -176,7 +237,7 @@ export const testarUazapi: Testador = async ({ segredo, meta }, http) => {
   return {
     ok: false,
     detalhe: (estado && ESTADO_UAZAPI[estado]) ?? `Instância não conectada (estado: ${estado ?? "desconhecido"}).`,
-    dados: { estado },
+    dados: webhooks ? { estado, webhooks } : { estado },
   };
 };
 

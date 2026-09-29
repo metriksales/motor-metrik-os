@@ -7,6 +7,14 @@
 // Todo texto daqui aparece na tela: segue a skill `texto-de-tela`.
 import { CalendarDays, ContactRound, Database, FileSignature, MessageCircle, Scale, type LucideIcon } from "lucide-react";
 
+/** Para onde a instância manda os eventos. Só o host: caminho e query podem carregar segredo. */
+export interface DestinoDeEventos {
+  host: string;
+  ativo: boolean;
+  destino?: "atendimento" | "grupos" | "este sistema";
+  eventos: string[];
+}
+
 /** O que o provedor contou no último teste, para mostrar (nunca o segredo). */
 export interface DadosDoTeste {
   estado?: string;
@@ -15,6 +23,33 @@ export interface DadosDoTeste {
   foto?: string;
   subconta?: string;
   conta?: string;
+  webhooks?: DestinoDeEventos[];
+}
+
+/** "a.com", "a.com e b.com", "a.com, b.com e c.com" */
+function juntar(itens: string[]): string {
+  return itens.length <= 1 ? (itens[0] ?? "") : `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`;
+}
+
+/**
+ * Onde chegam as mensagens recebidas pela instância, numa frase. `null` quando
+ * o último teste não leu o webhook (tipo sem isso, ou leitura que falhou).
+ * `alerta` quando nada chega a este sistema.
+ */
+export function ondeChegamOsEventos(c: Pick<ConexaoReal, "ultimoTesteDados">): { frase: string; alerta: boolean } | null {
+  const lista = c.ultimoTesteDados?.webhooks;
+  if (!Array.isArray(lista)) return null;
+  if (lista.length === 0) {
+    return { frase: "Nenhum webhook configurado. Mensagens recebidas não chegam a este sistema.", alerta: true };
+  }
+  const ativos = lista.filter((w) => w.ativo);
+  if (ativos.length === 0) return { frase: "Webhook desativado na instância. Mensagens recebidas não chegam a este sistema.", alerta: true };
+  const nosso = ativos.find((w) => w.destino);
+  if (nosso?.destino === "grupos") return { frase: "Mensagens recebidas chegam ao leitor de grupos.", alerta: false };
+  if (nosso?.destino === "atendimento") return { frase: "Mensagens recebidas chegam ao atendimento.", alerta: false };
+  if (nosso) return { frase: "Mensagens recebidas chegam a este sistema.", alerta: false };
+  const hosts = [...new Set(ativos.map((w) => w.host))];
+  return { frase: `Mensagens recebidas vão para ${juntar(hosts.slice(0, 3))}, não para este sistema.`, alerta: true };
 }
 
 export interface ConexaoReal {
