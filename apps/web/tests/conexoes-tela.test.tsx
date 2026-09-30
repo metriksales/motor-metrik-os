@@ -276,17 +276,52 @@ describe("Conexões — nome da instância e conectar pela plataforma", () => {
     expect(screen.queryByRole("button", { name: /enviar mensagem de teste/i })).toBeNull();
   });
 
-  test("abre com o QR code, acompanha, e quando conecta o cartão vira 'No ar' sem recarregar", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+  test("CICATRIZ 30/09: abrir o painel só CONSULTA; conectada, nada é pedido e o cartão diz que nada mudou", async () => {
     api.conexoes.mockResolvedValue([FORA_COM_NOME]);
-    api.conectarWhatsApp.mockResolvedValue({ conectado: false, estado: "connecting", qrcode: QR, detalhe: "Aguardando a leitura no celular." });
-    api.acompanharWhatsApp
-      .mockResolvedValueOnce({ conectado: false, estado: "connecting", qrcode: QR, detalhe: "Aguardando a leitura no celular." })
-      .mockResolvedValueOnce({ conectado: true, estado: "connected", detalhe: "WhatsApp conectado.", conexao: NO_AR });
+    api.acompanharWhatsApp.mockResolvedValue({ conectado: true, estado: "connected", detalhe: "WhatsApp conectado.", conexao: NO_AR });
     render(<Conexoes />);
     await screen.findByText("Com problema");
 
     fireEvent.click(screen.getByRole("button", { name: /conectar whatsapp/i }));
+
+    await screen.findByText("No ar");
+    expect(api.conectarWhatsApp).not.toHaveBeenCalled();
+    expect(screen.getByText("A instância já estava conectada. Nada foi alterado.")).toBeTruthy();
+    expect(screen.queryByRole("img", { name: /QR code/ })).toBeNull();
+  });
+
+  test("desconectada: explica, cita os outros sistemas, e só gera o QR no clique", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const comOutros: ConexaoReal = {
+      ...FORA_COM_NOME,
+      ultimoTesteDados: {
+        estado: "disconnected",
+        instancia: "Suporte",
+        webhooks: [
+          { host: "webhooks.bridgeapi.chat", ativo: true, eventos: ["messages"] },
+          { host: "metrik-connect.vercel.app", ativo: true, eventos: ["messages"] },
+        ],
+      },
+    };
+    api.conexoes.mockResolvedValue([comOutros]);
+    api.acompanharWhatsApp
+      .mockResolvedValueOnce({ conectado: false, estado: "disconnected", detalhe: "Instância desconectada." })
+      .mockResolvedValueOnce({ conectado: false, estado: "connecting", qrcode: QR, detalhe: "Aguardando a leitura no celular." })
+      .mockResolvedValueOnce({ conectado: true, estado: "connected", detalhe: "WhatsApp conectado.", conexao: NO_AR });
+    api.conectarWhatsApp.mockResolvedValue({ conectado: false, estado: "connecting", qrcode: QR, detalhe: "Aguardando a leitura no celular." });
+    render(<Conexoes />);
+    await screen.findByText("Com problema");
+
+    fireEvent.click(screen.getByRole("button", { name: /conectar whatsapp/i }));
+    expect(await screen.findByText("A instância está desconectada. Gerar o QR code inicia uma nova conexão.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Esta instância também envia mensagens para webhooks.bridgeapi.chat e metrik-connect.vercel.app. Esses sistemas voltam a receber quando ela reconectar.",
+      ),
+    ).toBeTruthy();
+    expect(api.conectarWhatsApp).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^gerar qr code$/i }));
     const qr = (await screen.findByRole("img", { name: "QR code para conectar o WhatsApp" })) as HTMLImageElement;
     expect(qr.src).toBe(QR);
     expect(api.conectarWhatsApp).toHaveBeenCalledWith("c1", undefined, undefined);
@@ -294,35 +329,44 @@ describe("Conexões — nome da instância e conectar pela plataforma", () => {
     await vi.advanceTimersByTimeAsync(5000);
     await vi.advanceTimersByTimeAsync(5000);
     await screen.findByText("No ar");
-    expect(api.acompanharWhatsApp).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("WhatsApp conectado.")).toBeTruthy();
     expect(api.conexoes).toHaveBeenCalledTimes(1);
+  });
+
+  test("QR já em andamento: mostra o mesmo QR, sem pedir outro", async () => {
+    api.conexoes.mockResolvedValue([FORA_COM_NOME]);
+    api.acompanharWhatsApp.mockResolvedValue({ conectado: false, estado: "connecting", qrcode: QR, detalhe: "Aguardando a leitura no celular." });
+    render(<Conexoes />);
+    await screen.findByText("Com problema");
+    fireEvent.click(screen.getByRole("button", { name: /conectar whatsapp/i }));
+    expect(((await screen.findByRole("img", { name: "QR code para conectar o WhatsApp" })) as HTMLImageElement).src).toBe(QR);
+    expect(api.conectarWhatsApp).not.toHaveBeenCalled();
   });
 
   test("pelo número de telefone: mostra o código formatado como o WhatsApp mostra", async () => {
     api.conexoes.mockResolvedValue([FORA_COM_NOME]);
-    api.conectarWhatsApp
-      .mockResolvedValueOnce({ conectado: false, estado: "connecting", qrcode: QR, detalhe: "Aguardando a leitura no celular." })
-      .mockResolvedValueOnce({ conectado: false, estado: "connecting", codigo: "ABCD1234", detalhe: "Aguardando a leitura no celular." });
+    api.acompanharWhatsApp.mockResolvedValue({ conectado: false, estado: "disconnected", detalhe: "Instância desconectada." });
+    api.conectarWhatsApp.mockResolvedValue({ conectado: false, estado: "connecting", codigo: "ABCD1234", detalhe: "Aguardando a leitura no celular." });
     render(<Conexoes />);
     await screen.findByText("Com problema");
     fireEvent.click(screen.getByRole("button", { name: /conectar whatsapp/i }));
-    await screen.findByRole("img", { name: "QR code para conectar o WhatsApp" });
-
-    fireEvent.click(screen.getByRole("button", { name: /conectar com o número de telefone/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /conectar com o número de telefone/i }));
     fireEvent.change(screen.getByPlaceholderText("5561991840065"), { target: { value: "5561991840065" } });
     fireEvent.click(screen.getByRole("button", { name: /gerar código/i }));
 
     expect((await screen.findByLabelText("Código de pareamento")).textContent).toBe("ABCD-1234");
-    expect(api.conectarWhatsApp).toHaveBeenLastCalledWith("c1", "5561991840065", undefined);
+    expect(api.conectarWhatsApp).toHaveBeenCalledWith("c1", "5561991840065", undefined);
   });
 
-  test("recusa da uazapi aparece como alerta", async () => {
+  test("estado desconhecido: alerta e 'Consultar de novo', nunca um pedido de QR", async () => {
     api.conexoes.mockResolvedValue([FORA_COM_NOME]);
-    api.conectarWhatsApp.mockResolvedValue({ conectado: false, detalhe: "A uazapi recusou o token da instância." });
+    api.acompanharWhatsApp.mockResolvedValue({ conectado: false, detalhe: "A uazapi recusou o token da instância." });
     render(<Conexoes />);
     await screen.findByText("Com problema");
     fireEvent.click(screen.getByRole("button", { name: /conectar whatsapp/i }));
     expect((await screen.findByRole("alert")).textContent).toContain("A uazapi recusou o token da instância.");
-    expect(screen.getByRole("button", { name: /gerar novo qr code/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /consultar de novo/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /gerar qr code/i })).toBeNull();
+    expect(api.conectarWhatsApp).not.toHaveBeenCalled();
   });
 });

@@ -341,26 +341,76 @@ describe.skipIf(!temBanco)("conectar o WhatsApp pela plataforma", () => {
     });
   }
 
-  test("pede o QR com o token do cofre, e nem o QR nem o token ficam na auditoria", async () => {
+  /** Uma uazapi falsa que responde o status dado e anota cada chamada. */
+  function uazapi(status: unknown, statusHttp = 200) {
+    const chamadas: { url: string; metodo: string; token: string }[] = [];
+    const http: Http = async (url, init) => {
+      chamadas.push({ url: String(url), metodo: init?.method ?? "GET", token: (init?.headers as Record<string, string>).token });
+      if (String(url).endsWith("/instance/connect")) {
+        return new Response(JSON.stringify({ connected: false, instance: { status: "connecting", qrcode: QR, name: "metrik-01" } }), { status: 200 });
+      }
+      if (String(url).endsWith("/webhook")) return new Response("[]", { status: 200 });
+      return new Response(JSON.stringify(status), { status: statusHttp });
+    };
+    return { http, chamadas, conectou: () => chamadas.some((c) => c.url.endsWith("/instance/connect")) };
+  }
+
+  test("CICATRIZ 30/09: instância CONECTADA — nada é pedido à uazapi, o cartão só é atualizado", async () => {
     const { orgId, ctx } = await conta();
     const c = await whatsappComToken(ctx, orgId);
-    const tokens: string[] = [];
-    const http: Http = async (_url, init) => {
-      tokens.push((init?.headers as Record<string, string>).token);
-      return new Response(JSON.stringify({ connected: false, instance: { status: "connecting", qrcode: QR, name: "metrik-01" } }), { status: 200 });
-    };
+    // o registro velho diz "fora do ar" — era isso que fazia o botão aparecer
+    const u = uazapi(CONECTADA);
     const r = await bd.comConta(orgId, async () => {
-      const estado = await control.conectarWhatsApp(ctx, { id: c.id }, { http });
+      const estado = await control.conectarWhatsApp(ctx, { id: c.id }, { http: u.http });
       const trilha = await control.listarAuditoria(ctx);
       return { estado, trilha };
     });
-    expect(r.estado.qrcode).toBe(QR);
-    expect(r.estado.instancia).toBe("metrik-01");
-    expect(tokens).toEqual(["tok-linha"]);
+    expect(u.conectou()).toBe(false);
+    expect(r.estado.conectado).toBe(true);
+    expect(r.estado.detalhe).toBe("A instância já está conectada. Nada foi alterado.");
+    expect(r.estado.conexao.status).toBe("ok");
+    expect(r.estado.qrcode).toBeUndefined();
     const pedido = r.trilha.find((l: { action: string }) => l.action === "connection.conectar");
-    expect(pedido.data).toEqual({ modo: "qrcode", conectado: false });
+    expect(pedido.data).toEqual({ modo: "qrcode", conectado: true, acionou: false });
+  });
+
+  test("desconectada: consulta, depois pede o QR — e nem o QR nem o token ficam na auditoria", async () => {
+    const { orgId, ctx } = await conta();
+    const c = await whatsappComToken(ctx, orgId);
+    const u = uazapi({ instance: { status: "disconnected", name: "metrik-01" }, status: { connected: false } });
+    const r = await bd.comConta(orgId, async () => {
+      const estado = await control.conectarWhatsApp(ctx, { id: c.id }, { http: u.http });
+      const trilha = await control.listarAuditoria(ctx);
+      return { estado, trilha };
+    });
+    expect(u.chamadas.map((x) => `${x.metodo} ${x.url.replace("https://m.uazapi.com", "")}`)).toEqual([
+      "GET /instance/status",
+      "POST /instance/connect",
+    ]);
+    expect(u.chamadas.every((x) => x.token === "tok-linha")).toBe(true);
+    expect(r.estado.qrcode).toBe(QR);
+    const pedido = r.trilha.find((l: { action: string }) => l.action === "connection.conectar");
+    expect(pedido.data).toEqual({ modo: "qrcode", conectado: false, acionou: true });
     expect(JSON.stringify(r.trilha)).not.toContain("QQQQ");
     expect(JSON.stringify(r.trilha)).not.toContain("tok-linha");
+  });
+
+  test("já em conexão com QR vigente: devolve o mesmo QR, sem reiniciar nada", async () => {
+    const { orgId, ctx } = await conta();
+    const c = await whatsappComToken(ctx, orgId);
+    const u = uazapi({ instance: { status: "connecting", qrcode: QR }, status: { connected: false } });
+    const r = await bd.comConta(orgId, () => control.conectarWhatsApp(ctx, { id: c.id }, { http: u.http }));
+    expect(u.conectou()).toBe(false);
+    expect(r.qrcode).toBe(QR);
+  });
+
+  test("estado desconhecido (token recusado): não arrisca e diz que nada foi alterado", async () => {
+    const { orgId, ctx } = await conta();
+    const c = await whatsappComToken(ctx, orgId);
+    const u = uazapi({ error: "Invalid token" }, 401);
+    const r = await bd.comConta(orgId, () => control.conectarWhatsApp(ctx, { id: c.id }, { http: u.http }));
+    expect(u.conectou()).toBe(false);
+    expect(r).toEqual({ conectado: false, detalhe: "A uazapi recusou o token da instância. Nada foi alterado." });
   });
 
   test("quando a instância conecta, o acompanhamento grava 'ok' e devolve a conexão testada", async () => {

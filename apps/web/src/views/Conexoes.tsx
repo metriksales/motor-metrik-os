@@ -182,6 +182,8 @@ function CartaoDeConexao({
   onConectada: (c: ConexaoReal) => void;
 }) {
   const [painel, setPainel] = useState<"envio" | "conectar" | null>(null);
+  // o que o painel de conexão tem a dizer depois de fechar ("já estava conectada")
+  const [nota, setNota] = useState<string | null>(null);
   const whatsapp = c.kind === "whatsapp";
   // no ar: dá para mandar uma mensagem de teste; fora: dá para conectar por aqui
   const podeEnviar = podeGerenciar && whatsapp && c.status === "ok";
@@ -218,6 +220,11 @@ function CartaoDeConexao({
               {eventos.frase}
             </p>
           )}
+          {nota && (
+            <p className="text-[12px] mt-1.5 flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
+              <Check size={12} /> {nota}
+            </p>
+          )}
           {aviso && (
             <p className="text-[12px] mt-1.5 flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
               <Check size={12} /> {aviso.mesma ? "Resposta recebida agora. Igual à anterior." : "Resposta recebida agora."}
@@ -234,7 +241,10 @@ function CartaoDeConexao({
             type="button"
             className="btn btn-sm btn-ghost"
             aria-expanded={painel === "conectar"}
-            onClick={() => alternar("conectar")}
+            onClick={() => {
+              setNota(null);
+              alternar("conectar");
+            }}
           >
             <QrCode size={13} /> Conectar WhatsApp
           </button>
@@ -265,8 +275,10 @@ function CartaoDeConexao({
       {podeConectar && painel === "conectar" && (
         <ConectarWhatsApp
           id={c.id}
-          onConectada={(nova) => {
+          outrosSistemas={(c.ultimoTesteDados?.webhooks ?? []).filter((w) => w.ativo && !w.destino).map((w) => w.host)}
+          onConectada={(nova, texto) => {
             onConectada(nova);
+            setNota(texto ?? null);
             setPainel(null);
           }}
         />
@@ -349,8 +361,21 @@ function formatarCodigo(codigo: string): string {
  * tela pergunta a cada poucos segundos se já conectou e, quando conecta, troca
  * o cartão pela conexão já testada. O QR e o código não são guardados.
  */
-function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: ConexaoReal) => void }) {
+function ConectarWhatsApp({
+  id,
+  outrosSistemas,
+  onConectada,
+}: {
+  id: string;
+  /** hosts de fora que também recebem os eventos da instância */
+  outrosSistemas: string[];
+  onConectada: (c: ConexaoReal, nota?: string) => void;
+}) {
   const auth = useMotorAuth();
+  // "consultando": só LÊ o estado real. Nada é pedido à uazapi até um clique
+  // explícito em "Gerar QR code" — abrir o painel derrubou uma instância
+  // conectada em 30/09 (ver `conectarWhatsApp` no pacote de controle).
+  const [fase, setFase] = useState<"consultando" | "desconectada" | "aguardando" | "falha">("consultando");
   const [modo, setModo] = useState<"qrcode" | "codigo">("qrcode");
   const [telefone, setTelefone] = useState("");
   const [estado, setEstado] = useState<EstadoDaConexao | null>(null);
@@ -366,16 +391,50 @@ function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: Co
     };
   }, []);
 
+  /** O que fazer com qualquer resposta: conectada fecha; QR/código aguarda; o resto explica. */
+  const aplicar = (r: EstadoDaConexao, m: "qrcode" | "codigo", nota: string) => {
+    if (r.conexao) {
+      onConectada(r.conexao, nota);
+      return;
+    }
+    setEstado(r);
+    if (r.qrcode || r.codigo) {
+      setFase("aguardando");
+      setExpiraEm(Date.now() + VALIDADE_MS[m]);
+      setExpirou(false);
+    } else if (r.estado) {
+      setFase("desconectada");
+    } else {
+      setFase("falha");
+    }
+  };
+
+  const consultar = async () => {
+    setFase("consultando");
+    setErro(undefined);
+    try {
+      const r = (await api.acompanharWhatsApp(id, auth.getToken)) as EstadoDaConexao;
+      if (vivo.current) aplicar(r, "qrcode", "A instância já estava conectada. Nada foi alterado.");
+    } catch (e) {
+      if (vivo.current) {
+        setErro(e instanceof Error ? e.message : "Falha ao consultar a instância.");
+        setFase("falha");
+      }
+    }
+  };
+
+  // ao abrir: só consulta
+  useEffect(() => {
+    void consultar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pedir = async (m: "qrcode" | "codigo", fone?: string) => {
     setPedindo(true);
     setErro(undefined);
-    setExpirou(false);
-    setEstado(null);
     try {
       const r = (await api.conectarWhatsApp(id, m === "codigo" ? fone : undefined, auth.getToken)) as EstadoDaConexao;
-      if (!vivo.current) return;
-      setEstado(r);
-      setExpiraEm(r.qrcode || r.codigo ? Date.now() + VALIDADE_MS[m] : null);
+      if (vivo.current) aplicar(r, m, r.detalhe);
     } catch (e) {
       if (vivo.current) setErro(e instanceof Error ? e.message : "Falha ao pedir a conexão.");
     } finally {
@@ -383,14 +442,8 @@ function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: Co
     }
   };
 
-  // ao abrir, já pede o QR code
-  useEffect(() => {
-    void pedir("qrcode");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // enquanto há QR ou código na tela, pergunta se já conectou
-  const aguardando = !!estado && !estado.conectado && !!(estado.qrcode || estado.codigo) && !expirou;
+  const aguardando = fase === "aguardando" && !expirou;
   useEffect(() => {
     if (!aguardando) return;
     const t = setTimeout(async () => {
@@ -402,8 +455,7 @@ function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: Co
         const r = (await api.acompanharWhatsApp(id, auth.getToken)) as EstadoDaConexao;
         if (!vivo.current) return;
         if (r.conexao) {
-          setEstado(r);
-          onConectada(r.conexao);
+          onConectada(r.conexao, "WhatsApp conectado.");
           return;
         }
         // o status devolve o QR renovado, mas não repete o código de pareamento
@@ -419,29 +471,86 @@ function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: Co
     return () => clearTimeout(t);
   }, [aguardando, estado, expiraEm, id, auth.getToken, onConectada]);
 
-  const trocarModo = (m: "qrcode" | "codigo") => {
-    setModo(m);
-    setEstado(null);
-    setErro(undefined);
-    setExpirou(false);
-    if (m === "qrcode") void pedir("qrcode");
-  };
-
-  const semResultado = !!estado && !estado.conectado && !estado.qrcode && !estado.codigo && !pedindo;
+  const aviso =
+    outrosSistemas.length > 0
+      ? `Esta instância também envia mensagens para ${
+          outrosSistemas.length === 1
+            ? outrosSistemas[0]
+            : `${outrosSistemas.slice(0, -1).join(", ")} e ${outrosSistemas[outrosSistemas.length - 1]}`
+        }. Esses sistemas voltam a receber quando ela reconectar.`
+      : null;
 
   return (
     <div className="conexao-cadastro mt-3 pt-3 border-t border-[var(--line)]">
-      {estado?.conectado ? (
-        <p className="text-[12.5px] flex items-center gap-1.5" style={{ color: "var(--emerald)" }} role="status">
-          <Check size={12} /> WhatsApp conectado.
+      {fase === "consultando" ? (
+        <p className="text-[12.5px] text-[var(--txt-3)] flex items-center gap-1.5" role="status">
+          <Loader2 size={12} className="animate-spin" /> Consultando a instância
         </p>
-      ) : modo === "qrcode" ? (
+      ) : fase === "falha" ? (
+        <div className="space-y-2">
+          <p className="text-[12.5px] flex items-center gap-1.5" style={{ color: "var(--rose)" }} role="alert">
+            <AlertTriangle size={12} /> {erro ?? estado?.detalhe}
+          </p>
+          <button type="button" className="btn btn-sm" onClick={() => void consultar()}>
+            <RefreshCw size={13} /> Consultar de novo
+          </button>
+        </div>
+      ) : fase === "desconectada" ? (
+        <div className="space-y-2">
+          <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
+            A instância está desconectada. Gerar o QR code inicia uma nova conexão.
+          </p>
+          {aviso && <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--amber)" }}>{aviso}</p>}
+          {modo === "qrcode" ? (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-primary btn-sm" disabled={pedindo} onClick={() => void pedir("qrcode")}>
+                {pedindo ? <Loader2 size={13} className="animate-spin" /> : <QrCode size={13} />}
+                {pedindo ? "Gerando" : "Gerar QR code"}
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" disabled={pedindo} onClick={() => setModo("codigo")}>
+                Conectar com o número de telefone
+              </button>
+            </div>
+          ) : (
+            <FormularioDoCodigo
+              telefone={telefone}
+              setTelefone={setTelefone}
+              pedindo={pedindo}
+              onPedir={() => void pedir("codigo", telefone)}
+              onVoltar={() => setModo("qrcode")}
+            />
+          )}
+        </div>
+      ) : estado?.codigo ? (
+        <div className="space-y-2">
+          {!expirou ? (
+            <>
+              <div className="connection-codigo" aria-label="Código de pareamento">
+                {formatarCodigo(estado.codigo)}
+              </div>
+              <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
+                No WhatsApp, toque em Aparelhos conectados, depois em Conectar com número de telefone, e digite o código.
+              </p>
+              <p className="text-[12px] text-[var(--txt-3)] flex items-center gap-1.5" role="status">
+                <Loader2 size={12} className="animate-spin" /> Aguardando a confirmação no celular
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[12.5px]" style={{ color: "var(--amber)" }} role="status">
+                O código expirou.
+              </p>
+              <button type="button" className="btn btn-sm" disabled={pedindo} onClick={() => void pedir("codigo", telefone)}>
+                <RefreshCw size={13} /> Gerar novo código
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
         <div className="flex flex-col sm:flex-row gap-4 items-start">
-          <div className="connection-qr flex-none grid place-items-center" aria-busy={pedindo}>
+          <div className="connection-qr flex-none grid place-items-center">
             {estado?.qrcode && !expirou ? (
               <img src={estado.qrcode} alt="QR code para conectar o WhatsApp" width={200} height={200} />
-            ) : pedindo ? (
-              <Loader2 size={20} className="animate-spin text-[var(--txt-4)]" />
             ) : (
               <QrCode size={28} className="text-[var(--txt-4)]" />
             )}
@@ -456,79 +565,69 @@ function ConectarWhatsApp({ id, onConectada }: { id: string; onConectada: (c: Co
               </p>
             )}
             {expirou && (
-              <p className="text-[12.5px]" style={{ color: "var(--amber)" }} role="status">
-                O QR code expirou.
-              </p>
+              <>
+                <p className="text-[12.5px]" style={{ color: "var(--amber)" }} role="status">
+                  O QR code expirou.
+                </p>
+                <button type="button" className="btn btn-sm" disabled={pedindo} onClick={() => void pedir("qrcode")}>
+                  <RefreshCw size={13} /> Gerar novo QR code
+                </button>
+              </>
             )}
-            {(expirou || semResultado) && (
-              <button type="button" className="btn btn-sm" onClick={() => void pedir("qrcode")}>
-                <RefreshCw size={13} /> Gerar novo QR code
-              </button>
-            )}
-            <button type="button" className="btn btn-sm btn-ghost" onClick={() => trocarModo("codigo")}>
-              Conectar com o número de telefone
-            </button>
           </div>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {estado?.codigo && !expirou ? (
-            <>
-              <div className="connection-codigo" aria-label="Código de pareamento">
-                {formatarCodigo(estado.codigo)}
-              </div>
-              <p className="text-[13px] text-[var(--txt-2)] leading-relaxed">
-                No WhatsApp, toque em Aparelhos conectados, depois em Conectar com número de telefone, e digite o código.
-              </p>
-              {aguardando && (
-                <p className="text-[12px] text-[var(--txt-3)] flex items-center gap-1.5" role="status">
-                  <Loader2 size={12} className="animate-spin" /> Aguardando a confirmação no celular
-                </p>
-              )}
-            </>
-          ) : (
-            <form
-              onSubmit={(ev: FormEvent) => {
-                ev.preventDefault();
-                void pedir("codigo", telefone);
-              }}
-            >
-              <label className="auth-campo">
-                <span className="mono-label">Número do WhatsApp com DDI e DDD</span>
-                <div className="flex gap-2">
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    required
-                    disabled={pedindo}
-                    placeholder="5561991840065"
-                    value={telefone}
-                    onChange={(ev) => setTelefone(ev.target.value)}
-                  />
-                  <button type="submit" className="btn btn-primary btn-sm flex-none" disabled={pedindo || !telefone.trim()}>
-                    {pedindo ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                    {pedindo ? "Gerando" : "Gerar código"}
-                  </button>
-                </div>
-              </label>
-              {expirou && (
-                <p className="text-[12.5px]" style={{ color: "var(--amber)" }} role="status">
-                  O código expirou. Gere um novo.
-                </p>
-              )}
-            </form>
-          )}
-          <button type="button" className="btn btn-sm btn-ghost" onClick={() => trocarModo("qrcode")}>
-            Usar QR code
-          </button>
-        </div>
       )}
-      {(erro || semResultado) && (
+      {erro && fase !== "falha" && (
         <p className="text-[12.5px] mt-2 flex items-center gap-1.5" style={{ color: "var(--rose)" }} role="alert">
-          <AlertTriangle size={12} /> {erro ?? estado?.detalhe}
+          <AlertTriangle size={12} /> {erro}
         </p>
       )}
     </div>
+  );
+}
+
+function FormularioDoCodigo({
+  telefone,
+  setTelefone,
+  pedindo,
+  onPedir,
+  onVoltar,
+}: {
+  telefone: string;
+  setTelefone: (v: string) => void;
+  pedindo: boolean;
+  onPedir: () => void;
+  onVoltar: () => void;
+}) {
+  return (
+    <form
+      onSubmit={(ev: FormEvent) => {
+        ev.preventDefault();
+        onPedir();
+      }}
+    >
+      <label className="auth-campo">
+        <span className="mono-label">Número do WhatsApp com DDI e DDD</span>
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            inputMode="numeric"
+            required
+            disabled={pedindo}
+            placeholder="5561991840065"
+            value={telefone}
+            onChange={(ev) => setTelefone(ev.target.value)}
+          />
+          <button type="submit" className="btn btn-primary btn-sm flex-none" disabled={pedindo || !telefone.trim()}>
+            {pedindo ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            {pedindo ? "Gerando" : "Gerar código"}
+          </button>
+        </div>
+      </label>
+      <button type="button" className="btn btn-sm btn-ghost" onClick={onVoltar}>
+        Usar QR code
+      </button>
+    </form>
   );
 }
 

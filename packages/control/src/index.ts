@@ -769,13 +769,23 @@ async function whatsappComCredencial(ctx: Ctx, idBruto: string) {
  * um código de pareamento quando vem o telefone. O QR e o código voltam só
  * nesta resposta — quem os tem conecta um WhatsApp à instância —, então não
  * são gravados nem vão para a auditoria. A auditoria guarda que houve o
- * pedido e por qual caminho.
+ * pedido, por qual caminho, e se a uazapi foi de fato acionada.
+ *
+ * CICATRIZ DE 30/09. `POST /instance/connect` numa instância CONECTADA derruba
+ * a sessão que estava de pé para gerar um QR novo — e a instância servia
+ * outros dois sistemas. O botão tinha aparecido por causa de um teste da
+ * véspera que dizia "fora do ar", e abrir o painel já chamava o connect. Por
+ * isso, antes de qualquer connect, o estado REAL:
+ *  - conectada: nada é pedido à uazapi; o cartão é atualizado e pronto;
+ *  - já em conexão, com QR vigente: devolve o mesmo QR, sem reiniciar nada;
+ *  - estado desconhecido (rede, token): não arrisca, diz por quê;
+ *  - só desconectada (ou hibernada) chega ao connect.
  */
 export async function conectarWhatsApp(
   ctx: Ctx,
   input: { id: string; telefone?: string },
-  opts: { http?: Http } = {},
-): Promise<EstadoDaConexao> {
+  opts: OpcoesDoTeste = {},
+): Promise<EstadoDaConexao & { conexao?: ConexaoVisivel }> {
   exigirPermissao(ctx, "gerenciar");
   let telefone: string | undefined;
   if (input.telefone !== undefined && String(input.telefone).trim() !== "") {
@@ -784,9 +794,27 @@ export async function conectarWhatsApp(
       throw new EntradaInvalida("Número inválido. Use o formato internacional, com DDI e DDD.");
     }
   }
+  const modo = telefone ? "codigo" : "qrcode";
   const { id, segredo, meta } = await whatsappComCredencial(ctx, input.id);
-  const r = await iniciarConexaoUazapi(opts.http ?? fetch, { segredo, meta, telefone });
-  await audit(ctx, "connection.conectar", id, { modo: telefone ? "codigo" : "qrcode", conectado: r.conectado });
+  const http = opts.http ?? fetch;
+
+  const agora = await lerEstadoUazapi(http, { segredo, meta });
+  if (agora.conectado) {
+    const conexao = await testarConexao(ctx, { id }, opts);
+    await audit(ctx, "connection.conectar", id, { modo, conectado: true, acionou: false });
+    return { ...agora, detalhe: "A instância já está conectada. Nada foi alterado.", conexao };
+  }
+  if (!agora.estado) {
+    await audit(ctx, "connection.conectar", id, { modo, conectado: false, acionou: false });
+    return { conectado: false, detalhe: `${agora.detalhe} Nada foi alterado.` };
+  }
+  if (!telefone && agora.qrcode) {
+    await audit(ctx, "connection.conectar", id, { modo, conectado: false, acionou: false });
+    return agora;
+  }
+
+  const r = await iniciarConexaoUazapi(http, { segredo, meta, telefone });
+  await audit(ctx, "connection.conectar", id, { modo, conectado: r.conectado, acionou: true });
   return r;
 }
 
