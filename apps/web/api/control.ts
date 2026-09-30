@@ -199,10 +199,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case "cadastrarConexao":
         return await control.cadastrarConexao(ctx, body, { nossosHosts: nossosHosts(req) });
       case "conectarWhatsApp":
-        return await control.conectarWhatsApp(ctx, {
-          id: String(body.id ?? ""),
-          telefone: body.telefone === undefined ? undefined : String(body.telefone),
-        });
+        return await control.conectarWhatsApp(
+          ctx,
+          { id: String(body.id ?? ""), telefone: body.telefone === undefined ? undefined : String(body.telefone) },
+          { nossosHosts: nossosHosts(req) },
+        );
       case "acompanharWhatsApp":
         return await control.acompanharWhatsApp(ctx, { id: String(body.id ?? "") }, { nossosHosts: nossosHosts(req) });
       case "enviarMensagemDeTeste":
